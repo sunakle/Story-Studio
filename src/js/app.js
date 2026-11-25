@@ -1262,6 +1262,7 @@ function initHotkeys() {
 
   // Вставка картинки из буфера обмена (Ctrl+V) — в выбранный узел.
   document.addEventListener('paste', (e) => {
+    if (e.target.closest?.('#screenplayText')) return;
     const files = clipboardImages(e);
     if (!files.length) return;
     const node = selectedNode();
@@ -1350,6 +1351,10 @@ async function boot() {
       state.issues = validateProject(store.project);
       scheduleRefresh();
       window.sf.app.setDirty(store.dirty);
+    } else if (evt.scope === 'screenplay') {
+      window.sf.app.setDirty(store.dirty);
+      scheduleRefresh({ status: true });
+      scheduleAutosave();
     } else {
       // инспектор перерисовываем всегда, КРОМЕ случая, когда пользователь печатает
       // в текстовом поле инспектора — иначе теряется каретка. Клик по кнопке

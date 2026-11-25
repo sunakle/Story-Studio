@@ -284,6 +284,7 @@ export function createEmptyProject(overrides) {
   const project = {
     schemaVersion: SCHEMA_VERSION,
     meta: { title: uiText('Новый проект', 'New project'), author: '', description: '', createdAt: now, updatedAt: now },
+    screenplay: '',
     startNodeId: '',
     characters: [],
     locations: [],
@@ -321,6 +322,7 @@ export function migrateProject(raw) {
       createdAt: asString(meta.createdAt) || nowISO(),
       updatedAt: asString(meta.updatedAt) || nowISO(),
     },
+    screenplay: asString(raw.screenplay),
     startNodeId: asString(raw.startNodeId),
     characters: [],
     locations: [],
@@ -1649,6 +1651,13 @@ function applyOneOp(project, op, ctx) {
       break;
     }
 
+    case 'setScreenplay': {
+      if (typeof op.text !== 'string') throw new Error(uiText('Ожидался текст сценария.', 'Expected screenplay text.'));
+      project.screenplay = op.text;
+      mark('screenplay');
+      break;
+    }
+
     case 'setMeta': {
       if (!isObj(op.patch)) throw new Error(uiText("setMeta: patch должен быть объектом.", "setMeta: patch must be an object."));
       for (const key of META_FIELDS) {
@@ -1711,7 +1720,9 @@ export function applyOps(project, ops) {
   // Text edits only touch the addressed records. Store history keeps the old
   // root fields, so every mutating branch operates on its own draft.
   let work;
-  if (list.every(op => op.op === 'updateNode' || op.op === 'setNodeTexts')) {
+  if (list.every(op => op.op === 'setScreenplay')) {
+    work = { ...project };
+  } else if (list.every(op => op.op === 'updateNode' || op.op === 'setNodeTexts')) {
     const ids = new Set(list.flatMap(op => op.op === 'updateNode' ? [op.id] : asArray(op.items).map(item => item?.id)));
     work = { ...project, nodes: project.nodes.map(node => ids.has(node?.id) ? cloneRecordForEdit(node) : node) };
   } else {
@@ -1820,7 +1831,7 @@ export class Store {
     this.revision++;
     this.dirty = true;
     this._validateSelection();
-    this._notify({ type: 'change', label });
+    this._notify({ type: 'change', label, scope: list.every(op => op.op === 'setScreenplay') ? 'screenplay' : 'project' });
     return { ok: true, changed: result.changed, created: result.created };
   }
 

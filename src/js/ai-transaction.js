@@ -50,12 +50,14 @@ export function planProjectEdits(store) {
   const base = { ...store.project };
   const draft = { ...base };
   const batch = [];
+  const readFields = new Set();
   function checkProject() {
     if (store.generation !== generation) throw new Error(uiText("Активный проект сменился. Правки AI отменены.", "The active project changed. AI edits were cancelled."));
   }
   return {
     project: draft,
     generation,
+    observe(field) { readFields.add(field); },
     apply(ops) {
       checkProject();
       const identified = ops.map(identify);
@@ -67,6 +69,11 @@ export function planProjectEdits(store) {
       checkProject();
       if (!batch.length) return;
       if (store.revision !== revision) {
+        for (const field of readFields) {
+          if (!same(base[field], store.project[field])) {
+            throw new Error(uiText("Исходный сценарий изменён вручную. Повторите запрос с актуальным текстом.", "The source screenplay was edited manually. Retry with its current text."));
+          }
+        }
         const merged = { ...store.project };
         const result = applyOps(merged, batch);
         if (!result.ok || !preservesManualFields(base, store.project, merged)) {

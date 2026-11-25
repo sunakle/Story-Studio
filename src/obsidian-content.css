@@ -242,3 +242,17 @@
   .wb-doc-section .wb-link span { grid-column: 2; }
 }
 
+.sf-team-settings {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 0;
+  margin: 12px 0;
+  padding: 8px 12px;
+}
+.sf-team-settings legend { padding: 0 5px; font-weight: 600; }
+.sf-team-settings .field { display: grid; margin-top: 8px; }
+.sf-team-settings textarea { resize: vertical; min-height: 3.8em; width: 100%; }
+.sf-team-results { display: grid; gap: 3px; margin-top: 5px; }
+.sf-team-draft { font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+.sf-team-draft summary { cursor: pointer; }
+.sf-team-draft > div { white-space: pre-wrap; padding: 5px 0; max-height: 20em; overflow: auto; }

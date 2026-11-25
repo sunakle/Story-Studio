@@ -4,6 +4,7 @@ import { validateProject } from './model.js';
 import { entityLists, nodeTitle, jumpCandidates, rankCandidates } from './story-search.js';
 import { createScenarioTable } from './scenario-table.js';
 import { renderDocument } from './scene-document.js';
+import { createScreenplayEditor } from './screenplay.js';
 
 export function createWorkbench(store, ui) {
   const esc = ui.escapeHTML;
@@ -19,7 +20,8 @@ export function createWorkbench(store, ui) {
     columns: ['type', 'chapter', 'speaker', 'location', 'issues'],
     offset: 0,
   });
-  const tabIcons = {graph:'layout', overview:'graph', table:'table', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
+  const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
+  const renderScreenplay = createScreenplayEditor(store, ui);
   let trail = [], cursor = -1, lastLocation = '';
   let overviewTab = null, overviewOrigin = null;
   let tabs = [],
@@ -54,7 +56,7 @@ export function createWorkbench(store, ui) {
       settings = {};
     }
     for (const k of ['bookmarks', 'recents', 'views']) if (!Array.isArray(settings[k])) settings[k] = [];
-    tabs = [{ kind: 'graph' }, tableDefaults()];
+    tabs = [{ kind: 'graph' }, tableDefaults(), { kind: 'screenplay' }];
     active = tabs[0];
     overviewTab = null;
     overviewOrigin = null;
@@ -69,6 +71,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'graph') return uiText("Схема", "Canvas");
     if (t.kind === 'overview') return uiText("Обзор сюжета", "Story overview");
     if (t.kind === 'table') return uiText("Таблица", "Table");
+    if (t.kind === 'screenplay') return uiText("Сценарий", "Screenplay");
     if (t.kind === 'empty') return uiText("Новая вкладка", "New tab");
     const obj = store.project[entityLists[t.kind]]?.find((x) => x.id === t.id);
     return obj ? (t.kind === 'node' ? nodeTitle(obj) : obj.name) : uiText("Удалено", "Deleted");
@@ -107,7 +110,7 @@ export function createWorkbench(store, ui) {
     const location = currentLocation();
     tabsHost.innerHTML = tabs.map((t, i) => {
       const label = esc(title(t));
-      return `<span class="wb-tab${active === t ? ' active' : ''}"><button type="button" data-tab-index="${i}" ${active === t ? 'aria-current="page"' : ''} title="${label}">${icon(tabIcons[t.kind], 14)}<span class="wb-tab-label">${label}</span></button>${i >= 2 ? `<button type="button" data-close-tab="${i}" class="wb-tab-x" aria-label="${uiText("Закрыть вкладку", "Close tab")} ${label}">${icon('close', 12)}</button>` : ''}</span>`;
+      return `<span class="wb-tab${active === t ? ' active' : ''}"><button type="button" data-tab-index="${i}" data-tab-kind="${t.kind}" ${active === t ? 'aria-current="page"' : ''} title="${label}">${icon(tabIcons[t.kind], 14)}<span class="wb-tab-label">${label}</span></button>${i >= 3 ? `<button type="button" data-close-tab="${i}" class="wb-tab-x" aria-label="${uiText("Закрыть вкладку", "Close tab")} ${label}">${icon('close', 12)}</button>` : ''}</span>`;
     }).join('');
     const detail = { ...location, ...historyState() };
     const signature = JSON.stringify(detail);
@@ -146,11 +149,13 @@ export function createWorkbench(store, ui) {
         applyView,
         getIssues: issueList,
       });
+    else if (active.kind === 'screenplay') renderScreenplay(page, active);
     else if (active.kind === 'empty') {
       page.innerHTML = `<nav class="wb-start" aria-label="${uiText("Действия новой вкладки", "New tab actions")}">
         <button type="button" data-start="create">${icon('edit', 17)}<span>${uiText("Создать реплику", "Create line")}</span></button>
         <button type="button" data-start="find">${icon('search', 17)}<span>${uiText("Открыть сцену", "Open scene")}</span><kbd>Ctrl K</kbd></button>
         <button type="button" data-start="table">${icon('table', 17)}<span>${uiText("Открыть таблицу", "Open table")}</span></button>
+        <button type="button" data-start="screenplay">${icon('edit', 17)}<span>${uiText("Открыть сценарий", "Open screenplay")}</span></button>
       </nav>`;
       page.onclick = (e) => {
         switch (e.target.closest('[data-start]')?.dataset.start) {
@@ -162,6 +167,9 @@ export function createWorkbench(store, ui) {
             break;
           case 'table':
             openTable();
+            break;
+          case 'screenplay':
+            openScreenplay();
             break;
         }
       };
@@ -216,6 +224,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'graph' && t.camera) ui.graph?.setView?.(t.camera);
     tabsHost.querySelector('.wb-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (t.kind === 'overview') ui.visualizer.open();
+    else if (t.kind === 'screenplay') $('screenplayText').focus({ preventScroll: true });
     else if (t.kind !== 'graph') page.focus({ preventScroll: true });
   }
   function openEntity(kind, id, forceNew = false) {
@@ -273,6 +282,9 @@ export function createWorkbench(store, ui) {
       t.tableScroll = 0;
     }
     activate(t);
+  }
+  function openScreenplay() {
+    activate(tabs[2]);
   }
   function openPlayer(id) {
     ui.flushEdits?.();
@@ -472,7 +484,7 @@ export function createWorkbench(store, ui) {
   }
   function actions() {
     const body = ui.el(
-      uiText("<div class=\"wb-action-list\"><button data-go=\"play\">Пройти от начала</button><button data-go=\"daily\">Заметка за сегодня</button><button data-go=\"overview\">Обзор сюжета</button><button data-go=\"find\">Быстрый переход</button></div>", "<div class=\"wb-action-list\"><button data-go=\"play\">Play from the start</button><button data-go=\"daily\">Today's note</button><button data-go=\"overview\">Story overview</button><button data-go=\"find\">Quick switcher</button></div>"),
+      uiText("<div class=\"wb-action-list\"><button data-go=\"play\">Пройти от начала</button><button data-go=\"screenplay\">Открыть сценарий</button><button data-go=\"daily\">Заметка за сегодня</button><button data-go=\"overview\">Обзор сюжета</button><button data-go=\"find\">Быстрый переход</button></div>", "<div class=\"wb-action-list\"><button data-go=\"play\">Play from the start</button><button data-go=\"screenplay\">Open screenplay</button><button data-go=\"daily\">Today's note</button><button data-go=\"overview\">Story overview</button><button data-go=\"find\">Quick switcher</button></div>"),
     );
     const m = ui.modal({ title: uiText("Действия проекта", "Project actions"), body, onClose: () => $('workspaceActions').focus() });
     body.onclick = (e) => {
@@ -480,6 +492,7 @@ export function createWorkbench(store, ui) {
       if (!act) return;
       m.close();
       if (act === 'play') openPlayer();
+      else if (act === 'screenplay') openScreenplay();
       else if (act === 'daily') daily();
       else if (act === 'overview') openOverview();
       else quickJump();
@@ -545,6 +558,10 @@ export function createWorkbench(store, ui) {
       }
       return;
     }
+    if (evt.scope === 'screenplay') {
+      if (active.kind === 'screenplay') renderScreenplay(page, active);
+      return;
+    }
     issues = null;
     // Retain the last known chapter even when a background tab's scene is moved and then deleted.
     for (const tab of tabs) {
@@ -552,12 +569,18 @@ export function createWorkbench(store, ui) {
       const node = store.project.nodes.find((entry) => entry.id === tab.id);
       if (node) tab.lastChapterId = node.chapterId;
     }
+    if (active.kind === 'screenplay') {
+      if (tabs.length > 3) drawTabs();
+      renderScreenplay(page, active);
+      return;
+    }
     if (drawRequest) return;
     drawRequest = requestAnimationFrame(() => {
       drawRequest = 0;
       const focused = document.activeElement;
+      if (active.kind === 'screenplay') return;
       if (active.kind === 'graph') {
-        if (tabs.length > 2) drawTabs();
+        if (tabs.length > 3) drawTabs();
         return;
       }
       if (active.kind === 'node' && focused?.id === 'documentText') {
@@ -600,6 +623,7 @@ export function createWorkbench(store, ui) {
     openOverview,
     toggleOverview,
     openTable,
+    openScreenplay,
     openPlayer,
     quickJump,
     persist,

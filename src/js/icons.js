@@ -5,6 +5,7 @@
  */
 
 const PATHS = {
+  attachment: '<path d="m9 14 6-6a2 2 0 0 1 2.8 2.8l-8.3 8.3a4 4 0 0 1-5.7-5.7l9-9a5.4 5.4 0 0 1 7.6 7.6l-8.1 8.1"/>',
   file: '<path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5V8h4M9 12h6M9 15h5"/>',
   folder: '<path d="M3.5 6.5h6l2 2H20v10.2a1.8 1.8 0 0 1-1.8 1.8H5.3a1.8 1.8 0 0 1-1.8-1.8z"/>',
   table: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M4 9.5h16M4 14.5h16M10 10v9"/>',

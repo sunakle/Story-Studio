@@ -20,7 +20,14 @@ import {
 } from './model.js';
 import { buildExport, EXPORT_FORMATS } from './export.js';
 import { icon } from './icons.js';
+import { clipboardImages, IMAGE_ACCEPT } from './media.js';
+import { writingSkillPrompt, writingSkillsSettingsHTML, wireWritingSkillSources } from './writing-skills.js';
+import { CHAT_IMAGE_LIMIT, CHAT_IMAGE_CONTEXT_CHARS, prepareChatImage, imageStrip,
+  imageEndpoint, imageRejection, turnCost, userMessageContent, visionUnavailable } from './chat-images.js';
+import { coauthors, draftTogether, readTeamFields, teamFields, teamTranscript, withDrafts } from './writing-team.js';
 import { planProjectEdits } from './ai-transaction.js';
+import { readScreenplay, editScreenplay, planStoryGraph } from './screenplay-tools.js';
+import { effectiveVoice, LINE_TARGET } from './voice/profile.js';
 import { FACTORY_VOICES, diffFromPreset as diffVoiceFromPreset, resolveParams as resolveVoiceParams } from './voice/params.js';
 
 const asStr = (value) => (value === undefined || value === null ? '' : String(value));
@@ -31,7 +38,7 @@ const MAX_HISTORY_CHARS = 90000;
 
 export const AI_PRESETS = {
   openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', needsKey: true },
-  deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat', needsKey: true },
+  deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-flash', needsKey: true },
   openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'anthropic/claude-3.5-sonnet', needsKey: true },
   ollama: { get label() { return uiText("Ollama (локально)", "Ollama (local)"); }, baseUrl: 'http://localhost:11434/v1', model: 'llama3.1', needsKey: false },
   custom: { get label() { return uiText("Свой сервер", "Custom server"); }, baseUrl: 'http://localhost:1234/v1', model: '', needsKey: false },
@@ -59,6 +66,9 @@ const SYSTEM_PROMPT_RU = `Ты — встроенный ассистент ре�
 7. Если задача неоднозначна — задай один короткий уточняющий вопрос, но сначала сделай очевидную часть работы.
 8. В конце крупных правок предлагай validate_project и, если уместно, auto_layout.
 
+ВКЛАДКА «СЦЕНАРИЙ»
+Автор пишет исходный текст свободно, без специальной разметки. Когда речь о сценарии в блокноте, вызови get_screenplay. Читай по nextOffset до конца нужного текста. Для правок именно в блокноте используй edit_screenplay. Когда просят перенести написанное в ноды, выполни действия инструментами. Сохрани содержание, порядок сцен, описания мест, точные реплики, авторство, выборы и последствия. Не придумывай ветки или новые реплики. Создай или уточни карточки персонажей и локаций, используя имеющиеся ID. Собирай разделы через build_story_graph. Продолжай связанные фрагменты через after или явные ссылки. Проверь уже существующий граф, прежде чем создавать похожие узлы. Исправляй существующие узлы адресно, сохраняй ручную раскладку и озвучку. Для итоговой проверки вызови validate_project и исправь созданные тобой ошибки.
+
 ОЗВУЧКА
 - У проекта и у каждого персонажа есть голос: {preset 0–3, params}. Характеры: 0 нейтральный, 1 низкий, 2 мягкий, 3 высокий. Параметры: pitch (полутона), speed (букв/с), duration/release (мс), every, spread, jitter, source (0 синтез, 1 сэмпл, 2 смесь), blend.
 - get_voice читает голос, set_voice задаёт. Если персонаж без своего голоса — звучит голос проекта. Проси пользователя прослушать результат в панели «Озвучка»: сам ты звук не слышишь.`;
@@ -85,6 +95,9 @@ WORKING WITH THE AUTHOR
 7. When a request is ambiguous, complete the unambiguous part and ask one short clarifying question.
 8. After significant edits, suggest validate_project and, where appropriate, auto_layout.
 
+SCREENPLAY TAB
+The author writes free-form text in the Screenplay tab. Use get_screenplay and follow nextOffset to read the relevant text. Use edit_screenplay for edits to that notebook. When asked to turn it into nodes, actually build the graph with tools. Preserve the author's scene order, setting descriptions, exact dialogue, speakers, choices and outcomes. Do not invent branches or dialogue. Reuse existing character and location IDs, edit their descriptions when needed, and construct connected sections with build_story_graph. Continue sections using after or explicit links. Inspect existing nodes before adding similar ones. Update existing nodes in place, preserving their layout and voices. Use validate_project at the end and correct any errors introduced.
+
 VOICE
 - The project and each character have a voice: {preset 0–3, params}. Presets: 0 neutral, 1 low, 2 soft, 3 high. Parameters: pitch (semitones), speed (letters/second), duration and release (milliseconds), every, spread, jitter, source (0 synth, 1 sample, 2 blend), and blend.
 - Read with get_voice and edit with set_voice. Characters without an override use the project voice. Invite the author to listen in the Voice panel; you cannot hear playback.`;
@@ -106,11 +119,12 @@ export function createAI({ root, store, ui }) {
     messages: [], // { role, content, toolCalls?, tools?: [{name, ok, summary}] }
     streaming: false,
     streamBuf: '',
-    requestId: null,
     error: null,
     lastStep: 0,
     settingsOpen: false,
     inputDraft: '',
+    images: [],
+    pendingImages: 0,
   };
 
   let active = null;
@@ -127,19 +141,44 @@ export function createAI({ root, store, ui }) {
   const varById = (id) => (project().variables || []).find((v) => v.id === id) || null;
   const chapterById = (id) => (project().chapters || []).find((c) => c.id === id) || null;
 
+  function recordForChat(record) {
+    if (!record.voice?.sample) return record;
+    return { ...record, voice: { ...record.voice, sample: { name: record.voice.sample.name } } };
+  }
+
+  function voiceForChat({ id, nodeId }) {
+    const node = nodeId && nodeById(nodeId);
+    const character = id && charById(id);
+    if ((id && nodeId) || (nodeId && node?.type !== 'line') || (id && !character)) {
+      throw new Error(uiText('Укажите ID существующей реплики или персонажа.', 'Specify one existing line or character ID.'));
+    }
+    const record = node || character || project();
+    return { record, target: nodeId || id || 'project', current: effectiveVoice(project(), nodeId ? LINE_TARGET : id, node) };
+  }
+
   function aiSettings() {
     const s = (ui.settings && ui.settings.ai) || {};
     return {
-      preset: s.preset || 'openai',
-      baseUrl: s.baseUrl || 'https://api.openai.com/v1',
+      preset: s.preset || 'deepseek',
+      baseUrl: s.baseUrl || AI_PRESETS[s.preset || 'deepseek']?.baseUrl || '',
       apiKey: s.apiKey || '',
-      model: s.model || 'gpt-4o-mini',
+      model: s.model || AI_PRESETS[s.preset || 'deepseek']?.model || '',
+      teamMode: s.teamMode === true,
+      teamModels: typeof s.teamModels === 'string' ? s.teamModels : '',
       temperature: typeof s.temperature === 'number' ? s.temperature : 0.4,
       maxTokens: typeof s.maxTokens === 'number' ? s.maxTokens : 4096,
       extraHeaders: s.extraHeaders || '',
       allowDelete: !!s.allowDelete,
       showTools: s.showTools !== false,
     };
+  }
+
+  // Continuation metadata belongs to the endpoint and model that returned it.
+  function providerKey(settings) {
+    try {
+      const url = new URL(settings.baseUrl);
+      return JSON.stringify([url.origin, url.pathname.replace(/\/+$/, ''), settings.model]);
+    } catch { return ''; }
   }
 
   function isConfigured() {
@@ -149,8 +188,8 @@ export function createAI({ root, store, ui }) {
     return !!s.apiKey;
   }
 
-  function parseExtraHeaders() {
-    const raw = aiSettings().extraHeaders.trim();
+  function parseExtraHeaders(settings = aiSettings()) {
+    const raw = settings.extraHeaders.trim();
     if (!raw) return null;
     try {
       const obj = JSON.parse(raw);
@@ -178,6 +217,7 @@ export function createAI({ root, store, ui }) {
     const lines = [
       uiText(`ПРОЕКТ: «${title}»`, `PROJECT: “${title}”`) + author,
       uiText('Стартовый узел: ', 'Starting node: ') + (p.startNodeId || uiText('— не задан —', 'not set')),
+      uiText('Вкладка «Сценарий», символов: ', 'Screenplay notebook, characters: ') + (p.screenplay || '').length,
       uiText(`Всего узлов: ${nodes().length} (реплик ${s.lines}, концовок ${s.endings}), слов ${s.words}`,
         `Nodes: ${nodes().length} (lines: ${s.lines}, endings: ${s.endings}), words: ${s.words}`),
       uiText('Главы: ', 'Chapters: ') + (chapters.join('; ') || none),
@@ -216,6 +256,43 @@ export function createAI({ root, store, ui }) {
   const bool = (description) => ({ type: 'boolean', description });
   const arr = (description, items) => ({ type: 'array', description, items });
 
+  tool('get_screenplay', () => uiText('Читать оригинальный текст вкладки «Сценарий». Передайте nextOffset для продолжения.', 'Read original screenplay text. Pass nextOffset as offset for the next page.'), () => obj({ offset: num('UTF-16 character offset, default 0') }), ({ offset }) => {
+    active.plan.observe('screenplay');
+    return readScreenplay(project().screenplay || '', offset);
+  });
+  tool('edit_screenplay', () => uiText('Дополнить блокнот или заменить ровно одно точное совпадение. Сохраняйте авторские переносы строк.', 'Append to the notebook or replace one exact unique passage. Preserve authored line breaks.'), () => obj({
+    mode: { type: 'string', enum: ['append', 'replace'] }, find: str('Exact original text to replace'), text: str('New text including desired newlines'),
+  }, ['mode', 'text']), args => {
+    active.plan.observe('screenplay');
+    const text = editScreenplay(project().screenplay || '', args);
+    const result = stage([{ op: 'setScreenplay', text }]);
+    return result.ok ? { ok: true, length: text.length } : { error: result.error };
+  });
+  tool('build_story_graph', () => uiText('Создать и разложить связанный фрагмент по сценарию, с персонажами, локациями и репликами. Используйте короткие ключи для связей внутри пакета. Обычные узлы без next соединятся по порядку.', 'Build and lay out a connected screenplay section. Refer to local nodes by key, existing nodes by ID. Ordinary nodes without next link to the next entry. Reuses matching characters and locations.'), () => obj({
+    after: str('Optional existing line, scene or jump ID with a free next link'),
+    chapter: str('Optional chapter name or ID, used for this section'),
+    nodes: arr('Nodes in screenplay order', obj({
+      key: str('Unique short key: letters, digits, underscores or hyphens'), type: { type: 'string', enum: NODE_TYPES },
+      title: str('Node title'), text: str('Exact dialogue or description'), speaker: str('Character name or ID'),
+      location: str('Location name or ID'), chapter: str('Chapter name or ID'), emotion: str('Delivery'),
+      next: str('Target key or existing ID; empty for a deliberately open link'),
+      choices: arr('For choice nodes', obj({ text: str('Option text'), to: str('Target key or existing ID'), condition: str('Optional condition') }, ['text','to'])),
+      branches: arr('For condition nodes', obj({ condition: str('Expression, empty for fallback'), to: str('Target key or existing ID') }, ['condition','to'])),
+    }, ['key','type'])),
+  }, ['nodes']), args => {
+    active.plan.observe('screenplay');
+    try {
+      const { ops, result } = planStoryGraph(project(), args);
+      const applied = stage(ops);
+      if (!applied.ok) throw new Error(applied.error);
+      active.graphError = '';
+      return { ok: true, ...result };
+    } catch (error) {
+      active.graphError = error.message;
+      return { error: error.message };
+    }
+  });
+
   // --- чтение
 
   tool('get_project_overview', () => uiText('Краткая сводка проекта: meta, счётчики, главы, персонажи, локации, переменные, стартовый узел.', "Summarize the project metadata, counts, chapters, characters, locations, variables and starting node."), () => obj(), () => {
@@ -235,25 +312,32 @@ export function createAI({ root, store, ui }) {
   tool(
     'list_nodes',
     () => uiText('Список узлов кратко: id, тип, глава, первые символы текста, цель next. Фильтры необязательны.', "List node IDs, types, chapters, text excerpts and next targets. All filters are optional."),
-    () => obj({ chapterId: str(uiText('id главы', "chapter ID")), type: { type: 'string', enum: NODE_TYPES }, limit: num(uiText('максимум узлов, по умолчанию 200', "maximum nodes to return, defaults to 200")) }),
-    ({ chapterId, type, limit } = {}) => {
+    () => obj({ chapterId: str(uiText('id главы', "chapter ID")), type: { type: 'string', enum: NODE_TYPES }, offset: num('Start index from the preceding nextOffset'), limit: num('Maximum number of nodes') }),
+    ({ chapterId, type, limit, offset = 0 } = {}) => {
       let list = nodes();
       if (chapterId) list = list.filter((n) => n.chapterId === chapterId);
       if (type) list = list.filter((n) => n.type === type);
-      const lim = Math.min(Number(limit) || 200, 500);
-      return {
-        total: list.length,
-        nodes: list.slice(0, lim).map((n) => ({
+      if (!Number.isSafeInteger(offset) || offset < 0) throw new Error(uiText('Неверное смещение.', 'Invalid offset.'));
+      const lim = Math.max(1, Math.min(Number(limit) || 200, 500));
+      const page = [];
+      let size = 0;
+      for (const n of list.slice(offset, offset + lim)) {
+        const row = {
           id: n.id,
           type: n.type,
           chapterId: n.chapterId || '',
-          title: n.title || '',
+          title: short(n.title, 120),
           text: short(n.text, 80),
           next: n.next || '',
           choices: (n.choices || []).length,
           branches: (n.branches || []).length,
-        })),
-      };
+        };
+        size += JSON.stringify(row).length + 1;
+        if (size > MAX_TOOL_RESULT - 256 && page.length) break;
+        page.push(row);
+      }
+      const end = offset + page.length;
+      return { total: list.length, nodes: page, nextOffset: end < list.length ? end : null };
     },
   );
 
@@ -261,7 +345,7 @@ export function createAI({ root, store, ui }) {
     const n = nodeById(id);
     if (!n) return { error: uiText(`Узел ${id} не найден`, `Node ${id} was not found`) };
     return {
-      ...n,
+      ...recordForChat(n),
       speakerName: nodeSpeakerName(project(), n),
       locationName: nodeLocationName(project(), n),
       incoming: incomingEdges(project(), id).map((e) => ({ from: e.from, kind: e.kind })),
@@ -271,7 +355,7 @@ export function createAI({ root, store, ui }) {
   tool('get_nodes', () => uiText('Полное содержимое нескольких узлов.', "Get the full contents of several nodes."), () => obj({ ids: arr(uiText('id узлов', "node IDs"), { type: 'string' }) }, ['ids']), ({ ids = [] }) =>
     ids.map((id) => {
       const n = nodeById(id);
-      return n ? { ...n, speakerName: nodeSpeakerName(project(), n) } : { id, error: uiText('не найден', "not found") };
+      return n ? { ...recordForChat(n), speakerName: nodeSpeakerName(project(), n) } : { id, error: uiText('не найден', "not found") };
     }),
   );
 
@@ -296,7 +380,7 @@ export function createAI({ root, store, ui }) {
     });
   });
 
-  tool('get_character', () => uiText('Полная карточка персонажа.', "Get the full character record."), () => obj({ id: str(uiText('id персонажа', "character ID")) }, ['id']), ({ id }) => charById(id) || { error: uiText(`Персонаж ${id} не найден`, `Character ${id} was not found`) });
+  tool('get_character', () => uiText('Полная карточка персонажа.', "Get the full character record."), () => obj({ id: str(uiText('id персонажа', "character ID")) }, ['id']), ({ id }) => charById(id) ? recordForChat(charById(id)) : { error: uiText(`Персонаж ${id} не найден`, `Character ${id} was not found`) });
 
   tool('list_locations', () => uiText('Список локаций с числом сцен.', "List locations and their scene counts."), () => obj(), () => {
     const all = nodes();
@@ -592,18 +676,16 @@ export function createAI({ root, store, ui }) {
     return res && res.ok === false ? { error: res.error } : { ok: true, id: args.id };
   });
 
-  tool('get_voice', () => uiText('Голос озвучки: проекта (без id) или персонажа.', "Get the project voice (no ID) or a character’s voice."), () => obj({ id: str(uiText('id персонажа; пусто — голос проекта', "character ID; omit for the project voice")) }), (args) => {
-    const id = asStr(args.id);
-    const ch = id ? charById(id) : null;
-    if (id && !ch) return { error: uiText(`Персонаж ${id} не найден`, `Character ${id} was not found`) };
-    const own = ch ? ch.voice : project().voice;
-    const preset = own ? own.preset : 0;
+  tool('get_voice', () => uiText('Голос проекта, персонажа или реплики.', "Get the project, character or line voice."), () => obj({ id: str('Character ID'), nodeId: str('Dialogue node ID') }), (args) => {
+    const { record, current, target } = voiceForChat(args);
+    const preset = current.preset;
     return {
-      target: id || 'project',
+      target,
       preset,
       presetName: FACTORY_VOICES[preset] ? FACTORY_VOICES[preset].name : '—',
-      inherits: id ? !own : false,
-      params: resolveVoiceParams(own || project().voice),
+      inherits: !record.voice,
+      params: resolveVoiceParams(current),
+      sampleName: current.sample?.name,
       presets: FACTORY_VOICES.map((v, i) => `${i} — ${v.name}: ${v.hint}`),
     };
   });
@@ -614,6 +696,7 @@ export function createAI({ root, store, ui }) {
     () => obj(
       {
         id: str(uiText('id персонажа; пусто — голос проекта', "character ID; omit for the project voice")),
+        nodeId: str(uiText('id реплики вместо id персонажа', 'dialogue node ID instead of character ID')),
         preset: num(uiText('характер: 0 нейтральный, 1 низкий, 2 мягкий, 3 высокий', "preset: 0 neutral, 1 low, 2 soft, 3 high")),
         pitch: num(uiText('транспонирование, полутона −24…24', "pitch transposition in semitones, −24 to 24")),
         speed: num(uiText('темп речи, букв в секунду 4…60', "speech speed in letters per second, 4 to 60")),
@@ -625,23 +708,20 @@ export function createAI({ root, store, ui }) {
         source: num(uiText('источник: 0 синтез, 1 сэмпл, 2 смесь', "source: 0 synth, 1 sample, 2 blend")),
         blend: num(uiText('доля сэмпла 0…100', "sample proportion, 0 to 100")),
       },
-      ['preset'],
     ),
     (args) => {
-      const id = asStr(args.id);
-      const ch = id ? charById(id) : null;
-      if (id && !ch) return { error: uiText(`Персонаж ${id} не найден`, `Character ${id} was not found`) };
-      const preset = Math.max(0, Math.min(3, Math.round(Number(args.preset) || 0)));
-      const params = { ...resolveVoiceParams({ preset }) };
+      const { current, target } = voiceForChat(args);
+      const preset = args.preset === undefined ? current.preset : Math.max(0, Math.min(3, Math.round(Number(args.preset) || 0)));
+      const params = resolveVoiceParams(preset === current.preset ? current : { preset });
       for (const key of ['pitch', 'speed', 'duration', 'release', 'every', 'spread', 'jitter', 'source', 'blend']) {
         if (args[key] !== undefined && args[key] !== null && Number.isFinite(Number(args[key]))) {
           params[key] = Number(args[key]);
         }
       }
-      const voice = { preset, params: diffVoiceFromPreset(params, preset) };
-      const res = stage([{ op: 'setVoice', id: id || undefined, voice }]);
+      const voice = { ...current, preset, params: diffVoiceFromPreset(params, preset) };
+      const res = stage([{ op: 'setVoice', id: args.id, nodeId: args.nodeId, voice }]);
       if (res && res.ok === false) return { error: res.error };
-      return { ok: true, target: id || 'project', preset, presetName: FACTORY_VOICES[preset].name, params: resolveVoiceParams(voice) };
+      return { ok: true, target, preset, presetName: FACTORY_VOICES[preset].name, params: resolveVoiceParams(voice) };
     },
   );
 
@@ -783,19 +863,20 @@ export function createAI({ root, store, ui }) {
 
   function resolveTmp(ops) {
     const map = new Map();
-    const walk = (value) => {
+    const referenceFields = new Set(['id','from','to','next','speakerId','chapterId','locationId','varId','reconnectTo']);
+    const walk = (value, field) => {
       if (typeof value === 'string') {
-        if (/^tmp_[A-Za-z0-9_]+$/.test(value)) {
-          if (!map.has(value)) map.set(value, uid('n_'));
-          return map.get(value);
+        if (referenceFields.has(field) && /^tmp_[A-Za-z0-9_]+$/.test(value)) {
+          if (map.has(value)) return map.get(value);
+          if (field !== 'id') throw new Error(uiText('Неизвестная временная ссылка: ', 'Unknown temporary reference: ') + value);
         }
         return value;
       }
-      if (Array.isArray(value)) return value.map(walk);
+      if (Array.isArray(value)) return value.map(item => walk(item, field));
       if (value && typeof value === 'object') {
-        const out = {};
-        for (const [k, v] of Object.entries(value)) out[k] = walk(v);
-        return out;
+        return Object.fromEntries(Object.entries(value).map(([key, v]) => [
+          field === 'positions' && map.has(key) ? map.get(key) : key, walk(v, key),
+        ]));
       }
       return value;
     };
@@ -834,8 +915,15 @@ export function createAI({ root, store, ui }) {
     return { ops: resolved, map };
   }
 
-  function applyBulk(ops) {
+  async function applyBulk(ops) {
     if (!Array.isArray(ops) || !ops.length) return { error: uiText("Пустой список операций", "Empty operation list") };
+    const removals = ops.filter(op => /^delete/.test(op?.op));
+    if (removals.length && !aiSettings().allowDelete) {
+      const ok = await ui.confirm(uiText('Удалить объекты из проекта?', 'Delete these project items?'), {
+        detail: removals.map(op => op.id).join(', '), danger: true, okLabel: uiText('Удалить', 'Delete'),
+      });
+      if (!ok) return { error: uiText('Пользователь отклонил удаление', 'User declined deletion') };
+    }
     const { ops: resolved, map } = resolveTmp(ops);
     const res = stage(resolved);
     if (res && res.ok === false) return { error: res.error || uiText("Не удалось применить операции", "Could not apply changes"), created: res.created || [] };
@@ -847,6 +935,7 @@ export function createAI({ root, store, ui }) {
   // ---------------------------------------------------------------- вызов модели
 
   const chunkHandlers = new Map();
+  const pendingCalls = new Set();
 
   function registerChunkListener() {
     if (!window.sf?.ai?.onChunk) return;
@@ -856,10 +945,9 @@ export function createAI({ root, store, ui }) {
     });
   }
 
-  async function callModel(apiMessages, { onDelta } = {}) {
-    const s = aiSettings();
+  async function callModel(apiMessages, { onDelta, settings: s = active?.settings || aiSettings(), withTools = true } = {}) {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    state.requestId = requestId;
+    pendingCalls.add(requestId);
     let streamed = '';
 
     if (onDelta) {
@@ -878,8 +966,10 @@ export function createAI({ root, store, ui }) {
       temperature: s.temperature,
       max_tokens: s.maxTokens,
       stream: true,
-      tools: TOOLS.map((t) => ({ type: 'function', function: { name: t.name, description: t.description(), parameters: t.parameters() } })),
-      tool_choice: 'auto',
+      ...(withTools && {
+        tools: TOOLS.map((t) => ({ type: 'function', function: { name: t.name, description: t.description(), parameters: t.parameters() } })),
+        tool_choice: 'auto',
+      }),
     };
 
     try {
@@ -887,7 +977,7 @@ export function createAI({ root, store, ui }) {
         requestId,
         baseUrl: s.baseUrl,
         apiKey: s.apiKey,
-        extraHeaders: parseExtraHeaders(),
+        extraHeaders: parseExtraHeaders(s),
         body,
         timeoutMs: 180000,
       });
@@ -895,12 +985,13 @@ export function createAI({ root, store, ui }) {
         const msg = res?.error || uiText("Неизвестная ошибка провайдера", "Unknown provider error");
         return { ok: false, error: msg };
       }
-      return { ok: true, content: res.content || streamed || '', toolCalls: res.toolCalls || [], usage: res.usage || null };
+      return { ok: true, content: res.content || streamed || '', toolCalls: res.toolCalls || [], usage: res.usage || null,
+        ...(typeof res.reasoningContent === 'string' && { continuation: { provider: providerKey(s), value: res.reasoningContent } }) };
     } catch (e) {
       return { ok: false, error: String(e?.message || e) };
     } finally {
       chunkHandlers.delete(requestId);
-      state.requestId = null;
+      pendingCalls.delete(requestId);
     }
   }
 
@@ -909,7 +1000,7 @@ export function createAI({ root, store, ui }) {
   function buildApiMessages() {
     const ctx = buildContext();
     const list = [
-      { role: 'system', content: uiText(SYSTEM_PROMPT_RU, SYSTEM_PROMPT_EN) },
+      { role: 'system', content: uiText(SYSTEM_PROMPT_RU, SYSTEM_PROMPT_EN) + '\n\n' + writingSkillPrompt() },
       { role: 'system', content: `${uiText("ТЕКУЩЕЕ СОСТОЯНИЕ ПРОЕКТА", "CURRENT PROJECT STATE")}\n${ctx}` },
     ];
     const turns = [];
@@ -931,31 +1022,37 @@ export function createAI({ root, store, ui }) {
     });
     const tail = [];
     let budget = MAX_HISTORY_CHARS;
+    let pictureBudget = CHAT_IMAGE_CONTEXT_CHARS;
+    const settings = active?.settings || aiSettings();
     for (let i = valid.length - 1; i >= 0; i--) {
-      const size = JSON.stringify(valid[i]).length;
-      if (tail.length && size > budget) break;
-      budget -= size;
+      const cost = turnCost(valid[i], settings);
+      if (tail.length && (cost.text > budget || cost.images > pictureBudget)) break;
+      budget -= cost.text;
+      pictureBudget -= cost.images;
       tail.unshift(...valid[i]);
     }
+    const provider = providerKey(settings);
     for (const m of tail) {
       if (m.role === 'tool') {
         list.push({ role: 'tool', tool_call_id: m.toolCallId, content: m.content });
       } else if (m.role === 'assistant') {
         const entry = { role: 'assistant', content: m.content || '' };
+        if (provider && m.continuation?.provider === provider) entry.reasoning_content = m.continuation.value;
         if (m.toolCalls && m.toolCalls.length) {
           entry.tool_calls = m.toolCalls.map((tc) => ({ id: tc.id, type: 'function', function: { name: tc.name, arguments: tc.arguments } }));
         }
         list.push(entry);
       } else if (m.role === 'user') {
-        list.push({ role: 'user', content: m.content });
+        const content = userMessageContent(m, settings);
+        list.push({ role: 'user', content: active?.message === m ? withDrafts(content, m.team) : content });
       }
     }
     return list;
   }
 
-  async function send(text) {
+  async function send(text, pictures = []) {
     const content = String(text || '').trim();
-    if (!content || state.streaming) return;
+    if ((!content && !pictures.length) || state.streaming || state.pendingImages) return;
     if (!isConfigured()) {
       state.settingsOpen = true;
       render();
@@ -966,23 +1063,49 @@ export function createAI({ root, store, ui }) {
     const generation = store.generation;
     await historyLoad;
     if (state.streaming || store.generation !== generation) return;
+    if (pictures.length && visionUnavailable(aiSettings())) {
+      state.error = uiText('Для фото выберите модель deepseek-flash в настройках чата.', 'Choose deepseek-flash in chat settings to send photos.');
+      render();
+      return;
+    }
     ui.flushEdits?.();
-    const request = { plan: planProjectEdits(store), cancelled: false, saveAfter: false };
+    const settings = aiSettings();
+    const team = coauthors(settings);
+    if (settings.teamMode && !team.length) {
+      ui.toast(uiText('Укажите хотя бы одну дополнительную модель в настройках команды.', 'Add at least one other model in the team settings.'), 'warn');
+      state.settingsOpen = true;
+      render();
+      return;
+    }
+    const request = { plan: planProjectEdits(store), settings, cancelled: false, saveAfter: false };
     active = request;
     const current = () => !request.cancelled && store.generation === generation;
     state.error = null;
     state.lastStep = 0;
-    state.messages.push({ role: 'user', content });
+    const userMessage = { role: 'user', content };
+    if (pictures.length) Object.assign(userMessage, { images: pictures, imageEndpoint: imageEndpoint(aiSettings()) });
+    if (team.length) userMessage.team = team;
+    request.message = userMessage;
+    state.messages.push(userMessage);
+    const fromComposer = pictures === state.images;
+    if (fromComposer) { state.inputDraft = ''; state.images = []; }
     state.streaming = true;
+    let committed = false;
     let liveMsg;
     try {
+      if (team.length) {
+        request.plan.observe('screenplay');
+        render();
+        await draftTogether({ team, settings, project:request.plan.project, message:userMessage, history:state.messages, call:callModel, current, onUpdate:render });
+      }
       for (let step = 1; step <= MAX_STEPS; step++) {
         if (!current()) return;
         state.lastStep = step;
         liveMsg = { role: 'assistant', content: '', tools: [], live: true };
         state.messages.push(liveMsg);
         render();
-        const res = await callModel(buildApiMessages(), {
+        const apiMessages = buildApiMessages();
+        const res = await callModel(apiMessages, {
           onDelta: (delta, full) => {
             if (!current()) return;
             liveMsg.content = full;
@@ -990,8 +1113,15 @@ export function createAI({ root, store, ui }) {
           },
         });
         if (!current()) return;
-        if (!res.ok) throw new Error(res.error);
+        if (!res.ok) {
+          if (apiMessages.some(m => m.role === 'user' && Array.isArray(m.content)) && imageRejection(res.error)) {
+            throw new Error(uiText('Модель отклонила формат изображения. Выберите модель с поддержкой изображений или уберите вложение.',
+              'The model rejected image input. Choose a vision-capable model or remove the attachment.'));
+          }
+          throw new Error(res.error);
+        }
         liveMsg.content = res.content || liveMsg.content;
+        if (res.continuation) liveMsg.continuation = res.continuation;
         delete liveMsg.live;
         if (!res.toolCalls?.length) break;
         liveMsg.toolCalls = res.toolCalls.map(({ id, name, arguments: args }) => ({ id, name, arguments: args }));
@@ -1004,10 +1134,12 @@ export function createAI({ root, store, ui }) {
             role: 'tool', toolCallId: tc.id, name: tc.name, content: limit(JSON.stringify(outcome)),
           });
         }
-        if (step === MAX_STEPS) liveMsg.content += uiText("\nДостигнут лимит шагов (25).", "\nStep limit reached (25).");
+        if (step === MAX_STEPS) throw new Error(uiText('За 25 шагов задача не завершилась. Правки отменены. Попробуйте обработать одну главу.', 'The task did not finish in 25 steps. Edits were discarded. Try one chapter at a time.'));
       }
       ui.flushEdits?.();
+      if (request.graphError) throw new Error(uiText('Схема не собрана. Пакет отменён. ', 'The graph could not be built. Edits were discarded. ') + request.graphError);
       request.plan.commit('AI: ' + short(content, 40));
+      committed = true;
       if (request.saveAfter && (await ui.saveProject()) === false) {
         throw new Error(uiText("Правки применены. Сохранение файла отменено или не удалось.", "Changes applied. Saving was cancelled or failed."));
       }
@@ -1018,6 +1150,14 @@ export function createAI({ root, store, ui }) {
       }
     } finally {
       if (liveMsg) delete liveMsg.live;
+      // Failed or interrupted multimodal turns never committed their staged edits.
+      // Drop those tool exchanges too, so a retry cannot replay a phantom change.
+      const userIndex = state.messages.indexOf(userMessage);
+      if (pictures.length && !committed && store.generation === generation && userIndex >= 0) {
+        state.messages.splice(userIndex);
+        state.inputDraft = text || '';
+        state.images = pictures;
+      }
       active = null;
       state.streaming = false;
       if (store.generation === generation) await saveHistory();
@@ -1065,10 +1205,15 @@ export function createAI({ root, store, ui }) {
   let historyTail = Promise.resolve();
   function saveHistory() {
     let messages = state.messages.filter(m => !m.live);
-    if (messages.length > 120) {
-      const from = messages.findIndex((m, index) => index >= messages.length - 120 && m.role === 'user');
-      if (from > 0) messages = messages.slice(from);
+    let imageChars = 0;
+    let keepFrom = messages.length;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role !== 'user') continue;
+      imageChars += turnCost([messages[i]]).images;
+      if (keepFrom < messages.length && (messages.length - i > 120 || imageChars > CHAT_IMAGE_CONTEXT_CHARS * 2)) break;
+      keepFrom = i;
     }
+    if (keepFrom > 0 && keepFrom < messages.length) messages = messages.slice(keepFrom);
     const key = historyKey();
     const snapshot = structuredClone(messages);
     historyTail = historyTail.then(() => window.sf.history.write(snapshot, key)).catch(() => {});
@@ -1089,7 +1234,7 @@ export function createAI({ root, store, ui }) {
 
   function cancelRequest() {
     if (active) active.cancelled = true;
-    if (state.requestId) window.sf.ai.abort(state.requestId);
+    for (const id of pendingCalls) window.sf.ai.abort(id);
   }
 
   // ---------------------------------------------------------------- рендер чата
@@ -1097,7 +1242,7 @@ export function createAI({ root, store, ui }) {
   function renderMessage(m, index) {
     if (m.role === 'tool') return '';
     if (m.role === 'user') {
-      return `<div class="msg msg-user"><div class="msg-bubble">${esc(m.content).replace(/\n/g, '<br />')}</div></div>`;
+      return `<div class="msg msg-user"><div class="msg-bubble">${imageStrip(m.images, esc)}${esc(m.content || '').replace(/\n/g, '<br />')}</div>${teamTranscript(m.team, esc)}</div>`;
     }
     const tools = (m.tools || [])
       .map(
@@ -1159,6 +1304,8 @@ export function createAI({ root, store, ui }) {
           <input class="input input-sm" type="number" step="256" min="256" data-ai="maxTokens" value="${s.maxTokens}" />
         </label>
       </div>
+      ${writingSkillsSettingsHTML()}
+      ${teamFields(s, esc)}
       <div class="ai-setup-actions">
         <button class="btn btn-sm btn-primary" type="button" data-ai-act="save">${uiText("Сохранить", "Save")}</button>
         <button class="btn btn-sm" type="button" data-ai-act="test">${uiText("Проверить связь", "Test connection")}</button>
@@ -1177,7 +1324,7 @@ export function createAI({ root, store, ui }) {
 
     root.innerHTML = `<div class="chat">
       <div class="chat-top">
-        <span class="chat-model" title="${esc(s.baseUrl)}">${esc(s.model || uiText("модель не выбрана", "no model selected"))}</span>
+        <span class="chat-model" title="${esc(s.baseUrl)}">${esc(s.model || uiText("модель не выбрана", "no model selected"))}${s.teamMode ? " + " + coauthors(s).length : ""}</span>
         <div class="grow"></div>
         ${state.streaming ? uiText("<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Стоп</button>", "<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Stop</button>") : ''}
         <button class="btn btn-sm btn-ghost" type="button" data-ai-act="setup" title="${uiText("Настройки подключения", "Connection settings")}">${icon('settings', 14)}</button>
@@ -1197,11 +1344,15 @@ export function createAI({ root, store, ui }) {
         </div>`}
       </div>
       <div class="chat-input-wrap">
+        ${imageStrip(state.images, esc, icon('close', 12))}
         <div class="chat-input-row">
+          <input id="aiImageFiles" type="file" accept="${IMAGE_ACCEPT}" multiple hidden>
+          <button class="btn btn-icon chat-attach" type="button" data-ai-act="attach" ${state.streaming ? 'disabled' : ''}
+            aria-label="${uiText('Прикрепить фото', 'Attach images')}" title="${uiText('Прикрепить фото · можно перетащить или вставить', 'Attach images · drop or paste also works')}">${icon('attachment', 16)}</button>
           <textarea class="chat-input" id="aiInput" rows="1" placeholder="${configured ? uiText("Опишите, что сделать со сценарием…", "Describe what to do with the story…") : uiText("Сначала настройте подключение выше", "Configure the connection above first")}" ${state.streaming ? 'disabled' : ''}>${esc(state.inputDraft)}</textarea>
-          <button class="btn btn-primary" type="button" data-ai-act="send" ${state.streaming ? 'disabled' : ''}>${uiText("Отправить", "Send")}</button>
+          <button class="btn btn-primary" type="button" data-ai-act="send" ${state.streaming || state.pendingImages ? 'disabled' : ''}>${uiText("Отправить", "Send")}</button>
         </div>
-        <div class="chat-status">${state.streaming ? `${uiText("Шаг", "Step")} ${state.lastStep || 1} ${uiText("из 25 · модель думает", "of 25 · model thinking")}…` : state.error ? esc(state.error) : uiText("Ctrl+Enter — отправить · Shift+Enter — новая строка", "Ctrl+Enter — send · Shift+Enter for a new line")}</div>
+        <div class="chat-status" role="status">${state.pendingImages ? uiText('Подготовка фото…', 'Preparing images…') : state.streaming ? `${uiText("Шаг", "Step")} ${state.lastStep || 1} ${uiText("из 25 · модель думает", "of 25 · model thinking")}…` : state.error ? esc(state.error) : uiText("Ctrl+Enter — отправить · Shift+Enter — новая строка", "Ctrl+Enter — send · Shift+Enter for a new line")}</div>
       </div>
     </div>`;
 
@@ -1225,8 +1376,90 @@ export function createAI({ root, store, ui }) {
     log.scrollTop = log.scrollHeight;
   }
 
+  async function addImages(files) {
+    if (state.streaming) return;
+    const available = CHAT_IMAGE_LIMIT - state.images.length - state.pendingImages;
+    const incoming = Array.from(files);
+    const selected = incoming.slice(0, Math.max(0, available));
+    const errors = [];
+    if (selected.length < incoming.length) errors.push(uiText('Можно прикрепить до четырёх изображений.', 'Attach up to four images per message.'));
+    const generation = store.generation;
+    state.pendingImages += selected.length;
+    const prepared = [];
+    state.error = null;
+    const sendButton = root.querySelector('[data-ai-act="send"]');
+    if (selected.length && sendButton) sendButton.disabled = true;
+    if (selected.length) root.querySelector('.chat-status').textContent = uiText('Подготовка фото…', 'Preparing images…');
+    try {
+      for (const file of selected) {
+        if (store.generation !== generation) return;
+        try {
+          const item = await prepareChatImage(file);
+          prepared.push(item);
+        } catch (error) { errors.push(`${file.name}: ${error.message || error}`); }
+      }
+    } finally {
+      if (store.generation === generation) {
+        state.pendingImages -= selected.length;
+        state.images.push(...prepared);
+        if (errors.length) state.error = errors.join(' ');
+        const input = root.querySelector('#aiInput');
+        const restoreFocus = input === document.activeElement;
+        const selection = [input?.selectionStart, input?.selectionEnd];
+        render();
+        if (restoreFocus) {
+          const next = root.querySelector('#aiInput');
+          next.focus();
+          next.setSelectionRange(...selection);
+        }
+      }
+    }
+  }
+
   function wire() {
+    wireWritingSkillSources(root);
     const input = root.querySelector('#aiInput');
+    const picker = root.querySelector('#aiImageFiles');
+    picker.addEventListener('change', () => {
+      const files = Array.from(picker.files);
+      picker.value = '';
+      if (files.length) addImages(files);
+    });
+    const composer = root.querySelector('.chat');
+    composer.addEventListener('paste', event => {
+      const files = clipboardImages(event);
+      if (!files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      addImages(files);
+    });
+    composer.addEventListener('dragover', event => {
+      if (!Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = state.streaming ? 'none' : 'copy';
+      if (!state.streaming) composer.classList.add('is-image-drop');
+    });
+    composer.addEventListener('dragleave', event => {
+      if (!composer.contains(event.relatedTarget)) composer.classList.remove('is-image-drop');
+    });
+    composer.addEventListener('drop', event => {
+      composer.classList.remove('is-image-drop');
+      const files = Array.from(event.dataTransfer?.files || []);
+      if (!files.length) return;
+      event.preventDefault();
+      event.stopPropagation();
+      addImages(files);
+    });
+    root.querySelectorAll('[data-remove-image]').forEach(button => button.addEventListener('click', () => {
+      state.images.splice(Number(button.dataset.removeImage), 1);
+      state.error = null;
+      render();
+      root.querySelector('#aiInput')?.focus();
+    }));
+    const submitDraft = () => {
+      state.inputDraft = input?.value ?? state.inputDraft;
+      send(state.inputDraft, state.images);
+    };
     if (input) {
       input.addEventListener('input', () => {
         state.inputDraft = input.value;
@@ -1234,16 +1467,9 @@ export function createAI({ root, store, ui }) {
         input.style.height = `${Math.min(input.scrollHeight + 2, 140)}px`;
       });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (e.key === 'Enter' && !e.isComposing && (e.ctrlKey || e.metaKey || !e.shiftKey)) {
           e.preventDefault();
-          const value = input.value;
-          state.inputDraft = '';
-          send(value);
-        } else if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          const value = input.value;
-          state.inputDraft = '';
-          send(value);
+          submitDraft();
         }
       });
     }
@@ -1252,9 +1478,9 @@ export function createAI({ root, store, ui }) {
       btn.addEventListener('click', () => {
         const act = btn.dataset.aiAct;
         if (act === 'send') {
-          const value = input ? input.value : state.inputDraft;
-          state.inputDraft = '';
-          send(value);
+          submitDraft();
+        } else if (act === 'attach') {
+          picker.click();
         } else if (act === 'stop') {
           cancelRequest();
         } else if (act === 'setup') {
@@ -1294,6 +1520,7 @@ export function createAI({ root, store, ui }) {
     const get = (key) => root.querySelector(`[data-ai="${key}"]`)?.value ?? '';
     const ai = {
       ...aiSettings(),
+      ...readTeamFields(root),
       preset: get('preset') || 'custom',
       baseUrl: get('baseUrl').trim(),
       model: get('model').trim(),
@@ -1351,9 +1578,12 @@ export function createAI({ root, store, ui }) {
         <label class="checkbox"><input type="checkbox" data-k="allowDelete" ${s.allowDelete ? 'checked' : ''} /> ${uiText("Разрешить ассистенту удалять без подтверждения", "Allow the assistant to delete without confirmation")}</label>
         <label class="checkbox"><input type="checkbox" data-k="showTools" ${s.showTools ? 'checked' : ''} /> ${uiText("Показывать вызовы инструментов в чате", "Show tool calls in chat")}</label>
       </div>
+      ${writingSkillsSettingsHTML()}
+      ${teamFields(s, esc)}
       <p class="hint-text">${uiText("Ключ хранится в настройках приложения (userData) и не попадает в .sfproj. Запросы идут через главный процесс", "The key stays in application settings (userData), outside the .sfproj file. Requests run in the main process")}.</p>
     </div>`);
 
+    wireWritingSkillSources(body);
     const read = (key) => body.querySelector(`[data-k="${key}"]`);
     read('preset').addEventListener('change', (e) => {
       const preset = AI_PRESETS[e.target.value];
@@ -1373,6 +1603,7 @@ export function createAI({ root, store, ui }) {
           kind: 'primary',
           onClick: (api) => {
             const ai = {
+              ...readTeamFields(body),
               preset: read('preset').value,
               baseUrl: read('baseUrl').value.trim(),
               model: read('model').value.trim(),
@@ -1397,7 +1628,7 @@ export function createAI({ root, store, ui }) {
 
   // ---------------------------------------------------------------- публичное API
 
-  function focusInput() {
+  function focusInput(suggestion) {
     if (state.settingsOpen) {
       state.settingsOpen = false;
       render();
@@ -1405,7 +1636,13 @@ export function createAI({ root, store, ui }) {
     const input = root.querySelector('#aiInput');
     if (input) {
       input.focus();
-      input.select?.();
+      if (suggestion) {
+        if (!input.value.trim() && !state.inputDraft.trim()) {
+          input.value = suggestion;
+          input.dispatchEvent(new Event('input'));
+        }
+        input.setSelectionRange(input.value.length, input.value.length);
+      } else input.select?.();
     }
   }
 
@@ -1434,6 +1671,8 @@ export function createAI({ root, store, ui }) {
       state.messages = [];
       state.error = null;
       state.inputDraft = '';
+      state.images = [];
+      state.pendingImages = 0;
       historyLoad = loadHistory().then(render);
     } else if (key !== savedKey) {
       savedKey = key;

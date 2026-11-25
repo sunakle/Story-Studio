@@ -39,6 +39,7 @@ storyforge/
 {
   "schemaVersion": 1,
   "meta": { "title": "", "author": "", "description": "", "createdAt": "ISO", "updatedAt": "ISO" },
+  "screenplay": "",
   "startNodeId": "n_start",
   "characters": [{ "id": "c_x", "name": "", "color": "#7c9cff", "role": "", "age": "", "description": "", "appearance": "", "personality": "", "speech": "", "notes": "", "tags": [] }],
   "locations": [{ "id": "l_x", "name": "", "description": "", "atmosphere": "", "timeOfDay": "", "notes": "", "tags": [] }],
@@ -283,12 +284,14 @@ export function buildJson(project)            // -> строка JSON
 
 ## 8. `ai.js` — требования
 
-- Настройки провайдера в `settings.ai`: `{ preset, baseUrl, apiKey, model, temperature, maxTokens, extraHeaders, allowDelete, showTools }`. Пресеты: OpenAI / DeepSeek / OpenRouter / Ollama / Custom. Ключ маскируется (`sk-…abcd`), в логи не попадает.
+- Настройки провайдера в `settings.ai`: `{ preset, baseUrl, apiKey, model, temperature, maxTokens, extraHeaders, allowDelete, showTools, teamMode, teamModels }`. Пресеты: OpenAI / DeepSeek / OpenRouter / Ollama / Custom. Ключ маскируется (`sk-…abcd`), в логи не попадает.
 - Цикл: системный промт (дословно из §8.5 спеки) + сводка проекта + история (последние 20) → `POST {base}/chat/completions` через `sf.ai.chat` со `stream:true`, `tools`, `tool_choice:'auto'` → выполнить `tool_calls` последовательно → `role:'tool'` → повторить, максимум **25 шагов**.
 - Все правки одного сообщения — **одна транзакция undo**: `store.snapshot()` до, кнопка «Отменить правки ИИ» после (`store.restoreSnapshot`).
 - Инструменты (все обязательны): `project_summary`, `list_nodes`, `get_node`, `search_nodes`, `get_character`, `list_characters`, `get_location`, `list_locations`, `list_variables`, `validate`, `statistics`, `get_subtree`, `find_path`, `create_node`, `update_node`, `delete_node`, `duplicate_node`, `connect`, `disconnect`, `set_start_node`, `move_node`, `auto_layout`, `bulk_apply`, `set_node_texts`, `create_character`, `update_character`, `delete_character`, `create_location`, `update_location`, `delete_location`, `create_variable`, `update_variable`, `delete_variable`, `create_chapter`, `update_chapter`, `delete_chapter`, `set_project_meta`, `export_project`, `save_project`.
 - `bulk_apply` — атомарно, поддерживает временные id `tmp_1` в `next`/`choices[].next`/`connect.to`, возвращает `{ok, applied, createdIds}`.
 - Удаление без подтверждения запрещено, если в настройках не включено `allowDelete` → `ui.confirm`.
+- Текст вкладки сохраняется в `project.screenplay`. Для старых файлов значение по умолчанию — пустая строка. Чат читает текст страницами, применяет точечные изменения и строит связи с помощью `get_screenplay`, `edit_screenplay` и `build_story_graph`.
+- При включённом `teamMode` соавторы готовят черновики параллельно на выбранном подключении. Основная модель применяет итоговые изменения одной транзакцией. Команда и ключ находятся в настройках приложения.
 - Стриминг: чанки через `sf.ai.onChunk` по `requestId`, кнопка «Стоп» → `sf.ai.abort`.
 - Без ключа — приглашение «Настроить AI» вместо чата.
 

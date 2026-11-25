@@ -2,7 +2,7 @@
 
 **A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.1.0/StoryForge-Setup-1.1.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.2.0/StoryForge-Setup-1.2.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
 
 [Story flow](docs/gallery/flow.png)
 
@@ -11,6 +11,18 @@
 1. Run the Windows installer and open **StoryForge** from the desktop. The installer includes the application runtime.
 2. Open **Настройки → Оформление** and select **English**. The choice persists across launches and applies to interface labels. Story text and character names stay in their original language.
 3. Start a new story or press **Ctrl+O** to open your own `.sfproj`. Add a scene and a line, then start a playthrough from that scene.
+
+## From a screenplay to a playable graph
+
+Open **Screenplay** and write a scene in plain text. Include the location, speakers and what happens after each choice. The text is part of the project. Use the action to create nodes, review the request in chat and send it. The assistant can revise a passage, reuse characters or extend a branch. A single undo reverses the edits from one request.
+
+AI settings default to one DeepSeek model. For a multi-model gateway, enter its OpenAI-compatible URL, API key and primary model ID. Enable **Agent mode** and add one coauthor model ID per line. Optionally add a role after a vertical bar. Coauthors draft in parallel through the same endpoint. The primary model reconciles their contributions and applies edits. Each contribution is available in the conversation.
+
+Paste, drop or attach a photo to a chat message. On the official DeepSeek API, use `deepseek-flash` for images. [DeepSeek vision guide](https://api-docs.deepseek.com/guides/vision/)
+
+Expand **Built-in writing skills** in AI settings for the three read-only skills covering dialogue, scene sequencing and revision. [Upstream writing skills](https://github.com/jwynia/agent-skills)
+
+![Screenplay notebook, photo in chat and generated nodes](docs/gallery/screenplay.png)
 
 ## Save a voice
 

@@ -122,10 +122,12 @@ const DEFAULT_SETTINGS = {
   lastPath: null,
   voiceDir: null,
   ai: {
-    preset: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
+    preset: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
     apiKey: '',
-    model: 'gpt-4o-mini',
+    model: 'deepseek-flash',
+    teamMode: false,
+    teamModels: '',
     temperature: 0.4,
     maxTokens: 4096,
     extraHeaders: '',
@@ -205,6 +207,10 @@ let settingsCache = null;
 function getSettings() {
   if (!settingsCache) {
     settingsCache = deepMerge(DEFAULT_SETTINGS, readJsonSync(settingsPath(), {}));
+    const ai = settingsCache.ai;
+    if (ai?.preset === 'openai' && ai.model === 'gpt-4o-mini' && ai.baseUrl === 'https://api.openai.com/v1' && !ai.apiKey && !ai.extraHeaders) {
+      Object.assign(ai, { preset: 'deepseek', model: DEFAULT_SETTINGS.ai.model, baseUrl: DEFAULT_SETTINGS.ai.baseUrl });
+    }
     const savedRecent = Array.isArray(settingsCache.recent) ? settingsCache.recent : [];
     settingsCache.recent = savedRecent.filter(file => typeof file === 'string' && !isRetiredSample(file));
     if (typeof settingsCache.lastPath !== 'string' || isRetiredSample(settingsCache.lastPath)) settingsCache.lastPath = null;
@@ -970,6 +976,7 @@ function registerAiIpc() {
         const out = {
           ok: true,
           content: msg.content || '',
+          ...(typeof msg.reasoning_content === 'string' && { reasoningContent: msg.reasoning_content }),
           toolCalls: (msg.tool_calls || []).map((tc) => ({
             id: tc.id,
             name: tc.function?.name,
@@ -988,6 +995,7 @@ function registerAiIpc() {
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
       let content = '';
+      let reasoningContent;
       const calls = new Map();
       let finishReason = null;
       let usage = null;
@@ -1015,6 +1023,9 @@ function registerAiIpc() {
           if (!choice) continue;
           if (choice.finish_reason) finishReason = choice.finish_reason;
           const delta = choice.delta || {};
+          if (typeof delta.reasoning_content === 'string') {
+            reasoningContent = (reasoningContent || '') + delta.reasoning_content;
+          }
           if (typeof delta.content === 'string' && delta.content.length) {
             content += delta.content;
             send({ delta: delta.content });
@@ -1036,7 +1047,7 @@ function registerAiIpc() {
         .sort((a, b) => a[0] - b[0])
         .map(([i, c]) => ({ id: c.id || `call_${i}`, name: c.name, arguments: c.arguments || '{}' }));
       send({ done: true });
-      return { ok: true, content, toolCalls, finishReason, usage };
+      return { ok: true, content, toolCalls, finishReason, usage, reasoningContent };
     } catch (err) {
       const aborted = err && (err.name === 'AbortError' || /aborted/i.test(String(err.message)));
       const message = aborted ? uiText("Запрос отменён или истёк таймаут", "Request cancelled or timed out") : String(err && err.message ? err.message : err);
