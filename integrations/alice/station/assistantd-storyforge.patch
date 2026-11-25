@@ -28,15 +28,16 @@
  	if d.cancel != nil {
  		d.cancel()
  	}
-@@ -784,6 +791,7 @@
+@@ -784,6 +791,8 @@
  
  func (d *Daemon) onEvent(ev logEvent) {
  	if strings.HasPrefix(ev.kind, "button_") {
-+  if ev.kind == "button_click" || ev.kind == "button_stop_alarm" { d.endDictation() }
++		if ev.kind == "button_click" && d.stopDictationByButton() { return }
++		if ev.kind == "button_stop_alarm" { d.stopDictationByButton() }
  		d.onButtonEvent(ev)
  		return
  	}
-@@ -812,6 +820,7 @@
+@@ -812,6 +821,7 @@
  	if nativeClock {
  		return
  	}
@@ -44,7 +45,7 @@
  	if ev.kind == "listening" && d.consumePCFollowup() {
  		d.alice.Cancel()
  		return
-@@ -1127,6 +1136,7 @@
+@@ -1127,6 +1137,7 @@
  			d.command()
  			d.modeTimeout()
  			d.expirePC()
@@ -137,9 +138,20 @@
  	// Алиса начинает свою музыку — из приложения, панели, голосом или продолжая после паузы
  	case strings.Contains(line, "music_thin_client_on_started"),
  		strings.Contains(line, "routeDirective (") && (strings.Contains(line, ")audio_play") || strings.Contains(line, ")audio_player_continue")):
+--- a/button.go
++++ b/button.go
+@@ -116,7 +116,7 @@
+ // buttonAllowedLocked is evaluated twice: once before and once after inspecting
+ // audio/alarm state, since a conversation can start while those files are read.
+ func (d *Daemon) buttonAllowedLocked(now time.Time) bool {
+-	return d.cfg.Enabled && d.cfg.Microphone.Source == "alice" &&
++	return d.dictation == nil && d.cfg.Enabled && d.cfg.Microphone.Source == "alice" &&
+ 		d.state == "idle" && (d.aliceState == "idle" || d.aliceState == "") && !d.outputActive &&
+ 		!d.route && !now.Before(d.nativeClockUntil) &&
+ 		(d.buttonLast.IsZero() || now.Sub(d.buttonLast) >= 150*time.Millisecond)
 --- /dev/null
 +++ b/dictation.go
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,441 @@
 +package main
 +
 +import (
@@ -160,6 +172,7 @@
 +	lastText, lastContact        time.Time
 +	listenAfter, listenRequested time.Time
 +	listening                    bool
++	stopping                     bool
 +	// receipt times bound missing IDLE and a final delivered just after IDLE.
 +	waitIdleFrom, finalUntil time.Time
 +	// Device log time is only compared to other events from the same log.
@@ -256,6 +269,45 @@
 +	}
 +}
 +
++// The press is terminal for this session, including an append already in transit.
++// Never hand the same press back to the ordinary play/pause-to-assistant shortcut.
++func (d *Daemon) stopDictationByButton() bool {
++	now := time.Now()
++	d.mu.Lock()
++	s := d.dictation
++	if s == nil {
++		d.mu.Unlock()
++		return false
++	}
++	d.buttonGeneration++
++	d.buttonClickAt, d.buttonClickSeen, d.buttonToggleAt = time.Time{}, time.Time{}, time.Time{}
++	if s.stopping {
++		d.mu.Unlock()
++		return true
++	}
++	cancelNative := s.nativeOpen()
++	// The recognizer may finalize the already-open utterance just after the
++	// hardware press. Grant its normal finalization grace once, with no rearm.
++	if s.listening {
++		s.finalUntil = now.Add(dictFinalGrace)
++	}
++	s.stopping, s.listening = true, false
++	s.listenRequested, s.listenAfter, s.waitIdleFrom = time.Time{}, time.Time{}, time.Time{}
++	if !d.pendingDictAppendLocked(s) && !now.Before(s.finalUntil) {
++		d.endDictLocked(now)
++	}
++	d.mu.Unlock()
++	if cancelNative {
++		d.dictCancel()
++	}
++	return true
++}
++
++func (d *Daemon) pendingDictAppendLocked(s *dictationSession) bool {
++	p := d.pcPending
++	return p != nil && p.command.Action == dictAppend && p.command.Session == s.id
++}
++
 +func (s *dictationSession) nativeOpen() bool {
 +	return !s.listenRequested.IsZero() && s.finalUntil.IsZero()
 +}
@@ -327,6 +379,35 @@
 +		if cancelNative {
 +			d.dictCancel()
 +		}
++		return true
++	}
++	if session.stopping {
++		switch ev.kind {
++		case "phrase", "listening", "idle", "spotted", "speaking":
++		default:
++			d.mu.Unlock()
++			return false
++		}
++		if ev.kind == "spotted" || (ev.kind == "listening" && !ev.at.IsZero() && ev.at.After(session.boundaryAt)) {
++			session.finalUntil = time.Time{}
++			if !d.pendingDictAppendLocked(session) {
++				d.endDictLocked(now)
++			}
++		}
++		// Keep the last append in the single-slot PC queue until its matching
++		// acknowledgement. A duplicate state or late final cannot replace it.
++		if ev.kind == "phrase" && now.Before(session.finalUntil) &&
++			(ev.at.IsZero() || !ev.at.Before(session.boundaryAt)) &&
++			!d.pendingDictAppendLocked(session) && !dictationStopPhrase(ev.phrase) {
++			text := strings.TrimSpace(ev.phrase)
++			if dictPhraseValid(text) {
++				session.finalUntil = time.Time{}
++				if !d.queueDictLocked(dictAppend, session.nextSeq, text, now) {
++					d.endDictLocked(now)
++				}
++			}
++		}
++		d.mu.Unlock()
 +		return true
 +	}
 +	switch ev.kind {
@@ -424,6 +505,13 @@
 +		d.mu.Unlock()
 +		return
 +	}
++	if s.stopping {
++		if !d.pendingDictAppendLocked(s) && !now.Before(s.finalUntil) {
++			d.endDictLocked(now)
++		}
++		d.mu.Unlock()
++		return
++	}
 +	if (!s.finalUntil.IsZero() && !now.Before(s.finalUntil)) ||
 +		(!s.waitIdleFrom.IsZero() && now.Sub(s.waitIdleFrom) >= dictWindowTimeout) {
 +		d.endDictLocked(now)
@@ -483,6 +571,12 @@
 +	if s == nil || s.id != command.Session {
 +		return false
 +	}
++	if s.stopping {
++		if !ok || command.Action == dictAppend || !now.Before(s.finalUntil) {
++			d.endDictLocked(now)
++		}
++		return false
++	}
 +	if !ok {
 +		cancelNative := s.nativeOpen()
 +		d.endDictLocked(now)
@@ -501,7 +595,7 @@
 +}
 --- /dev/null
 +++ b/dictation_test.go
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,475 @@
 +package main
 +
 +import (
@@ -509,6 +603,110 @@
 +	"testing"
 +	"time"
 +)
++
++func TestDictationTopButtonPreservesPendingAppendAndConsumesClick(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Алиса, открой StoryForge"})
++	start := confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	d.onEvent(logEvent{kind: "phrase", phrase: "Последняя фраза."})
++	pending := d.pcPending.command
++	now := time.Now()
++	wakes := make(chan bool, 3)
++	d.buttonStart = func() error { wakes <- true; return nil }
++	d.buttonStop = func() { wakes <- true }
++	d.buttonCheck = func() bool { return true }
++	d.onEvent(logEvent{kind: "button_click", at: now})
++	// All correlated native follow-up events from this single click arrive
++	// in the normal event stream even though the session took ownership of it.
++	d.onEvent(logEvent{kind: "button_toggle", at: now.Add(time.Millisecond)})
++	d.onEvent(logEvent{kind: "button_no_player", at: now.Add(2 * time.Millisecond)})
++	d.onEvent(logEvent{kind: "button_stop_conversation", at: now.Add(3 * time.Millisecond)})
++	d.onEvent(logEvent{kind: "button_stop_alarm", at: now.Add(4 * time.Millisecond)})
++	d.onEvent(logEvent{kind: "phrase", phrase: "Дубль."})
++	d.tickDictation(now.Add(2 * time.Second))
++	if d.pcPending == nil || d.pcPending.command != pending || pending.Seq != 1 || pending.Query != "Последняя фраза." {
++		t.Fatal("press or trailing event lost or replaced the outstanding append")
++	}
++	if stop := confirmDictAfterAppend(t, d); stop.Session != start.Session {
++		t.Fatal("wrong session was stopped")
++	}
++	d.onEvent(logEvent{kind: "idle"})
++	d.tickDictation(now.Add(time.Minute))
++	select {
++	case <-wakes:
++		t.Fatal("the same press started an ordinary assistant turn")
++	case <-starts:
++		t.Fatal("stopped dictation was rearmed")
++	case <-time.After(120 * time.Millisecond):
++	}
++}
++
++func confirmDictAfterAppend(t *testing.T, d *Daemon) pcCommand {
++	t.Helper()
++	confirmDict(t, d, dictAppend, "ok")
++	if d.dictation != nil {
++		t.Fatal("matching append ACK should end the session")
++	}
++	return confirmDict(t, d, dictStop, "ok")
++}
++
++func TestDictationTopButtonFlushesOneInFlightFinal(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	cancels := 0
++	d.dictationCancel = func() { cancels++ }
++	now := time.Now()
++	d.onEvent(logEvent{kind: "button_click", at: now})
++	if cancels != 1 || d.dictation == nil || d.dictation.nativeOpen() {
++		t.Fatal("top button did not immediately disarm the native window")
++	}
++	d.onEvent(logEvent{kind: "idle"})
++	d.onEvent(logEvent{kind: "phrase", phrase: "До свидания."})
++	if d.pcPending == nil || d.pcPending.command.Query != "До свидания." || d.pcPending.command.Seq != 1 {
++		t.Fatal("trailing recognition was not delivered")
++	}
++	id := d.pcPending.command.ID
++	d.onEvent(logEvent{kind: "phrase", phrase: "До свидания."})
++	d.onEvent(logEvent{kind: "button_click", at: now.Add(time.Millisecond)})
++	if d.pcPending.command.ID != id || cancels != 1 {
++		t.Fatal("duplicate flush or cancellation")
++	}
++	confirmDictAfterAppend(t, d)
++	d.tickDictation(now.Add(time.Hour))
++	if len(starts) != 0 || len(d.history) != 0 {
++		t.Fatal("a stopped session opened another turn")
++	}
++}
++
++func TestDictationTopButtonWithoutFinalTimesOutSilently(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	d.onEvent(logEvent{kind: "button_click", at: time.Now()})
++	d.tickDictation(time.Now().Add(dictFinalGrace + time.Millisecond))
++	confirmDict(t, d, dictStop, "ok")
++	d.onEvent(logEvent{kind: "phrase", phrase: "Слишком поздно"})
++	if d.dictation != nil || d.pcPending != nil || len(starts) != 0 || len(d.history) != 0 {
++		t.Fatal("late final resurrected a stopped session")
++	}
++}
++
++func TestDictationTopButtonWhileOpeningDoesNotArm(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	start := d.pcPending.command.ID
++	d.onEvent(logEvent{kind: "button_click", at: time.Now()})
++	d.finishPC(pcResult{ID: start, Status: "ok"})
++	confirmDict(t, d, dictStop, "ok")
++	d.tickDictation(time.Now().Add(time.Second))
++	if len(starts) != 0 || d.dictation != nil {
++		t.Fatal("a late start ACK rearmed the speaker")
++	}
++}
 +
 +func TestDictationStartRequiresExplicitApplication(t *testing.T) {
 +	for _, phrase := range []string{"Алиса, открой StoryForge", "Включи стори фордж!", "запусти Story Forge на компьютере", "открой приложение стореФордж"} {
