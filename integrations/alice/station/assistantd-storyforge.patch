@@ -1,0 +1,567 @@
+--- a/main.go
++++ b/main.go
+@@ -54,6 +54,10 @@
+ type stopThinkingGlowKey struct{}
+ 
+ type Daemon struct {
++ dictationDrainUntil time.Time
++ dictation *dictationSession
++ dictationCancel func()
++ dictationListen func(func() bool)(bool,error)
+ 	cfgPath, statusPath, cmdPath string
+ 	modePath                     string
+ 
+@@ -587,6 +591,7 @@
+ }
+ 
+ func (d *Daemon) setModeWithPersistence(on bool, announce bool, persist bool) {
++ if !on { d.endDictation() }
+ 	d.mu.Lock()
+ 	if on && !d.cfg.Enabled {
+ 		d.err, d.dirty = "сначала включите помощник", true
+@@ -657,6 +662,7 @@
+ // stopAnswer обрывает текущий ответ модели (запрос, озвучку и речь Алисы).
+ func (d *Daemon) stopAnswer() {
+ 	d.mu.Lock()
++ d.endDictLocked(time.Now())
+ 	if d.cancel != nil {
+ 		d.cancel()
+ 	}
+@@ -784,6 +790,7 @@
+ 
+ func (d *Daemon) onEvent(ev logEvent) {
+ 	if strings.HasPrefix(ev.kind, "button_") {
++  if ev.kind == "button_click" || ev.kind == "button_stop_alarm" { d.endDictation() }
+ 		d.onButtonEvent(ev)
+ 		return
+ 	}
+@@ -812,6 +819,7 @@
+ 	if nativeClock {
+ 		return
+ 	}
++	if d.dictationEvent(ev, c.Enabled && c.Microphone.Source == "alice", oursBefore) {return}
+ 	if ev.kind == "listening" && d.consumePCFollowup() {
+ 		d.alice.Cancel()
+ 		return
+@@ -1127,6 +1135,7 @@
+ 			d.command()
+ 			d.modeTimeout()
+ 			d.expirePC()
++   d.tickDictation(time.Now())
+ 			d.routeTimeout()
+ 			d.writeStatus()
+ 		case <-wake:
+--- a/pc_command.go
++++ b/pc_command.go
+@@ -15,6 +15,8 @@
+ // Only structured, narrowly scoped actions are sent to the local Windows
+ // agent. Query text is never interpreted as a path, shell snippet or command.
+ type pcCommand struct {
++ Session string `json:"session,omitempty"`
++ Seq int `json:"seq,omitempty"`
+ 	ID        string `json:"id"`
+ 	Action    string `json:"action"`
+ 	Target    string `json:"target"`
+@@ -300,6 +302,12 @@
+ 		return
+ 	}
+ 	d.pcPending, d.dirty = nil, true
++ if p.command.Target == "storyforge" {
++   now := time.Now()
++   cancel := d.dictationAckLocked(p.command, result.Status == "ok" && now.Before(p.expires), now)
++   d.mu.Unlock()
++   if cancel { d.dictCancel() }; return
++ }
+ 	d.mu.Unlock()
+ 	if !time.Now().Before(p.expires) || result.Status == "expired" || result.Status == "unknown" {
+ 		d.pcSay(p.turn, "Компьютер не подтвердил выполнение команды.")
+@@ -324,6 +332,10 @@
+ 		return
+ 	}
+ 	d.pcPending, d.dirty = nil, true
++ if p.command.Target == "storyforge" {
++  cancel := d.dictationAckLocked(p.command, false, time.Now())
++  d.mu.Unlock(); if cancel {d.dictCancel()}; return
++ }
+ 	d.mu.Unlock()
+ 	d.pcSay(p.turn, "Компьютер не подтвердил выполнение команды.")
+ }
+--- /dev/null
++++ b/dictation.go
+@@ -0,0 +1,290 @@
++package main
++
++import (
++	"crypto/rand"
++	"encoding/hex"
++	"strings"
++	"time"
++	"unicode"
++	"unicode/utf8"
++)
++
++// Dictation uses only Alice's normal recognized-phrase events. A live editor has to
++// acknowledge the session before the station starts its first listening window.
++type dictationSession struct {
++	id                           string
++	nextSeq                      int
++	ready                        bool
++	lastText, lastContact        time.Time
++	listenAfter, listenRequested time.Time
++	listening                    bool
++}
++
++const (
++	dictStart     = "storyforge_start"
++	dictAppend    = "storyforge_append"
++	dictStop      = "storyforge_stop"
++	dictStatus    = "storyforge_status"
++	dictSilence   = 90 * time.Second
++	dictHeartbeat = 4 * time.Second
++)
++
++func dictationStartPhrase(s string) bool {
++	s = strings.TrimPrefix(normalize(s), "алиса ")
++	match := pcKnownProgramPattern.FindStringSubmatch(s)
++	if len(match) != 2 {
++		return false
++	}
++	switch normalize(match[1]) {
++	case "storyforge", "story forge", "сторифордж", "стори фордж", "стори форж", "сторифорж", "сторефордж", "стори фортж":
++		return true
++	}
++	return false
++}
++
++func dictationStopPhrase(s string) bool {
++	s = strings.TrimPrefix(normalize(s), "алиса ")
++	switch s {
++	case "стоп диктовка", "стоп диктовку", "останови диктовку", "закончи диктовку", "закончить диктовку", "заверши диктовку", "остановить диктовку":
++		return true
++	}
++	return false
++}
++
++func dictPhraseValid(s string) bool {
++	return strings.TrimSpace(s) != "" && utf8.ValidString(s) &&
++		utf8.RuneCountInString(s) <= 4096 && strings.IndexFunc(s, unicode.IsControl) < 0
++}
++
++func newDictID() string {
++	var id [16]byte
++	if _, err := rand.Read(id[:]); err != nil {
++		return ""
++	}
++	return hex.EncodeToString(id[:])
++}
++
++func (d *Daemon) queueDictLocked(action string, seq int, phrase string, now time.Time) bool {
++	session := d.dictation
++	if session == nil {
++		return false
++	}
++	id := session.id
++	if action != dictStart {
++		id = newDictID()
++	}
++	if id == "" {
++		return false
++	}
++	lease := 12 * time.Second
++	if action == dictStart {
++		lease = 40 * time.Second
++	}
++	d.pcPending = &pcPending{command: pcCommand{
++		ID: id, Action: action, Target: "storyforge", Session: session.id, Seq: seq, Query: phrase, CreatedAt: now.Unix(),
++	}, turn: d.turn, expires: now.Add(lease)}
++	d.dirty = true
++	return true
++}
++
++// Invalidate the local session first. In-flight replies from its previous ID
++// cannot arm the microphone or route a phrase into a different document.
++func (d *Daemon) endDictLocked(now time.Time) {
++	if d.dictation == nil {
++		return
++	}
++	d.queueDictLocked(dictStop, 0, "", now)
++	d.dictation = nil
++	d.dictationDrainUntil = now.Add(3 * time.Second)
++}
++
++func (d *Daemon) endDictation() {
++	d.mu.Lock()
++	open := d.dictation != nil
++	d.endDictLocked(time.Now())
++	d.mu.Unlock()
++	if open {
++		d.dictCancel()
++	}
++}
++
++func (d *Daemon) dictCancel() {
++	if d.dictationCancel != nil {
++		d.dictationCancel()
++		return
++	}
++	d.alice.Cancel()
++}
++
++// Called before interpreting recognized speech as a PC command or an LLM request.
++func (d *Daemon) dictationEvent(ev logEvent, enabled, ownPlayback bool) bool {
++	now := time.Now()
++	d.mu.Lock()
++	session := d.dictation
++	if session == nil {
++		// The native service can deliver one last recognition after Cancel.
++		// Keep private dictated text out of normal assistant routing. A fresh
++		// physical/wake-word turn immediately restores ordinary commands.
++		if ev.kind == "spotted" {
++			d.dictationDrainUntil = time.Time{}
++		}
++		if now.Before(d.dictationDrainUntil) && ev.kind == "phrase" && !dictationStartPhrase(ev.phrase) {
++			d.mu.Unlock()
++			return true
++		}
++		if !enabled || ownPlayback || ev.kind != "phrase" || !dictationStartPhrase(ev.phrase) {
++			d.mu.Unlock()
++			return false
++		}
++		if d.pcPending != nil {
++			turn := d.turn
++			d.mu.Unlock()
++			d.dictCancel()
++			d.pcSay(turn, "Дождитесь ответа компьютера и снова откройте StoryForge.")
++			return true
++		}
++		id := newDictID()
++		if id == "" {
++			d.mu.Unlock()
++			return true
++		}
++		d.dictation = &dictationSession{id: id, nextSeq: 1, lastText: now}
++		if d.cancel != nil {
++			d.cancel()
++		}
++		d.turn++
++		d.state, d.err = "idle", ""
++		d.route, d.ours, d.wokeUser = false, false, true
++		d.pcNoFollowUntil = time.Time{}
++		d.queueDictLocked(dictStart, 0, "", now)
++		d.mu.Unlock()
++		d.dictCancel()
++		return true
++	}
++	if !enabled {
++		d.endDictLocked(now)
++		d.mu.Unlock()
++		d.dictCancel()
++		return true
++	}
++	switch ev.kind {
++	case "listening":
++		if !session.listenRequested.IsZero() {
++			session.listening = true
++		}
++		d.mu.Unlock()
++		return true
++	case "idle":
++		if session.listening {
++			// The native speech service closed an empty listening window.
++			session.listening = false
++			session.listenRequested = time.Time{}
++			session.listenAfter = now.Add(350 * time.Millisecond)
++		}
++		d.mu.Unlock()
++		return true
++	case "phrase":
++		if dictationStopPhrase(ev.phrase) {
++			d.endDictLocked(now)
++			d.mu.Unlock()
++			d.dictCancel()
++			return true
++		}
++		// A repeated recognition event for the previous native dialog is
++		// ignored until the new native LISTENING event.
++		if !session.ready || !session.listening || session.listenRequested.IsZero() {
++			d.mu.Unlock()
++			return true
++		}
++		text := strings.TrimSpace(ev.phrase)
++		session.listening = false
++		session.listenRequested, session.listenAfter = time.Time{}, time.Time{}
++		if !dictPhraseValid(text) || !d.queueDictLocked(dictAppend, session.nextSeq, text, now) {
++			d.endDictLocked(now)
++		} else {
++			session.lastText = now
++		}
++		d.mu.Unlock()
++		d.dictCancel()
++		return true
++	case "spotted", "speaking":
++		d.mu.Unlock()
++		return true
++	default:
++		d.mu.Unlock()
++		return false
++	}
++}
++
++func (d *Daemon) tickDictation(now time.Time) {
++	d.mu.Lock()
++	s := d.dictation
++	if s == nil {
++		d.mu.Unlock()
++		return
++	}
++	if !d.cfg.Enabled || d.cfg.Microphone.Source != "alice" || now.Sub(s.lastText) >= dictSilence ||
++		(!s.listenRequested.IsZero() && !s.listening && now.Sub(s.listenRequested) > 7*time.Second) {
++		d.endDictLocked(now)
++		d.mu.Unlock()
++		d.dictCancel()
++		return
++	}
++	if s.ready && d.pcPending == nil && now.Sub(s.lastContact) >= dictHeartbeat {
++		d.queueDictLocked(dictStatus, 0, "", now)
++	}
++	if !s.ready || s.listenAfter.IsZero() || now.Before(s.listenAfter) {
++		d.mu.Unlock()
++		return
++	}
++	s.listenAfter = time.Time{}
++	s.listenRequested = now
++	d.mu.Unlock()
++	// Use the same native dialog as a user pressing the assistant button.
++	// Do not bypass the device mute switch or use an audio-capture backend.
++	current := func() bool {
++		d.mu.Lock()
++		defer d.mu.Unlock()
++		return d.dictation == s && s.listenRequested == now && !s.listening
++	}
++	go func() {
++		start := d.dictationListen
++		if start == nil {
++			start = d.alice.sendButton
++		}
++		_, err := start(current)
++		if err != nil {
++			d.mu.Lock()
++			if d.dictation == s && s.listenRequested == now {
++				d.endDictLocked(time.Now())
++			}
++			d.mu.Unlock()
++		}
++	}()
++}
++
++// d.mu is locked by the caller. A poll can overlap an utterance; its stale
++// acknowledgement is already excluded by the unique command ID in finishPC.
++func (d *Daemon) dictationAckLocked(command pcCommand, ok bool, now time.Time) bool {
++	if command.Target != "storyforge" {
++		return false
++	}
++	s := d.dictation
++	if s == nil || s.id != command.Session {
++		return false
++	}
++	if !ok {
++		d.endDictLocked(now)
++		return true
++	}
++	s.lastContact = now
++	switch command.Action {
++	case dictStart:
++		s.ready = true
++		s.lastText, s.listenAfter = now, now
++	case dictAppend:
++		s.nextSeq++
++		s.listenAfter = now
++	}
++	return false
++}
+--- /dev/null
++++ b/dictation_test.go
+@@ -0,0 +1,183 @@
++package main
++
++import (
++	"strings"
++	"testing"
++	"time"
++)
++
++func TestDictationStartRequiresExplicitApplication(t *testing.T) {
++	for _, phrase := range []string{"Алиса, открой StoryForge", "Включи стори фордж!", "запусти Story Forge на компьютере", "открой приложение стореФордж"} {
++		if !dictationStartPhrase(phrase) {
++			t.Errorf("missed alias %q", phrase)
++		}
++	}
++	for _, phrase := range []string{"StoryForge", "Открой Spotify", "Она сказала: открой StoryForge", "открой StoryForge и удали всё"} {
++		if dictationStartPhrase(phrase) {
++			t.Errorf("matched non-command %q", phrase)
++		}
++	}
++}
++
++func newDictTest() (*Daemon, chan bool) {
++	d, _ := newPCTestDaemon()
++	d.cfg.Microphone.Source = "alice"
++	starts := make(chan bool, 8)
++	d.dictationListen = func(current func() bool) (bool, error) {
++		ok := current()
++		starts <- ok
++		return ok, nil
++	}
++	d.dictationCancel = func() {}
++	return d, starts
++}
++
++func windowForTest(t *testing.T, d *Daemon, starts chan bool) {
++	t.Helper()
++	d.tickDictation(time.Now().Add(time.Millisecond))
++	select {
++	case ok := <-starts:
++		if !ok {
++			t.Fatal("window canceled")
++		}
++	case <-time.After(time.Second):
++		t.Fatal("no native listen request")
++	}
++	d.onEvent(logEvent{kind: "listening"})
++}
++
++func confirmDict(t *testing.T, d *Daemon, action, status string) pcCommand {
++	t.Helper()
++	if d.pcPending == nil || d.pcPending.command.Action != action {
++		t.Fatalf("expected %s, got %#v", action, d.pcPending)
++	}
++	c := d.pcPending.command
++	d.finishPC(pcResult{ID: c.ID, Status: status})
++	return c
++}
++
++func TestDictationNativeFinalsToEditor(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "spotted"})
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	if d.pcPending == nil || d.pcPending.command.Session != d.pcPending.command.ID || d.dictation.ready {
++		t.Fatal("start handshake missing")
++	}
++	d.onEvent(logEvent{kind: "phrase", phrase: "До подтверждения"})
++	if d.pcPending.command.Action != dictStart {
++		t.Fatal("early speech leaked")
++	}
++	start := confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	phrase := "Ваня: «Открой Spotify», — сказал он."
++	d.onEvent(logEvent{kind: "phrase", phrase: phrase})
++	id := d.pcPending.command.ID
++	d.onEvent(logEvent{kind: "phrase", phrase: phrase})
++	if d.pcPending.command.ID != id {
++		t.Fatal("duplicate final was enqueued")
++	}
++	c := confirmDict(t, d, dictAppend, "ok")
++	if c.Seq != 1 || c.Query != phrase || c.Session != start.ID || c.ID == c.Session {
++		t.Fatalf("bad append: %#v", c)
++	}
++	windowForTest(t, d, starts)
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой Spotify"})
++	c = confirmDict(t, d, dictAppend, "ok")
++	if c.Seq != 2 || c.Query != "Открой Spotify" {
++		t.Fatal("utterance interpreted as command")
++	}
++	windowForTest(t, d, starts)
++	d.onEvent(logEvent{kind: "phrase", phrase: "Алиса, стоп, диктовка!"})
++	if d.dictation != nil {
++		t.Fatal("session remains open")
++	}
++	c = confirmDict(t, d, dictStop, "ok")
++	if c.Query != "" || c.Session != start.ID {
++		t.Fatal("bad stop")
++	}
++	if len(d.history) != 0 {
++		t.Fatal("dictation in general assistant history")
++	}
++}
++
++func TestDictationHeartbeatAndFailClosed(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Включи стори фордж"})
++	start := confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	d.tickDictation(time.Now().Add(6 * time.Second))
++	if d.pcPending == nil || d.pcPending.command.Action != dictStatus {
++		t.Fatal("no heartbeat")
++	}
++	d.finishPC(pcResult{ID: start.ID, Status: "error"})
++	if d.dictation == nil {
++		t.Fatal("stale ack changed session")
++	}
++	confirmDict(t, d, dictStatus, "error")
++	if d.dictation != nil {
++		t.Fatal("editor stop was ignored")
++	}
++	confirmDict(t, d, dictStop, "ok")
++	d.onEvent(logEvent{kind: "phrase", phrase: "Включи стори фордж"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	d.tickDictation(time.Now().Add(dictSilence + time.Second))
++	if d.dictation != nil {
++		t.Fatal("silent session did not expire")
++	}
++}
++
++func TestDictationRespectsRecognitionBackendAndSource(t *testing.T) {
++	d, _ := newDictTest()
++	d.cfg.Enabled = false
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	if d.dictation != nil {
++		t.Fatal("activated with assistant disabled")
++	}
++	d.cfg.Enabled = true
++	if d.dictationEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"}, true, true) {
++		t.Fatal("self playback started a session")
++	}
++	if d.dictationEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"}, false, false) {
++		t.Fatal("opened with incompatible backend")
++	}
++	if dictPhraseValid(strings.Repeat("а", 4097)) || dictPhraseValid("a\x00b") {
++		t.Fatal("invalid input accepted")
++	}
++	d.onEvent(logEvent{kind: "phrase", phrase: "открой StoryForge"})
++	confirmDict(t, d, dictStart, "error")
++	if d.dictation != nil {
++		t.Fatal("failed start kept session")
++	}
++}
++
++func TestNativeListeningStopsAfterNoConfirmation(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	now := time.Now().Add(time.Millisecond)
++	d.tickDictation(now)
++	select {
++	case <-starts:
++	case <-time.After(time.Second):
++		t.Fatal("expected native listen")
++	}
++	d.tickDictation(now.Add(8 * time.Second))
++	if d.dictation != nil {
++		t.Fatal("no native LISTENING, session should end")
++	}
++}
++
++func TestLateFinalAfterEditorStopIsNotRoutedToLLM(t *testing.T) {
++	d, _ := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	d.endDictation()
++	if !d.dictationEvent(logEvent{kind: "phrase", phrase: "Последние слова"}, true, false) {
++		t.Fatal("interrupted dictation leaked into ordinary command routing")
++	}
++	d.dictationEvent(logEvent{kind: "spotted"}, true, false)
++	if d.dictationEvent(logEvent{kind: "phrase", phrase: "Открой Spotify"}, true, false) {
++		t.Fatal("a fresh wake did not restore ordinary commands")
++	}
++}

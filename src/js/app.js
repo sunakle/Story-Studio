@@ -16,6 +16,7 @@ import { askBeforeClosing } from './close-prompt.js';
 import { createInspector } from './inspector.js';
 import { createPanels } from './panels.js';
 import { createWorkbench } from './workbench.js';
+import { bindAliceDictation } from './alice-dictation.js';
 import { initWorkspaceShell } from './workspace-shell.js';
 import { createAI } from './ai.js';
 import { createVoice } from './voice.js';
@@ -910,6 +911,7 @@ async function renderRecent() {
 let closeRequested = false;
 async function requestWindowClose() {
   if (closeRequested) return;
+  ui.dictation?.stop();
   closeRequested = true;
   try {
     await saving;
@@ -1451,6 +1453,7 @@ async function boot() {
   await loadInitialProject();
   selectStartNode();
   state.booted = true;
+  ui.dictation = bindAliceDictation(store, ui);
   window.sf.app.closeReady();
   updateStatus();
 

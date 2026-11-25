@@ -50,6 +50,19 @@ contextBridge.exposeInMainWorld('sf', {
     set: (patch) => invoke('sf:settings:set', patch),
   },
 
+  dictation: {
+    onCommand: callback => {
+      ipcRenderer.on('sf:dictation:command', (_event, {id, command, expires}) => {
+        let result = {ok:false, code:'not_ready', active:false};
+        if (Date.now() <= expires) {
+          try { result = callback(command); }
+          catch { /* A closing document cannot receive more speech. */ }
+        }
+        ipcRenderer.send('sf:dictation:result', {id, result});
+      });
+    },
+  },
+
   autosave: {
     write: (content) => invoke('sf:autosave:write', content),
     read: (key) => invoke('sf:autosave:read', key),

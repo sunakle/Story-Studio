@@ -7,7 +7,9 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, net, native
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
-const { createHash } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
+const { pathToFileURL } = require('node:url');
+const { startAliceEndpoint } = require('./src/native/alice-dictation.cjs');
 
 const DEV = process.argv.includes('--dev');
 const ROOT = __dirname;
@@ -312,6 +314,54 @@ function createWindow() {
     if (SMOKE) runSmoke();
     if (SELFTEST) runSelfTest();
   });
+}
+
+async function registerAliceDictation() {
+  const editorURL = pathToFileURL(path.join(ROOT, 'src', 'index.html')).href;
+  const pending = new Map();
+  // Keep issued starts across renderer reloads. A retry must never start
+  // recording into a different document, even after a renderer crash.
+  const issued = new Set();
+  ipcMain.on('sf:dictation:result', (event, { id, result } = {}) => {
+    const request = pending.get(id);
+    if (request && win && request.sender === event.sender && event.sender === win.webContents &&
+        event.senderFrame === win.webContents.mainFrame) request.finish(result);
+  });
+  const close = await startAliceEndpoint(userDir(), async command => {
+    const contents = win?.webContents;
+    if (!closeUIReady || !contents || contents.isDestroyed() || contents.getURL().split(/[?#]/)[0] !== editorURL) {
+      return {ok:false, code:'not_ready', active:false};
+    }
+    let focus = false;
+    if (command.action === 'stop') issued.add(command.session);
+    if (command.action === 'start') {
+      if (issued.has(command.session)) command = {...command, action:'status'};
+      else {
+        issued.add(command.session);
+        focus = true;
+      }
+    }
+    const id = randomUUID();
+    const result = await new Promise(resolve => {
+      const finish = reply => {
+        clearTimeout(timer);
+        pending.delete(id);
+        resolve(reply);
+      };
+      const unavailable = {ok:false, code:'not_ready', active:false};
+      const timer = setTimeout(() => finish(unavailable), 4500);
+      pending.set(id, {sender:contents, finish});
+      try { contents.send('sf:dictation:command', {id, command, expires:Date.now() + 4000}); }
+      catch { finish(unavailable); }
+    });
+    if (focus && result?.ok && result.active && win?.webContents === contents) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+    return result;
+  });
+  app.once('will-quit', close);
 }
 
 // ---------------------------------------------------------------- авто-приёмка
@@ -1088,6 +1138,7 @@ if (!gotLock) {
     registerAiIpc();
     buildMenu();
     createWindow();
+    registerAliceDictation().catch(err => logLine('Alice integration unavailable', err.code || 'startup'));
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });

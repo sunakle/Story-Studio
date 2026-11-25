@@ -2,7 +2,7 @@
 
 **A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.2.0/StoryForge-Setup-1.2.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.3.0/StoryForge-Setup-1.3.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
 
 [Story flow](docs/gallery/flow.png)
 
@@ -23,6 +23,12 @@ Paste, drop or attach a photo to a chat message. On the official DeepSeek API, u
 Expand **Built-in writing skills** in AI settings for the three read-only skills covering dialogue, scene sequencing and revision. [Upstream writing skills](https://github.com/jwynia/agent-skills)
 
 ![Screenplay notebook, photo in chat and generated nodes](docs/gallery/screenplay.png)
+
+## Dictate with Alice
+
+With a configured Yandex Station Lite 2 and its Windows command bridge, say **«Алиса, открой StoryForge»**. The editor opens the **Screenplay** tab and indicates that dictation is active. Pause between phrases. End the session with **«Стоп, диктовка»** or the stop button in StoryForge, then save the project with **Ctrl+S**.
+
+The editor receives text from the paired bridge. Audio capture and transcription use the speaker’s configured assistant.
 
 ## Save a voice
 
