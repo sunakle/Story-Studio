@@ -1,0 +1,5688 @@
+{
+  "schemaVersion": 2,
+  "meta": {
+    "title": "Смена в сто этажей",
+    "author": "Стресс-тест",
+    "description": "Большой ветвящийся сюжет для проверки облака связей."
+  },
+  "startNodeId": "n_1",
+  "characters": [
+    {
+      "id": "c_anya",
+      "name": "Аня",
+      "color": "#7c9cff",
+      "role": "оператор лифта",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_mark",
+      "name": "Марк",
+      "color": "#8fd6a6",
+      "role": "системный администратор",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_radio",
+      "name": "Радио",
+      "color": "#f2a65a",
+      "role": "голос в наушниках",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_vera",
+      "name": "Вера",
+      "color": "#c39bff",
+      "role": "начальница смены",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_oleg",
+      "name": "Олег",
+      "color": "#e0c07a",
+      "role": "охранник у турникета",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_timur",
+      "name": "Тимур",
+      "color": "#79b8d8",
+      "role": "инженер по лифтам",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_nina",
+      "name": "Нина",
+      "color": "#d88f8f",
+      "role": "дежурная по этажу",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    },
+    {
+      "id": "c_echo",
+      "name": "Эхо",
+      "color": "#9aa5b4",
+      "role": "запись на автоответчике",
+      "age": "30",
+      "description": "",
+      "appearance": "",
+      "personality": "",
+      "speech": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ],
+      "voice": {
+        "preset": 1,
+        "params": {}
+      }
+    }
+  ],
+  "locations": [
+    {
+      "id": "l_lift",
+      "name": "Лифтовой холл",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "l_server",
+      "name": "Серверная на сороковом",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "l_archive",
+      "name": "Архив под крышей",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "l_roof",
+      "name": "Крыша",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "l_stairs",
+      "name": "Лестница Б",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "l_guard",
+      "name": "Пост охраны",
+      "description": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    }
+  ],
+  "variables": [
+    {
+      "id": "v_trust",
+      "name": "Доверие Марка",
+      "kind": "number",
+      "initial": "2",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_keys",
+      "name": "Ключи от архива",
+      "kind": "bool",
+      "initial": "false",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_signal",
+      "name": "Сигнал на крыше",
+      "kind": "number",
+      "initial": "0",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_battery",
+      "name": "Заряд фонаря",
+      "kind": "number",
+      "initial": "62",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_code",
+      "name": "Код лифта",
+      "kind": "string",
+      "initial": "",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_note",
+      "name": "Записка Нины",
+      "kind": "bool",
+      "initial": "false",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_shift",
+      "name": "Часов в смене",
+      "kind": "number",
+      "initial": "4",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_rumor",
+      "name": "Слух о девятом этаже",
+      "kind": "bool",
+      "initial": "false",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_radio",
+      "name": "Радио включено",
+      "kind": "bool",
+      "initial": "true",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    },
+    {
+      "id": "v_alarm",
+      "name": "Тревога",
+      "kind": "bool",
+      "initial": "false",
+      "notes": "",
+      "tags": [
+        "стресс"
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "ch_01",
+      "name": "Лифт",
+      "color": "#7c9cff",
+      "collapsed": false
+    },
+    {
+      "id": "ch_02",
+      "name": "Серверная",
+      "color": "#8fd6a6",
+      "collapsed": false
+    },
+    {
+      "id": "ch_03",
+      "name": "Архив",
+      "color": "#f2a65a",
+      "collapsed": false
+    },
+    {
+      "id": "ch_04",
+      "name": "Крыша",
+      "color": "#c39bff",
+      "collapsed": false
+    },
+    {
+      "id": "ch_05",
+      "name": "Свет",
+      "color": "#e0c07a",
+      "collapsed": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n_1",
+      "type": "scene",
+      "chapterId": "ch_01",
+      "title": "Глава 1: Лифт",
+      "speakerId": "",
+      "locationId": "l_lift",
+      "text": "Смена идёт, этаж 8. Лифт.",
+      "emotion": "",
+      "next": "n_2",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.1",
+      "speakerId": "c_anya",
+      "locationId": "l_lift",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_3",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.2",
+      "speakerId": "c_oleg",
+      "locationId": "l_server",
+      "text": "На полу мелом обведён след человеческого шага.",
+      "emotion": "сухо",
+      "next": "n_a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.3",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "настороженно",
+      "next": "n_5",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.4",
+      "speakerId": "c_timur",
+      "locationId": "l_roof",
+      "text": "Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "сухо",
+      "next": "n_6",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.5",
+      "speakerId": "c_echo",
+      "locationId": "l_lift",
+      "text": "Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "настороженно",
+      "next": "n_n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_7",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.6",
+      "speakerId": "c_echo",
+      "locationId": "l_server",
+      "text": "Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "сухо",
+      "next": "n_8",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_8",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.7",
+      "speakerId": "c_mark",
+      "locationId": "l_guard",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "настороженно",
+      "next": "n_10",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_trust",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_9",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "1.8",
+      "speakerId": "c_vera",
+      "locationId": "l_lift",
+      "text": "На полу мелом обведён след человеческого шага.",
+      "emotion": "сухо",
+      "next": "n_1e",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_a",
+      "type": "choice",
+      "chapterId": "ch_01",
+      "title": "1.2 — решение 1",
+      "speakerId": "c_anya",
+      "locationId": "l_stairs",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_14_0",
+          "text": "Нажать кнопку вызова",
+          "next": "n_b",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_18_1",
+          "text": "Спуститься по лестнице",
+          "next": "n_f",
+          "condition": "v_keys >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_22_2",
+          "text": "Позвать Марка",
+          "next": "n_j",
+          "condition": "v_signal < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_b",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_echo",
+      "locationId": "l_stairs",
+      "text": "Нажать кнопку вызова: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_c",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_c",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_roof",
+      "text": "Нажать кнопку вызова: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_d",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_d",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_vera",
+      "locationId": "l_server",
+      "text": "Нажать кнопку вызова: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_f",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_echo",
+      "locationId": "l_lift",
+      "text": "Спуститься по лестнице: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_g",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_g",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Спуститься по лестнице: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_h",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_timur",
+      "locationId": "l_stairs",
+      "text": "Спуститься по лестнице: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_j",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Позвать Марка · 1",
+      "speakerId": "c_nina",
+      "locationId": "l_stairs",
+      "text": "Позвать Марка: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_k",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_k",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Позвать Марка · 2",
+      "speakerId": "c_timur",
+      "locationId": "l_lift",
+      "text": "Позвать Марка: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_l",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_l",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Позвать Марка · 3",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Позвать Марка: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_n",
+      "type": "choice",
+      "chapterId": "ch_01",
+      "title": "1.5 — решение 2",
+      "speakerId": "c_timur",
+      "locationId": "l_archive",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_27_0",
+          "text": "Проверить журнал",
+          "next": "n_o",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_31_1",
+          "text": "Взять ключи в посту",
+          "next": "n_s",
+          "condition": "v_signal >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_35_2",
+          "text": "Подняться на крышу",
+          "next": "n_w",
+          "condition": "v_battery < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_o",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_stairs",
+      "text": "Проверить журнал: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_p",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_battery",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_p",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Проверить журнал: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_q",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_q",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_mark",
+      "locationId": "l_archive",
+      "text": "Проверить журнал: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_7",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_s",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_archive",
+      "text": "Взять ключи в посту: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_t",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_signal",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_t",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Взять ключи в посту: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_u",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_radio",
+      "locationId": "l_stairs",
+      "text": "Взять ключи в посту: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_7",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_w",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Подняться на крышу · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_archive",
+      "text": "Подняться на крышу: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_x",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_note",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_x",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Подняться на крышу · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Подняться на крышу: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_y",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_y",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Подняться на крышу · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Подняться на крышу: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_7",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_10",
+      "type": "choice",
+      "chapterId": "ch_01",
+      "title": "1.7 — решение 3",
+      "speakerId": "c_vera",
+      "locationId": "l_server",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_40_0",
+          "text": "Промолчать в рацию",
+          "next": "n_11",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_44_1",
+          "text": "Открыть чужую дверь",
+          "next": "n_15",
+          "condition": "v_battery >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_48_2",
+          "text": "Нажать кнопку вызова",
+          "next": "n_19",
+          "condition": "v_code < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_11",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_lift",
+      "text": "Промолчать в рацию: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_12",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_12",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Промолчать в рацию: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_13",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_13",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Промолчать в рацию: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_9",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_15",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Открыть чужую дверь · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Открыть чужую дверь: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_16",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_signal",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_16",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Открыть чужую дверь · 2",
+      "speakerId": "c_vera",
+      "locationId": "l_archive",
+      "text": "Открыть чужую дверь: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_17",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_17",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Открыть чужую дверь · 3",
+      "speakerId": "c_timur",
+      "locationId": "l_stairs",
+      "text": "Открыть чужую дверь: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_9",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_19",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Нажать кнопку вызова: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_1a",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1a",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_server",
+      "text": "Нажать кнопку вызова: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_1b",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1b",
+      "type": "line",
+      "chapterId": "ch_01",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_stairs",
+      "text": "Нажать кнопку вызова: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_9",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1d",
+      "type": "note",
+      "chapterId": "ch_01",
+      "title": "Заметка: Лифт",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Проверить, что все ветки сходятся обратно в позвоночник.",
+      "emotion": "",
+      "next": "n_1e",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1e",
+      "type": "scene",
+      "chapterId": "ch_02",
+      "title": "Глава 2: Серверная",
+      "speakerId": "",
+      "locationId": "l_server",
+      "text": "Смена идёт, этаж 16. Серверная.",
+      "emotion": "",
+      "next": "n_1f",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1f",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.1",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_1g",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1g",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.2",
+      "speakerId": "c_vera",
+      "locationId": "l_archive",
+      "text": "На крыше ветер выносит слова в разные стороны.",
+      "emotion": "сухо",
+      "next": "n_1n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1h",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.3",
+      "speakerId": "c_oleg",
+      "locationId": "l_server",
+      "text": "Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "настороженно",
+      "next": "n_1i",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1i",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.4",
+      "speakerId": "c_radio",
+      "locationId": "l_guard",
+      "text": "Олег делает вид, что турникет его не касается.",
+      "emotion": "сухо",
+      "next": "n_1j",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_signal",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1j",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.5",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "настороженно",
+      "next": "n_20",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1k",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.6",
+      "speakerId": "c_echo",
+      "locationId": "l_stairs",
+      "text": "Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "сухо",
+      "next": "n_1l",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1l",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.7",
+      "speakerId": "c_vera",
+      "locationId": "l_server",
+      "text": "За дверью архива слышно, как перекладывают папки.",
+      "emotion": "настороженно",
+      "next": "n_2d",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1m",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "2.8",
+      "speakerId": "c_radio",
+      "locationId": "l_server",
+      "text": "На крыше ветер выносит слова в разные стороны.",
+      "emotion": "сухо",
+      "next": "n_2r",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1n",
+      "type": "choice",
+      "chapterId": "ch_02",
+      "title": "2.2 — решение 1",
+      "speakerId": "c_vera",
+      "locationId": "l_stairs",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_63_0",
+          "text": "Проверить журнал",
+          "next": "n_1o",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_67_1",
+          "text": "Взять ключи в посту",
+          "next": "n_1s",
+          "condition": "v_signal >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_71_2",
+          "text": "Подняться на крышу",
+          "next": "n_1w",
+          "condition": "v_battery < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1o",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_1p",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_code",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1p",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_guard",
+      "text": "Проверить журнал: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_1q",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1q",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_radio",
+      "locationId": "l_roof",
+      "text": "Проверить журнал: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_1h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1s",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Взять ключи в посту: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_1t",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1t",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_echo",
+      "locationId": "l_server",
+      "text": "Взять ключи в посту: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_1u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1u",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_mark",
+      "locationId": "l_archive",
+      "text": "Взять ключи в посту: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_1h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1w",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Подняться на крышу · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_stairs",
+      "text": "Подняться на крышу: В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "",
+      "next": "n_1x",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_note",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1x",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Подняться на крышу · 2",
+      "speakerId": "c_echo",
+      "locationId": "l_stairs",
+      "text": "Подняться на крышу: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_1y",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_1y",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Подняться на крышу · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Подняться на крышу: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_1h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_20",
+      "type": "choice",
+      "chapterId": "ch_02",
+      "title": "2.5 — решение 2",
+      "speakerId": "c_vera",
+      "locationId": "l_roof",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_76_0",
+          "text": "Промолчать в рацию",
+          "next": "n_21",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_80_1",
+          "text": "Открыть чужую дверь",
+          "next": "n_25",
+          "condition": "v_battery >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_84_2",
+          "text": "Нажать кнопку вызова",
+          "next": "n_29",
+          "condition": "v_code < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_21",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_echo",
+      "locationId": "l_archive",
+      "text": "Промолчать в рацию: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_22",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_battery",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_22",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_timur",
+      "locationId": "l_guard",
+      "text": "Промолчать в рацию: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_23",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_23",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_server",
+      "text": "Промолчать в рацию: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_1k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_25",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Открыть чужую дверь · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_archive",
+      "text": "Открыть чужую дверь: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_26",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_trust",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_26",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Открыть чужую дверь · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_roof",
+      "text": "Открыть чужую дверь: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_27",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_27",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Открыть чужую дверь · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_server",
+      "text": "Открыть чужую дверь: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_1k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_29",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_server",
+      "text": "Нажать кнопку вызова: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_2a",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_keys",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2a",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Нажать кнопку вызова: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_2b",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2b",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "Нажать кнопку вызова: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_1k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2d",
+      "type": "choice",
+      "chapterId": "ch_02",
+      "title": "2.7 — решение 3",
+      "speakerId": "c_mark",
+      "locationId": "l_stairs",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_89_0",
+          "text": "Спуститься по лестнице",
+          "next": "n_2e",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_93_1",
+          "text": "Позвать Марка",
+          "next": "n_2i",
+          "condition": "v_code >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_97_2",
+          "text": "Проверить журнал",
+          "next": "n_2m",
+          "condition": "v_note < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2e",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_anya",
+      "locationId": "l_stairs",
+      "text": "Спуститься по лестнице: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_2f",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_battery",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2f",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_radio",
+      "locationId": "l_stairs",
+      "text": "Спуститься по лестнице: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_2g",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2g",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_guard",
+      "text": "Спуститься по лестнице: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_1m",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2i",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Позвать Марка · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_server",
+      "text": "Позвать Марка: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_2j",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2j",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Позвать Марка · 2",
+      "speakerId": "c_vera",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_2k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2k",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Позвать Марка · 3",
+      "speakerId": "c_echo",
+      "locationId": "l_archive",
+      "text": "Позвать Марка: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_1m",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2m",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_echo",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_2n",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_note",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2n",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_timur",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_2o",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2o",
+      "type": "line",
+      "chapterId": "ch_02",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_stairs",
+      "text": "Проверить журнал: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_1m",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2q",
+      "type": "note",
+      "chapterId": "ch_02",
+      "title": "Заметка: Серверная",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Проверить, что все ветки сходятся обратно в позвоночник.",
+      "emotion": "",
+      "next": "n_2r",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2r",
+      "type": "scene",
+      "chapterId": "ch_03",
+      "title": "Глава 3: Архив",
+      "speakerId": "",
+      "locationId": "l_archive",
+      "text": "Смена идёт, этаж 24. Архив.",
+      "emotion": "",
+      "next": "n_2s",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2s",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.1",
+      "speakerId": "c_radio",
+      "locationId": "l_archive",
+      "text": "Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_2t",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2t",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.2",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "сухо",
+      "next": "n_30",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2u",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.3",
+      "speakerId": "c_echo",
+      "locationId": "l_archive",
+      "text": "На полу мелом обведён след человеческого шага.",
+      "emotion": "настороженно",
+      "next": "n_2v",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2v",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.4",
+      "speakerId": "c_vera",
+      "locationId": "l_stairs",
+      "text": "Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "сухо",
+      "next": "n_2w",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2w",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.5",
+      "speakerId": "c_mark",
+      "locationId": "l_guard",
+      "text": "Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "настороженно",
+      "next": "n_3d",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2x",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.6",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "сухо",
+      "next": "n_2y",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2y",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.7",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "настороженно",
+      "next": "n_3q",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_2z",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "3.8",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "сухо",
+      "next": "n_44",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_30",
+      "type": "choice",
+      "chapterId": "ch_03",
+      "title": "3.2 — решение 1",
+      "speakerId": "c_anya",
+      "locationId": "l_archive",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_112_0",
+          "text": "Промолчать в рацию",
+          "next": "n_31",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_116_1",
+          "text": "Открыть чужую дверь",
+          "next": "n_35",
+          "condition": "v_battery >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_120_2",
+          "text": "Нажать кнопку вызова",
+          "next": "n_39",
+          "condition": "v_code < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_31",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_nina",
+      "locationId": "l_archive",
+      "text": "Промолчать в рацию: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_32",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_keys",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_32",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Промолчать в рацию: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_33",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_33",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Промолчать в рацию: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_2u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_35",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Открыть чужую дверь · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_roof",
+      "text": "Открыть чужую дверь: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_36",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_keys",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_36",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Открыть чужую дверь · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_lift",
+      "text": "Открыть чужую дверь: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_37",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_37",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Открыть чужую дверь · 3",
+      "speakerId": "c_echo",
+      "locationId": "l_lift",
+      "text": "Открыть чужую дверь: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_2u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_39",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Нажать кнопку вызова: На полу мелом обведён след человеческого шага.",
+      "emotion": "",
+      "next": "n_3a",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3a",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_vera",
+      "locationId": "l_stairs",
+      "text": "Нажать кнопку вызова: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_3b",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3b",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_lift",
+      "text": "Нажать кнопку вызова: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_2u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3d",
+      "type": "choice",
+      "chapterId": "ch_03",
+      "title": "3.5 — решение 2",
+      "speakerId": "c_anya",
+      "locationId": "l_lift",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_125_0",
+          "text": "Спуститься по лестнице",
+          "next": "n_3e",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_129_1",
+          "text": "Позвать Марка",
+          "next": "n_3i",
+          "condition": "v_code >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_133_2",
+          "text": "Проверить журнал",
+          "next": "n_3m",
+          "condition": "v_note < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3e",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_lift",
+      "text": "Спуститься по лестнице: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_3f",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3f",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Спуститься по лестнице: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_3g",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3g",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Спуститься по лестнице: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_2x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3i",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Позвать Марка · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_3j",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3j",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Позвать Марка · 2",
+      "speakerId": "c_timur",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_3k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3k",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Позвать Марка · 3",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Позвать Марка: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_2x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3m",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_nina",
+      "locationId": "l_stairs",
+      "text": "Проверить журнал: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_3n",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_code",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3n",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_stairs",
+      "text": "Проверить журнал: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_3o",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3o",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_timur",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_2x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3q",
+      "type": "choice",
+      "chapterId": "ch_03",
+      "title": "3.7 — решение 3",
+      "speakerId": "c_anya",
+      "locationId": "l_server",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_138_0",
+          "text": "Взять ключи в посту",
+          "next": "n_3r",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_142_1",
+          "text": "Подняться на крышу",
+          "next": "n_3v",
+          "condition": "v_note >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_146_2",
+          "text": "Промолчать в рацию",
+          "next": "n_3z",
+          "condition": "v_shift < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3r",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Взять ключи в посту: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_3s",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3s",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Взять ключи в посту: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_3t",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3t",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Взять ключи в посту: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_2z",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3v",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Подняться на крышу · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Подняться на крышу: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_3w",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3w",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Подняться на крышу · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Подняться на крышу: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_3x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3x",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Подняться на крышу · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_guard",
+      "text": "Подняться на крышу: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_2z",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_3z",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_stairs",
+      "text": "Промолчать в рацию: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_40",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_40",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_radio",
+      "locationId": "l_guard",
+      "text": "Промолчать в рацию: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_41",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_41",
+      "type": "line",
+      "chapterId": "ch_03",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_vera",
+      "locationId": "l_guard",
+      "text": "Промолчать в рацию: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_2z",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_43",
+      "type": "note",
+      "chapterId": "ch_03",
+      "title": "Заметка: Архив",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Проверить, что все ветки сходятся обратно в позвоночник.",
+      "emotion": "",
+      "next": "n_44",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_44",
+      "type": "scene",
+      "chapterId": "ch_04",
+      "title": "Глава 4: Крыша",
+      "speakerId": "",
+      "locationId": "l_roof",
+      "text": "Смена идёт, этаж 32. Крыша.",
+      "emotion": "",
+      "next": "n_45",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_45",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.1",
+      "speakerId": "c_vera",
+      "locationId": "l_roof",
+      "text": "Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_46",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_46",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.2",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "За дверью архива слышно, как перекладывают папки.",
+      "emotion": "сухо",
+      "next": "n_4d",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_47",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.3",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "На крыше ветер выносит слова в разные стороны.",
+      "emotion": "настороженно",
+      "next": "n_48",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_48",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.4",
+      "speakerId": "c_anya",
+      "locationId": "l_stairs",
+      "text": "Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "сухо",
+      "next": "n_49",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_trust",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_49",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.5",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Олег делает вид, что турникет его не касается.",
+      "emotion": "настороженно",
+      "next": "n_4q",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4a",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.6",
+      "speakerId": "c_echo",
+      "locationId": "l_lift",
+      "text": "В наушнике шуршит радио: кто-то дышит в открытый канал.",
+      "emotion": "сухо",
+      "next": "n_4b",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4b",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.7",
+      "speakerId": "c_nina",
+      "locationId": "l_guard",
+      "text": "Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "настороженно",
+      "next": "n_53",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_trust",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4c",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "4.8",
+      "speakerId": "c_vera",
+      "locationId": "l_lift",
+      "text": "За дверью архива слышно, как перекладывают папки.",
+      "emotion": "сухо",
+      "next": "n_5h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4d",
+      "type": "choice",
+      "chapterId": "ch_04",
+      "title": "4.2 — решение 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_161_0",
+          "text": "Спуститься по лестнице",
+          "next": "n_4e",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_165_1",
+          "text": "Позвать Марка",
+          "next": "n_4i",
+          "condition": "v_code >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_169_2",
+          "text": "Проверить журнал",
+          "next": "n_4m",
+          "condition": "v_note < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4e",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_server",
+      "text": "Спуститься по лестнице: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_4f",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_code",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4f",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_stairs",
+      "text": "Спуститься по лестнице: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4g",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4g",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_echo",
+      "locationId": "l_archive",
+      "text": "Спуститься по лестнице: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_47",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4i",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Позвать Марка · 1",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_4j",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_note",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4j",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Позвать Марка · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4k",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Позвать Марка · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Позвать Марка: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_47",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4m",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Марк говорит вполголоса, чтобы не разбудить пустой этаж.",
+      "emotion": "",
+      "next": "n_4n",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_keys",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4n",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_radio",
+      "locationId": "l_server",
+      "text": "Проверить журнал: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_4o",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4o",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Проверить журнал: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_47",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4q",
+      "type": "choice",
+      "chapterId": "ch_04",
+      "title": "4.5 — решение 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_174_0",
+          "text": "Взять ключи в посту",
+          "next": "n_4r",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_178_1",
+          "text": "Подняться на крышу",
+          "next": "n_4v",
+          "condition": "v_note >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_182_2",
+          "text": "Промолчать в рацию",
+          "next": "n_4z",
+          "condition": "v_shift < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4r",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "Взять ключи в посту: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_4s",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4s",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_stairs",
+      "text": "Взять ключи в посту: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_4t",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4t",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_lift",
+      "text": "Взять ключи в посту: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_4a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4v",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Подняться на крышу · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_guard",
+      "text": "Подняться на крышу: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_4w",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4w",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Подняться на крышу · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_server",
+      "text": "Подняться на крышу: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_4x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4x",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Подняться на крышу · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_stairs",
+      "text": "Подняться на крышу: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_4a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_4z",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_timur",
+      "locationId": "l_stairs",
+      "text": "Промолчать в рацию: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_50",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_code",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_50",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_server",
+      "text": "Промолчать в рацию: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_51",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_51",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_timur",
+      "locationId": "l_stairs",
+      "text": "Промолчать в рацию: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_4a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_53",
+      "type": "choice",
+      "chapterId": "ch_04",
+      "title": "4.7 — решение 3",
+      "speakerId": "c_vera",
+      "locationId": "l_roof",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_187_0",
+          "text": "Открыть чужую дверь",
+          "next": "n_54",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_191_1",
+          "text": "Нажать кнопку вызова",
+          "next": "n_58",
+          "condition": "v_shift >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_195_2",
+          "text": "Спуститься по лестнице",
+          "next": "n_5c",
+          "condition": "v_rumor < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_54",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Открыть чужую дверь · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_server",
+      "text": "Открыть чужую дверь: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_55",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_trust",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_55",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Открыть чужую дверь · 2",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "Открыть чужую дверь: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_56",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_56",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Открыть чужую дверь · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_archive",
+      "text": "Открыть чужую дверь: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_4c",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_58",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_stairs",
+      "text": "Нажать кнопку вызова: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_59",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_59",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_server",
+      "text": "Нажать кнопку вызова: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_5a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5a",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_stairs",
+      "text": "Нажать кнопку вызова: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_4c",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5c",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_radio",
+      "locationId": "l_roof",
+      "text": "Спуститься по лестнице: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_5d",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5d",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_stairs",
+      "text": "Спуститься по лестнице: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_5e",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5e",
+      "type": "line",
+      "chapterId": "ch_04",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "Спуститься по лестнице: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_4c",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5g",
+      "type": "note",
+      "chapterId": "ch_04",
+      "title": "Заметка: Крыша",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Проверить, что все ветки сходятся обратно в позвоночник.",
+      "emotion": "",
+      "next": "n_5h",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5h",
+      "type": "scene",
+      "chapterId": "ch_05",
+      "title": "Глава 5: Свет",
+      "speakerId": "",
+      "locationId": "l_stairs",
+      "text": "Смена идёт, этаж 40. Свет.",
+      "emotion": "",
+      "next": "n_5i",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5i",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.1",
+      "speakerId": "c_oleg",
+      "locationId": "l_stairs",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_5j",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5j",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.2",
+      "speakerId": "c_timur",
+      "locationId": "l_stairs",
+      "text": "Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "сухо",
+      "next": "n_5q",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5k",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.3",
+      "speakerId": "c_oleg",
+      "locationId": "l_guard",
+      "text": "Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "настороженно",
+      "next": "n_5l",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5l",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.4",
+      "speakerId": "c_timur",
+      "locationId": "l_roof",
+      "text": "На полу мелом обведён след человеческого шага.",
+      "emotion": "сухо",
+      "next": "n_5m",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_rumor",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5m",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.5",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "настороженно",
+      "next": "n_63",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5n",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.6",
+      "speakerId": "c_radio",
+      "locationId": "l_guard",
+      "text": "Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "сухо",
+      "next": "n_5o",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5o",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.7",
+      "speakerId": "c_nina",
+      "locationId": "l_guard",
+      "text": "Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "настороженно",
+      "next": "n_6g",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5p",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "5.8",
+      "speakerId": "c_mark",
+      "locationId": "l_roof",
+      "text": "Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "сухо",
+      "next": "n_6u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5q",
+      "type": "choice",
+      "chapterId": "ch_05",
+      "title": "5.2 — решение 1",
+      "speakerId": "c_radio",
+      "locationId": "l_guard",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_210_0",
+          "text": "Взять ключи в посту",
+          "next": "n_5r",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_214_1",
+          "text": "Подняться на крышу",
+          "next": "n_5v",
+          "condition": "v_note >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_218_2",
+          "text": "Промолчать в рацию",
+          "next": "n_5z",
+          "condition": "v_shift < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5r",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_timur",
+      "locationId": "l_server",
+      "text": "Взять ключи в посту: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_5s",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5s",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_server",
+      "text": "Взять ключи в посту: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_5t",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5t",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_nina",
+      "locationId": "l_lift",
+      "text": "Взять ключи в посту: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_5k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5v",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Подняться на крышу · 1",
+      "speakerId": "c_anya",
+      "locationId": "l_archive",
+      "text": "Подняться на крышу: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_5w",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5w",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Подняться на крышу · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_lift",
+      "text": "Подняться на крышу: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_5x",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5x",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Подняться на крышу · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_roof",
+      "text": "Подняться на крышу: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_5k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_5z",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Промолчать в рацию · 1",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Промолчать в рацию: Фонарь мигает: заряд падает быстрее, чем должен.",
+      "emotion": "",
+      "next": "n_60",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_code",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_60",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Промолчать в рацию · 2",
+      "speakerId": "c_radio",
+      "locationId": "l_lift",
+      "text": "Промолчать в рацию: На крыше ветер выносит слова в разные стороны.",
+      "emotion": "",
+      "next": "n_61",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_61",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Промолчать в рацию · 3",
+      "speakerId": "c_timur",
+      "locationId": "l_server",
+      "text": "Промолчать в рацию: Нина оставляет записку под клавиатурой — если успеет.",
+      "emotion": "",
+      "next": "n_5k",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_63",
+      "type": "choice",
+      "chapterId": "ch_05",
+      "title": "5.5 — решение 2",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_223_0",
+          "text": "Открыть чужую дверь",
+          "next": "n_64",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_227_1",
+          "text": "Нажать кнопку вызова",
+          "next": "n_68",
+          "condition": "v_shift >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_231_2",
+          "text": "Спуститься по лестнице",
+          "next": "n_6c",
+          "condition": "v_rumor < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_64",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Открыть чужую дверь · 1",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Открыть чужую дверь: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_65",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_radio",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_65",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Открыть чужую дверь · 2",
+      "speakerId": "c_echo",
+      "locationId": "l_guard",
+      "text": "Открыть чужую дверь: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_66",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_66",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Открыть чужую дверь · 3",
+      "speakerId": "c_mark",
+      "locationId": "l_guard",
+      "text": "Открыть чужую дверь: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_5n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_68",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Нажать кнопку вызова · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_archive",
+      "text": "Нажать кнопку вызова: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_69",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_battery",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_69",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Нажать кнопку вызова · 2",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Нажать кнопку вызова: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_6a",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6a",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Нажать кнопку вызова · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_archive",
+      "text": "Нажать кнопку вызова: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_5n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6c",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Спуститься по лестнице · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_guard",
+      "text": "Спуститься по лестнице: За дверью архива слышно, как перекладывают папки.",
+      "emotion": "",
+      "next": "n_6d",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6d",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Спуститься по лестнице · 2",
+      "speakerId": "c_timur",
+      "locationId": "l_lift",
+      "text": "Спуститься по лестнице: Код от лифта написан на обратной стороне пропуска.",
+      "emotion": "",
+      "next": "n_6e",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6e",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Спуститься по лестнице · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_archive",
+      "text": "Спуститься по лестнице: Олег делает вид, что турникет его не касается.",
+      "emotion": "",
+      "next": "n_5n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6g",
+      "type": "choice",
+      "chapterId": "ch_05",
+      "title": "5.7 — решение 3",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Нужно решить, что делать прямо сейчас.",
+      "emotion": "",
+      "next": "",
+      "choices": [
+        {
+          "id": "o_236_0",
+          "text": "Позвать Марка",
+          "next": "n_6h",
+          "condition": "",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_240_1",
+          "text": "Проверить журнал",
+          "next": "n_6l",
+          "condition": "v_rumor >= 2",
+          "effects": [],
+          "hint": ""
+        },
+        {
+          "id": "o_244_2",
+          "text": "Взять ключи в посту",
+          "next": "n_6p",
+          "condition": "v_radio < 100",
+          "effects": [],
+          "hint": ""
+        }
+      ],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6h",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Позвать Марка · 1",
+      "speakerId": "c_timur",
+      "locationId": "l_lift",
+      "text": "Позвать Марка: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_6i",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_shift",
+          "op": "+=",
+          "value": "1"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6i",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Позвать Марка · 2",
+      "speakerId": "c_nina",
+      "locationId": "l_roof",
+      "text": "Позвать Марка: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_6j",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6j",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Позвать Марка · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Позвать Марка: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_5p",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6l",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Проверить журнал · 1",
+      "speakerId": "c_mark",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_6m",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_keys",
+          "op": "+=",
+          "value": "2"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6m",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Проверить журнал · 2",
+      "speakerId": "c_anya",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_6n",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6n",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Проверить журнал · 3",
+      "speakerId": "c_oleg",
+      "locationId": "l_lift",
+      "text": "Проверить журнал: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_5p",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6p",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 1",
+      "speakerId": "c_vera",
+      "locationId": "l_lift",
+      "text": "Взять ключи в посту: Вера смотрит на часы так, будто они — её личный враг.",
+      "emotion": "",
+      "next": "n_6q",
+      "choices": [],
+      "branches": [],
+      "effects": [
+        {
+          "varId": "v_alarm",
+          "op": "+=",
+          "value": "3"
+        }
+      ],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6q",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 2",
+      "speakerId": "c_mark",
+      "locationId": "l_archive",
+      "text": "Взять ключи в посту: Тимур стучит по панели: «Они все так делают перед сменой».",
+      "emotion": "",
+      "next": "n_6r",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6r",
+      "type": "line",
+      "chapterId": "ch_05",
+      "title": "Взять ключи в посту · 3",
+      "speakerId": "c_anya",
+      "locationId": "l_guard",
+      "text": "Взять ключи в посту: Лифт останавливается между этажами и не собирается ехать дальше.",
+      "emotion": "",
+      "next": "n_5p",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6t",
+      "type": "note",
+      "chapterId": "ch_05",
+      "title": "Заметка: Свет",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Проверить, что все ветки сходятся обратно в позвоночник.",
+      "emotion": "",
+      "next": "n_6u",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "n_6u",
+      "type": "end",
+      "chapterId": "ch_05",
+      "title": "Конец сюжета",
+      "speakerId": "",
+      "locationId": "",
+      "text": "Смена закончилась так, как не начиналась.",
+      "emotion": "",
+      "next": "",
+      "choices": [],
+      "branches": [],
+      "effects": [],
+      "tags": [
+        "стресс"
+      ],
+      "notes": "",
+      "color": "",
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ],
+  "voice": {
+    "preset": 1,
+    "params": {}
+  },
+  "media": {}
+}

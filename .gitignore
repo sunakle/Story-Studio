@@ -1,0 +1,26 @@
+# Local Electron state and credentials
+.userdata*/
+.logs/
+.env
+.env.*
+!.env.example
+node_modules/
+.npm-cache/
+dist/
+release/
+out/
+build/
+*.log
+*.lnk
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+tools/_udata/
+tools/_e45/
+
+
+.i18n-work/
+.release-work/
+
+.release-work-*

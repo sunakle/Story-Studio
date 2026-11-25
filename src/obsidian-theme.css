@@ -1,0 +1,140 @@
+/* Shared workspace surfaces. The canvas and both sidebars use the same
+   variables as dialogs, inputs and native window chrome. */
+:root, :root[data-theme='dark'] {
+  color-scheme: dark;
+  --obs-bg: #1e1e1e;
+  --obs-panel: #262626;
+  --obs-raised: #2d2d2d;
+  --obs-border: #383838;
+  --obs-border-soft: #303030;
+  --obs-text: #e6e6e6;
+  --obs-secondary: #c1c1c1;
+  --obs-muted: #a3a3a3;
+  --obs-faint: #888888;
+  --obs-hover: #303030;
+  --obs-active: #393939;
+  --obs-accent: #b39aff;
+  --obs-accent-soft: #393247;
+  --obs-action: #7756bd;
+  --obs-action-text: #ffffff;
+  --obs-shadow: 0 6px 22px #0004, 0 1px 3px #0003;
+  --good: #85bc9c;
+  --warn: #d9b26b;
+  --bad: #e68f89;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --obs-bg: #ffffff;
+  --obs-panel: #f2f2f2;
+  --obs-raised: #f8f8f8;
+  --obs-border: #d3d3d3;
+  --obs-border-soft: #e4e4e4;
+  --obs-text: #282828;
+  --obs-secondary: #434343;
+  --obs-muted: #626262;
+  --obs-faint: #707070;
+  --obs-hover: #eaeaea;
+  --obs-active: #e1e1e1;
+  --obs-accent: #683eb3;
+  --obs-accent-soft: #ede7f7;
+  --obs-action: #7351b3;
+  --obs-action-text: #ffffff;
+  --obs-shadow: 0 5px 20px #16121c1c, 0 1px 3px #16121c14;
+  --good: #337449;
+  --warn: #855f20;
+  --bad: #af4340;
+}
+:root[data-theme] {
+  --bg: var(--obs-bg);
+  --panel: var(--obs-panel);
+  --panel-2: var(--obs-raised);
+  --sunk: var(--obs-bg);
+  --line: var(--obs-border);
+  --line-soft: var(--obs-border-soft);
+  --fg: var(--obs-text);
+  --fg2: var(--obs-secondary);
+  --muted: var(--obs-muted);
+  --accent: var(--obs-accent);
+  --accent-fg: var(--obs-action-text);
+  --accent-soft: var(--obs-accent-soft);
+  --hover: var(--obs-hover);
+  --shadow: var(--obs-shadow);
+  --shadow-pop: var(--obs-shadow);
+  --hint: var(--obs-muted);
+  --good-soft: color-mix(in srgb, var(--good) 13%, transparent);
+  --bad-soft: color-mix(in srgb, var(--bad) 13%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 13%, transparent);
+  --btn-primary-bg: var(--obs-action);
+  --btn-primary-fg: var(--obs-action-text);
+  --font-ui: 'Segoe UI', Inter, system-ui, sans-serif;
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 7px;
+  --r-lg: 11px;
+}
+::selection { background: var(--obs-accent-soft); color: var(--fg); }
+input, textarea { caret-color: var(--fg); }
+:where(button, a, summary, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--obs-accent);
+  outline-offset: 2px;
+}
+:where(.input, .select, .textarea, .chat-input) {
+  background-color: var(--obs-bg);
+  color: var(--fg);
+}
+:where(.input, .textarea, .chat-input)::placeholder { color: var(--obs-faint); }
+.btn-primary, .btn-primary:hover { background: var(--obs-action); color: var(--obs-action-text); }
+.btn-ghost:hover, .tb-icon:hover { background: var(--obs-hover); color: var(--fg); }
+.modal-backdrop { background: rgb(0 0 0 / 43%); }
+.modal-card, .dropdown, .ctx-menu, .overlay-panel {
+  border-color: var(--obs-border);
+  background: var(--obs-panel);
+  box-shadow: var(--obs-shadow);
+}
+.modal-card { border-radius: 12px; }
+.modal-title { font-size: 15px; font-weight: 600; }
+.modal-section > h4 { color: var(--fg); font-size: 13px; font-weight: 600; }
+.dropdown .dd-item, .ctx-menu .dd-item { border-radius: 4px; }
+.dropdown .dd-item:focus-visible, .dropdown .dd-item:hover,
+.ctx-menu .dd-item:hover { background: var(--obs-active); color: var(--fg); }
+.toast { border: 1px solid var(--obs-border); border-radius: 7px; background: var(--obs-raised); box-shadow: var(--obs-shadow); }
+.kbd-list kbd, .dd-key { color: var(--obs-muted); font: 11px var(--font-ui); }
+::selection, textarea::selection, input::selection { background: color-mix(in srgb, var(--obs-accent) 38%, transparent); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { border-radius: 5px; background-color: color-mix(in srgb, var(--obs-muted) 35%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--obs-faint); }
+
+/* The settings categories remain available when using the keyboard or a small window. */
+.modal-card:has(.sf-preferences) { width: min(720px, calc(100vw - 48px)); }
+.modal-card:has(.sf-preferences) .modal-body { padding: 0; }
+.sf-preferences { display: grid; grid-template-columns: 170px minmax(0,1fr); min-height: 348px; }
+.sf-preferences-nav { display: flex; flex-direction: column; align-items: stretch; gap: 3px; border-right: 1px solid var(--line); padding: 15px 9px; }
+.sf-preferences-nav button {
+  text-align: left; display:flex; align-items:center; gap:9px; padding:7px 10px; border:0;
+  border-radius:5px; color:var(--fg2); background:transparent; cursor:pointer;
+}
+.sf-preferences-nav button[aria-current='true'] { background:var(--obs-active); color:var(--fg); }
+.sf-preferences-nav button:hover { background:var(--obs-hover); }
+.sf-preferences-main { background:var(--obs-bg); padding: 22px 26px; }
+.sf-preferences-main .modal-section { border:0; margin:0; padding:0; background:transparent; }
+.sf-preferences-main .modal-section[hidden] { display:none; }
+.sf-preferences-main .modal-section h4 { margin:0 0 17px; color:var(--fg); font-size:18px; font-weight:600; }
+.sf-preferences-main .kbd-list { max-height:min(44vh, 322px); overflow:auto; align-items:baseline; }
+.sf-preferences-main .kbd-list > span { min-width:0; }
+#aiBody .chat, #aiBody .chat-log { background:var(--obs-panel); }
+#aiBody .chat-model { color:var(--fg2); }
+#aiBody .chat-msg { border:0; border-radius:6px; background:var(--obs-bg); }
+#aiBody .chat-suggests .chip { color:var(--fg2); border-color:var(--line); background:transparent; }
+#aiBody .chat-input-wrap { background:var(--obs-panel); border-color:var(--line); }
+#aiBody .chat-input { background:var(--obs-bg); border:1px solid var(--line); border-radius:7px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
+
+
+#statusbar button.st-issues {
+  display: inline-flex; align-items: center; gap: 4px; pointer-events: auto;
+  border: 0; padding: 2px 4px; border-radius: 3px; background: transparent; font: inherit; cursor:pointer;
+}
+#statusbar button.st-issues:hover { color: var(--fg); background: var(--obs-hover); }
+#statusbar #issueIcon { display: inline-flex; align-items: center; }

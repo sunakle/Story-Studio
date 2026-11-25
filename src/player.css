@@ -1,0 +1,11 @@
+.sf-playback { display: grid; gap: 18px; padding: 8px 5px; }
+.sf-play-meta,.sf-play-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.sf-play-meta { justify-content: space-between; color: var(--accent); }
+.sf-play-meta label { color: var(--fg2); }
+.sf-play-line { margin: 0; font-size: 19px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sf-play-options,.sf-insert-options { display: grid; gap: 6px; }
+.sf-play-options .btn,.sf-insert-options .btn { text-align: left; justify-content: start; white-space: normal; }
+.sf-play-trace { border-left: 2px solid var(--accent); padding: 3px 12px; max-height: 150px; overflow: auto; color: var(--fg2); font-family: var(--font-mono); }
+.viz-root .viz-side { top: 58px; }
+.viz-relation-key { padding: 0 10px; color: var(--fg2); }
+

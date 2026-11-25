@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>StoryForge</title>
+  <link rel="icon" href="./assets/storyforge.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./player.css" />
+  <link rel="stylesheet" href="./obsidian-theme.css" />
+  <link rel="stylesheet" href="./obsidian-content.css" />
+  <link rel="stylesheet" href="./obsidian-shell.css" />
+  <link rel="stylesheet" href="./obsidian-canvas.css" />
+  <link rel="stylesheet" href="./close-prompt.css" />
+</head>
+<body>
+  <svg class="shell-symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><symbol id="sf-i-leftPane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+<symbol id="sf-i-rightPane" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+<symbol id="sf-i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 10h18"/></symbol>
+<symbol id="sf-i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="sf-i-bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10a1 1 0 0 1 1 1v16l-6-4-6 4V5a1 1 0 0 1 1-1Z"/></symbol>
+<symbol id="sf-i-quick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h4M13 3l5 5v3M13 3v5h5"/><circle cx="15" cy="16" r="3.3"/><path d="m17.5 18.5 3 3"/></symbol>
+<symbol id="sf-i-graph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7.8" r="2.4"/><circle cx="10" cy="18.5" r="2.4"/><path d="m8.5 6.5 7 1M6.9 8.5l2.4 7.5m2.3.4 5-6.4"/></symbol>
+<symbol id="sf-i-layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3.5" width="6.5" height="6" rx="1"/><rect x="14" y="3.5" width="6.5" height="6" rx="1"/><rect x="3" y="14" width="6.5" height="6" rx="1"/><rect x="14" y="14" width="6.5" height="6" rx="1"/></symbol>
+<symbol id="sf-i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="4" width="17.6" height="16" rx="2"/><path d="M3.5 9.5h17m-17 5h17M10 10v10"/></symbol>
+<symbol id="sf-i-day" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="3.7" y="5.5" width="16.6" height="15" rx="2"/><path d="M7.5 3v5M16.5 3v5M4 10h16"/></symbol>
+<symbol id="sf-i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.7a.7.7 0 0 1 1-.6l12 7.3a.75.75 0 0 1 0 1.2L8 20a.7.7 0 0 1-1-.6Z"/></symbol>
+<symbol id="sf-i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19m0-14-1.5 1.5m-11 11L5 19"/></symbol>
+<symbol id="sf-i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m10.1 3-.4 2-1.5.9-2-.6-1.9 3.3 1.5 1.4v2l-1.5 1.4 1.9 3.4 2-.5 1.7 1 .4 2H14l.5-2 1.7-.9 2 .5 1.8-3.2-1.6-1.5v-2L20 8.9l-1.9-3.3-2 .5-1.7-.9-.4-2.1Z"/><circle cx="12" cy="11.6" r="3.1"/></symbol>
+<symbol id="sf-i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></symbol>
+<symbol id="sf-i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></symbol>
+<symbol id="sf-i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="sf-i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></symbol>
+<symbol id="sf-i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5m6 0h5v5M4 15v5h5m6 0h5v-5"/></symbol>
+<symbol id="sf-i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5m0 0 6-6m-6 6 6 6"/></symbol>
+<symbol id="sf-i-forward" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14m0 0-6-6m6 6-6 6"/></symbol>
+<symbol id="sf-i-chevrons" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m8.5 9 3.5-3.5L15.5 9m-7 6 3.5 3.5 3.5-3.5"/></symbol>
+<symbol id="sf-i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1.3 1.3 0 0 0-1.3 1.3v15.4A1.3 1.3 0 0 0 6 21h12a1.3 1.3 0 0 0 1.3-1.3V8.4L14 3Z"/><path d="M14 3v5.5h5"/></symbol>
+<symbol id="sf-i-export" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m-4 4 4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></symbol>
+<symbol id="sf-i-undo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 4 10l5 5m-5-5h10a5.5 5.5 0 0 1 0 11"/></symbol>
+<symbol id="sf-i-redo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5 5 5-5 5m5-5H10a5.5 5.5 0 0 0 0 11"/></symbol>
+<symbol id="sf-i-verify" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></symbol>
+<symbol id="sf-i-inspect" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h5m5 0h6M4 12h10m5 0h1M4 18h2m5 0h9"/><circle cx="11.5" cy="6" r="2"/><circle cx="16.5" cy="12" r="2"/><circle cx="8.5" cy="18" r="2"/></symbol>
+<symbol id="sf-i-voice" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4m4-8v12m4-15v18m4-14v10m4-7v4"/></symbol>
+<symbol id="sf-i-ai" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a7.6 7.6 0 0 1-8.3 7.6 10 10 0 0 1-3-.6L4 20l1.4-4a7.4 7.4 0 0 1-1.5-4.6 8.1 8.1 0 0 1 16.1-.4Z"/><path d="M8.5 11.2h.1m3.4 0h.1m3.4 0h.1"/></symbol>
+<symbol id="sf-i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="sf-i-read" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v14M12 6C9 4 6 4 3 5v13c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Z"/></symbol>
+<symbol id="sf-i-command" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="M8 8h8v8H8z"/><path d="M8 8H6a2.5 2.5 0 1 1 2-2Zm8 0V6a2.5 2.5 0 1 1 2 2Zm0 8h2a2.5 2.5 0 1 1-2 2Zm-8 0v2a2.5 2.5 0 1 1-2-2Z"/></symbol>
+<symbol id="sf-i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><path d="m6 6 12 12m0-12L6 18"/></symbol></defs></svg>
+  <div id="app">
+    <main id="workspace">
+      <nav id="toolbar" aria-label="Инструменты рабочего места">
+        <div class="shell-ribbon-cap"><button type="button" class="shell-button" id="btnToggleLeft" title="Показать или скрыть проводник" aria-label="Показать или скрыть проводник" aria-controls="leftPanel"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-leftPane"/></svg></button></div>
+        <div class="shell-ribbon-tools">
+          <button type="button" class="shell-button" id="ribbonJump" title="Быстрый переход (Ctrl+K)" aria-label="Быстрый переход (Ctrl+K)" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-quick"/></svg></button>
+          <button type="button" class="shell-button" id="btnViz" title="Обзор сюжета (Ctrl+Shift+G)" aria-label="Обзор сюжета (Ctrl+Shift+G)" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-graph"/></svg></button>
+          <button type="button" class="shell-button" id="ribbonGraph" title="Схема переходов" aria-label="Схема переходов" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-layout"/></svg></button>
+          <button type="button" class="shell-button" id="ribbonTable" title="Таблица сценария" aria-label="Таблица сценария" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-table"/></svg></button>
+          <button type="button" class="shell-button" id="ribbonDaily" title="Заметка за сегодня" aria-label="Заметка за сегодня" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-day"/></svg></button>
+          <button type="button" class="shell-button" id="ribbonPlay" title="Пройти ветку" aria-label="Пройти ветку" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-play"/></svg></button>
+          <button type="button" class="shell-button" id="workspaceActions" title="Команды проекта" aria-label="Команды проекта" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-command"/></svg></button>
+        </div>
+        <div class="shell-ribbon-bottom">
+          <button type="button" class="shell-button" id="ribbonFile" title="StoryForge — Меню проекта" aria-label="StoryForge — Меню проекта" ><img class="shell-project-mark" src="./assets/storyforge-mark.png" width="24" height="24" alt="" draggable="false" /></button>
+          <button type="button" class="shell-button" id="btnTheme" title="Переключить тему" aria-label="Переключить тему" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-sun"/></svg></button>
+          <button type="button" class="shell-button" id="btnSettings" title="Настройки" aria-label="Настройки" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-settings"/></svg></button>
+        </div>
+      </nav>
+
+      <aside id="leftPanel" class="side-panel" aria-label="Проводник проекта">
+        <nav id="leftTabs" class="tabs shell-cap" aria-label="Разделы проекта">
+          <button class="tab shell-button" data-tab="script" type="button" title="Сценарий (Ctrl+1)" aria-label="Сценарий (Ctrl+1)"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-folder"/></svg></button>
+          <button class="tab shell-button" data-tab="search" type="button" title="Поиск по проекту (Ctrl+F)" aria-label="Поиск по проекту (Ctrl+F)"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-search"/></svg></button>
+          <button class="tab shell-button" data-tab="bookmarks" type="button" title="Закладки" aria-label="Закладки"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-bookmark"/></svg></button>
+          <details id="projectSections"><summary class="shell-button" title="Другие разделы проекта" aria-label="Другие разделы проекта"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-menu"/></svg></summary><div>
+            <button class="tab" data-tab="characters" type="button">Персонажи</button>
+            <button class="tab" data-tab="locations" type="button">Локации</button>
+            <button class="tab" data-tab="variables" type="button">Переменные</button>
+            <button class="tab" data-tab="stats" type="button">Статистика</button>
+          </div></details>
+        </nav>
+        <div id="leftBody" class="panel-body"></div>
+        <footer id="vaultFooter">
+          <div class="menu-wrap">
+            <button type="button" class="shell-button" id="btnFile" title="StoryForge — Файл и недавние проекты" aria-label="StoryForge — Файл и недавние проекты" aria-controls="menuFile"><img class="shell-project-mark" src="./assets/storyforge-mark.png" width="24" height="24" alt="" draggable="false" /></button>
+            <div id="menuFile" class="dropdown hidden">
+              <button class="dd-item" data-action="file:new">Новый проект <span class="dd-key">Ctrl+N</span></button>
+              <button class="dd-item" data-action="file:open">Открыть… <span class="dd-key">Ctrl+O</span></button>
+              <button class="dd-item" data-action="file:save">Сохранить <span class="dd-key">Ctrl+S</span></button>
+              <button class="dd-item" data-action="file:saveAs">Сохранить как… <span class="dd-key">Ctrl+Shift+S</span></button>
+              <div class="dd-sep"></div>
+              <div class="dd-label">Недавние</div>
+              <div id="recentList" class="dd-recent"></div>
+              <div class="dd-sep"></div>
+              <button class="dd-item" data-action="file:demo">Открыть демо-проект</button>
+            </div>
+          </div>
+          <input id="projectTitle" class="title-input" type="text" value="Новый проект" title="Название проекта — нажмите, чтобы изменить" aria-label="Название проекта" />
+          <span id="stDirty" class="st-dot hidden" title="Есть несохранённые изменения"></span>
+        </footer>
+      </aside>
+      <div id="splitterLeft" class="splitter" role="separator" aria-label="Ширина проводника" aria-orientation="vertical"></div>
+
+      <section id="center" aria-label="Рабочая область">
+        <div id="workbenchBar" class="shell-cap">
+          <nav id="documentTabs" aria-label="Открытые вкладки"></nav>
+          <button type="button" class="shell-button" id="newWorkspaceTab" title="Новая вкладка" aria-label="Новая вкладка" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-plus"/></svg></button>
+          <div class="shell-drag-space"></div>
+          <button type="button" class="shell-button" id="btnToggleRight" title="Показать или скрыть инспектор" aria-label="Показать или скрыть инспектор" aria-controls="rightPanel"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-rightPane"/></svg></button>
+        </div>
+        <header id="paneHeader">
+          <nav class="shell-history" aria-label="История переходов">
+            <button type="button" class="shell-button" id="shellBack" title="Назад" aria-label="Назад" disabled><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-back"/></svg></button>
+            <button type="button" class="shell-button" id="shellForward" title="Вперёд" aria-label="Вперёд" disabled><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-forward"/></svg></button>
+          </nav>
+          <div id="viewPath" aria-label="Текущее представление"><span id="viewParent"></span><span id="viewCrumbSep" aria-hidden="true">/</span><span id="viewName">Схема</span></div>
+          <div class="shell-pane-actions">
+            <div class="menu-wrap"><button type="button" class="shell-button" id="btnExport" title="Экспорт сценария" aria-label="Экспорт сценария" aria-controls="menuExport"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-export"/></svg></button><div id="menuExport" class="dropdown hidden">
+              <button class="dd-item" data-action="export:godot">Godot (dialogue.json + .gd)</button>
+              <button class="dd-item" data-action="export:renpy">Ren'Py (.rpy)</button>
+              <button class="dd-item" data-action="export:markdown">Markdown</button>
+              <button class="dd-item" data-action="export:json">JSON</button>
+              <div class="dd-sep"></div>
+              <button class="dd-item" data-action="export:clipboard">Скопировать сценарий в буфер</button>
+            </div></div>
+            <details id="shellCommands"><summary class="shell-button" title="Ещё действия" aria-label="Ещё действия"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-more"/></svg></summary>
+              <div class="shell-command-list">
+                <button type="button" id="btnUndo"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-undo"/></svg> Отменить <kbd>Ctrl Z</kbd></button>
+                <button type="button" id="btnRedo"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-redo"/></svg> Повторить <kbd>Ctrl Shift Z</kbd></button>
+                <div class="dd-sep"></div>
+                <button type="button" id="btnSearch"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-search"/></svg> Поиск в проекте <kbd>Ctrl F</kbd></button>
+                <button type="button" id="btnValidate"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-verify"/></svg> Проверить проект</button>
+              </div>
+            </details>
+          </div>
+        </header>
+        <div id="banner" class="banner hidden">
+        <span id="bannerText"></span>
+        <div class="banner-actions">
+          <button id="btnRestore" class="btn btn-primary btn-sm" type="button">Восстановить</button>
+          <button id="btnDismissBanner" class="btn btn-sm" type="button">Скрыть</button>
+        </div>
+      </div>
+        <div id="workspacePage" class="hidden" tabindex="-1"></div>
+        <div id="graphFilters" class="graph-filters">
+          <select id="filterChapter" class="select select-sm" aria-label="Фильтр по главе" title="Фильтр по главе"></select>
+          <input id="filterText" class="input input-sm" type="search" aria-label="Фильтр узлов" placeholder="Найти узел…" />
+          <label class="checkbox"><input id="filterNotes" type="checkbox" /> Заметки</label>
+          <div class="grow"></div>
+          <button id="btnAddNode" class="btn btn-sm" type="button" title="Добавить узел"><svg class="shell-icon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#sf-i-plus"/></svg> Узел</button>
+          <button id="btnLayout" class="shell-button" type="button" aria-label="Разложить узлы" title="Разложить узлы (Ctrl+G)"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-layout"/></svg></button>
+          <button id="readScene" class="shell-button" type="button" aria-label="Открыть текст сцены" title="Открыть текст сцены"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-read"/></svg></button>
+        </div>
+        <div id="graphHost" class="graph-host">
+            <svg id="graph" class="graph" xmlns="http://www.w3.org/2000/svg"></svg>
+            <div class="canvas-controls" role="toolbar" aria-label="Масштаб схемы">
+              <button type="button" class="shell-button" data-canvas-zoom="in" aria-label="Увеличить масштаб" title="Увеличить масштаб"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-plus"/></svg></button>
+              <button type="button" class="shell-button" id="btnFit" title="Вписать схему" aria-label="Вписать схему" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-fit"/></svg></button>
+              <button type="button" class="shell-button" data-canvas-zoom="out" aria-label="Уменьшить масштаб" title="Уменьшить масштаб"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-minus"/></svg></button>
+              <span id="zoomLabel" class="zoom-label">100%</span>
+            </div>
+            <div id="graphEmpty" class="graph-empty hidden">В проекте пока нет узлов.<br /><button id="btnCreateFirst" class="btn btn-primary btn-sm" type="button">Создать первый узел</button></div>
+            <div id="validationPanel" class="overlay-panel hidden">
+              <div class="overlay-head">
+                <span class="overlay-title">Проверка проекта</span>
+                <div class="grow"></div>
+                <div class="seg" id="sevFilter">
+                  <button type="button" data-sev="all" aria-pressed="true">Все</button>
+                  <button type="button" data-sev="error">Ошибки</button>
+                  <button type="button" data-sev="warning">Предупр.</button>
+                  <button type="button" data-sev="hint">Подсказки</button>
+                </div>
+                <button id="btnCloseValidation" class="tb-icon" type="button" aria-label="Закрыть">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+              <div id="validationBody" class="overlay-body"></div>
+            </div>
+          </div>
+        <div id="vizRoot" class="viz-root hidden" tabindex="-1"></div>
+      </section>
+      <div id="splitterRight" class="splitter" role="separator" aria-label="Ширина инспектора" aria-orientation="vertical"></div>
+
+      <aside id="rightPanel" class="side-panel" aria-label="Свойства и инструменты">
+        <nav id="rightTabs" class="tabs shell-cap" aria-label="Инструменты сцены">
+          <button class="tab shell-button" data-tab="inspector" type="button" title="Инспектор" aria-label="Инспектор"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-inspect"/></svg></button>
+          <button class="tab shell-button" data-tab="voice" type="button" title="Озвучка" aria-label="Озвучка"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-voice"/></svg></button>
+          <button class="tab shell-button" data-tab="ai" type="button" title="AI-ассистент" aria-label="AI-ассистент"><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-ai"/></svg></button>
+          <button type="button" class="shell-button" id="closeInspector" title="Скрыть панель" aria-label="Скрыть панель" ><svg class="shell-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><use href="#sf-i-close"/></svg></button>
+        </nav>
+        <div class="shell-right-title" id="rightPaneLabel">Инспектор</div>
+        <div id="inspectorBody" class="panel-body"></div>
+        <div id="voiceBody" class="panel-body hidden"></div>
+        <div id="aiBody" class="panel-body hidden"></div>
+      </aside>
+    </main>
+
+    <footer id="statusbar" aria-label="Состояние проекта">
+      <span id="stFile" class="st-item"></span>
+      <span id="stCounts" class="st-item"></span>
+      <span id="stAutosave" class="st-item"></span>
+      <button type="button" id="stIssues" class="st-item st-issues" title="Проверить проект (F5)">
+        <span id="issueIcon" aria-hidden="true"></span><span id="badgeIssues">0</span><span id="issueUnit">проблем</span>
+      </button>
+      <span id="stVersion" class="st-item st-version"></span>
+    </footer>
+  </div>
+  <div id="studioRoot" class="studio-root hidden"></div>
+  <div id="modalRoot" class="modal-root hidden"></div>
+  <div id="contextMenu" class="context-menu hidden"></div>
+  <div id="toastRoot" class="toast-root"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
