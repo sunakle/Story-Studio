@@ -1019,17 +1019,19 @@ async function handleAction(action) {
     case 'help:hotkeys':
       hotkeysHelp();
       break;
-    case 'help:about':
+    case 'help:about': {
+      const info = await window.sf.app.info();
       modal({
         title: uiText("О программе", "About"),
         body: `<div class="about-brand">
                  <img src="./assets/storyforge-mark.png" alt="" width="60" height="60" draggable="false" />
                  <div><strong>StoryForge</strong><p>${uiText("Редактор сценария для игр", "Story editor for games")}.</p></div>
                </div>
-               <p class="hint-text">${uiText("Версия", "Version")} ${escapeHTML(window.sf.versions?.electron ? '1.0.0' : '1.0.0')}, Electron ${escapeHTML(window.sf.versions?.electron || '')}, Node ${escapeHTML(window.sf.versions?.node || '')}.</p>
+               <p class="hint-text">${uiText("Версия", "Version")} ${escapeHTML(info.version)}, Electron ${escapeHTML(info.electron)}, Node ${escapeHTML(info.node)}.</p>
                <p class="hint-text">${uiText("Работает офлайн. AI-запросы уходят только на выбранный вами", "Works offline. AI requests go only to your chosen")} Base URL.</p>`,
       });
       break;
+    }
     case 'app:ready':
       devLog(uiText("main сообщил о готовности", "main reported ready"));
       break;

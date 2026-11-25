@@ -174,6 +174,7 @@ export function createVisualizer({ root, store, ui }) {
   let shell = null;
   let opener = null;
   let builtRevision = -1;
+  let relaxingDrag = false;
   let light = document.documentElement.dataset.theme === 'light';
   let repaintOnOpen = false;
   const focusPaint = { nodes: null, key: null, amount: 0, started: 0, animating: false };
@@ -382,11 +383,13 @@ export function createVisualizer({ root, store, ui }) {
     const rep = state.forces.repulsion;
     const restLen = state.forces.link;
     const gravity = state.forces.gravity;
+    const held = state.dragging?.moved ? state.dragging.node : null;
 
     // Отталкивание обрезано на 300 мировых единицах. Проверяем только девять
     // соседних ячеек и только уже встреченные точки, сохраняя симметрию сил.
     const grid = new Map();
     for (const a of nodes) {
+      a.stepLimit = PHYS.maxSpeed;
       const gx = Math.floor(a.x / 300), gy = Math.floor(a.y / 300);
       for (let x = gx - 1; x <= gx + 1; x++) {
         const column = grid.get(x);
@@ -421,7 +424,21 @@ export function createVisualizer({ root, store, ui }) {
       const d = Math.sqrt(dx * dx + dy * dy) || 1;
       // A recurring speaker can link every chapter. Keep those cross-chapter
       // references visible without pulling all of the narrative clusters together.
-      const weight = storyLink(l.kind) ? 1 : l.kind === 'chapter' ? .8 : .25;
+      let weight = storyLink(l.kind) ? 1 : l.kind === 'chapter' ? .8 : .25;
+      if (relaxingDrag && d > restLen) {
+        // A drag at a distant zoom can stretch an edge by thousands of world
+        // units. Let its endpoints cover up to 5% of that extension per tick.
+        const stretch = d - restLen;
+        const step = stretch * .05;
+        a.stepLimit = Math.max(a.stepLimit, step);
+        b.stepLimit = Math.max(b.stepLimit, step);
+        if (a === held || b === held) {
+          // Strongly stretched incident edges carry the grabbed neighborhood
+          // along. On release they immediately regain their normal stiffness.
+          const pulled = Math.min(stretch, state.dragging.travel);
+          weight = Math.max(weight, Math.min(3, pulled / (8 * restLen)));
+        }
+      }
       const f = (d - restLen) * PHYS.linkStrength * weight * alpha;
       const fx = (dx / d) * f;
       const fy = (dy / d) * f;
@@ -437,9 +454,9 @@ export function createVisualizer({ root, store, ui }) {
       node.vx *= PHYS.damping;
       node.vy *= PHYS.damping;
       const speed = Math.hypot(node.vx, node.vy);
-      if (speed > PHYS.maxSpeed) {
-        node.vx = (node.vx / speed) * PHYS.maxSpeed;
-        node.vy = (node.vy / speed) * PHYS.maxSpeed;
+      if (speed > node.stepLimit) {
+        node.vx = (node.vx / speed) * node.stepLimit;
+        node.vy = (node.vy / speed) * node.stepLimit;
       }
       if (!node.fixed) {
         node.x += node.vx;
@@ -451,6 +468,7 @@ export function createVisualizer({ root, store, ui }) {
     }
 
     state.alpha = Math.max(PHYS.minAlpha, state.alpha * PHYS.decay);
+    if (state.alpha === PHYS.minAlpha) relaxingDrag = false;
   }
 
   function reheat(alpha = 0.45) {
@@ -849,8 +867,11 @@ export function createVisualizer({ root, store, ui }) {
   }
 
   function moveHeld(drag, pt) {
-    if (!drag.moved && Math.hypot(pt.x - drag.start.x, pt.y - drag.start.y) < 4) return;
+    const travel = Math.hypot(pt.x - drag.start.x, pt.y - drag.start.y);
+    if (!drag.moved && travel < 4) return;
     drag.moved = true;
+    drag.travel = travel / state.zoom;
+    relaxingDrag = true;
     const world = toWorld(pt.x, pt.y);
     drag.node.x = world.x + drag.offsetX;
     drag.node.y = world.y + drag.offsetY;
@@ -864,7 +885,10 @@ export function createVisualizer({ root, store, ui }) {
       const node = state.dragging.node;
       node.fixed = false;
       node.vx = node.vy = 0;
-      if (state.dragging.moved) state.alpha = Math.max(state.alpha, 0.45);
+      if (state.dragging.moved) {
+        relaxingDrag = true;
+        state.alpha = Math.max(state.alpha, 0.45);
+      }
     }
     state.dragging = null;
     state.panning = null;
@@ -1102,6 +1126,7 @@ export function createVisualizer({ root, store, ui }) {
 
   function rebuild({ keepPositions = false, updateCountsOnly = false } = {}) {
     releaseGesture();
+    relaxingDrag = false;
     const prev = keepPositions ? new Map(state.nodes.map((n) => [n.key, { x: n.x, y: n.y }])) : null;
     const g = buildGraph();
     builtRevision = store.revision;
@@ -1150,6 +1175,7 @@ export function createVisualizer({ root, store, ui }) {
 
   function layoutAll() {
     releaseGesture();
+    relaxingDrag = false;
     seedPositions();
     fit();
     reheat(1);

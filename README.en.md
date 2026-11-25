@@ -2,7 +2,7 @@
 
 **A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/latest/download/StoryForge-Setup-1.0.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.0.1/StoryForge-Setup-1.0.1-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
 
 [Story flow](docs/gallery/flow.png)
 

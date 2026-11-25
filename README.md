@@ -2,7 +2,7 @@
 
 **Настольный редактор ветвящихся диалогов и игровых сценариев.** Напишите сцену, свяжите её с вариантами ответа и пройдите ветку с текущими значениями переменных. Сценарий, иллюстрации и настройки голосов хранятся в локальном проекте `.sfproj`.
 
-[**Скачать для Windows x64**](https://github.com/sunakle/Story-Studio/releases/latest/download/StoryForge-Setup-1.0.0-x64.exe) · [English README](README.en.md) · [Руководство](docs/guide.ru.md) · [Все выпуски](https://github.com/sunakle/Story-Studio/releases)
+[**Скачать для Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.0.1/StoryForge-Setup-1.0.1-x64.exe) · [English README](README.en.md) · [Руководство](docs/guide.ru.md) · [Все выпуски](https://github.com/sunakle/Story-Studio/releases)
 
 [Схема переходов](docs/gallery/flow.png)
 
