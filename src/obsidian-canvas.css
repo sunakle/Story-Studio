@@ -270,3 +270,9 @@
 .studio-card .studio-tabs .tab.active { background: var(--obs-raised); color: var(--obs-text); }
 .studio-control input[type="range"] { accent-color: var(--obs-accent); }
 
+.voice-library-body .field-label { letter-spacing: normal; font-size: 12px; }
+.voice-library-body .field-row > :is(input,select) { flex: 1; min-width: 0; }
+.voice-library-body .btn { flex-shrink: 0; }
+.voice-library-body [data-confirm] { margin-top: 8px; }
+.voice-library-body [hidden], .voice-library-body [role="status"]:empty { display: none; }
+

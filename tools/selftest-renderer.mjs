@@ -43,13 +43,20 @@ const key = (target, k, init = {}) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
 
 // ---------------------------------------------------------------- 1. каркас
-await until(() => project() && (project().nodes || []).length > 0, 8000);
+add('первый запуск открывает пустой проект', project()?.nodes.length === 0 && !store.filePath && !store.dirty);
+const { makeStoryFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+const { computeStats, migrateProject } = await import(new URL('./js/model.js', document.baseURI).href);
+store.setProject(makeStoryFixture());
+store.setSelection({kind:'node', id:project().startNodeId});
+ui.inspector.focusNode(project().startNodeId);
+ui.graph.showStart();
+await until(() => qa('#graph .node-card').length === 12);
 
 add('модули инициализированы (graph/panels/inspector/ai)',
   ui.graph && ui.panels && ui.inspector && ui.ai,
   `graph=${!!ui.graph} panels=${!!ui.panels} inspector=${!!ui.inspector} ai=${!!ui.ai}`);
 
-add('демо-проект загружен: 12 узлов, стартовый узел задан',
+add('тестовый граф загружен: 12 узлов, стартовый узел задан',
   (project().nodes || []).length === 12 && !!project().startNodeId,
   `узлов ${(project().nodes || []).length}, start=${project().startNodeId}`);
 
@@ -57,9 +64,9 @@ add('граф отрисован (карточки и рёбра)',
   qa('#graph .node-card').length === 12 && qa('#graph .edge').length >= 12,
   `карточек ${qa('#graph .node-card').length}, рёбер ${qa('#graph .edge').length}, подписей ${qa('#graph .edge-label').length}`);
 
-add('демо: у сцены есть фото и карточка выше обычной',
-  !!q('#graph .node-card[data-id="n_scene_cor"] image.node-media')
-    && Number((q('#graph .node-card[data-id="n_scene_cor"] rect.node-bg') || {}).getAttribute?.('height')) > 90,
+add('у сцены есть фото и карточка выше обычной',
+  !!q('#graph .node-card[data-id="qa_scene"] image.node-media')
+    && Number((q('#graph .node-card[data-id="qa_scene"] rect.node-bg') || {}).getAttribute?.('height')) > 90,
   `медиа в библиотеке ${Object.keys(project().media || {}).length}`);
 
 add('левая панель: вкладки проекта, поиска, закладок и сущностей',
@@ -170,7 +177,7 @@ if (searchTab) {
   await wait(200);
   const input = q('#leftBody input[type="search"], #leftBody input[type="text"], #leftBody .input');
   if (input) {
-    input.value = 'Аня';
+    input.value = 'Автор';
     fire(input, 'input');
     const found = await until(() => qa('#leftBody .search-group').length > 0 || qa('#leftBody .list-item').length > 0, 3000);
     add('поиск по проекту находит результаты', found, `групп ${qa('#leftBody .search-group').length}, элементов ${qa('#leftBody .list-item').length}`);
@@ -186,7 +193,9 @@ if (statsTab) {
   statsTab.click();
   await wait(250);
   const bodyText = text(byId('leftBody'));
-  add('статистика показывает счётчики узлов и слов', /159/.test(bodyText) && /12/.test(bodyText), bodyText.slice(0, 120));
+  const counts = computeStats(project());
+  add('статистика показывает счётчики узлов и слов',
+    bodyText.includes(counts.nodes + ' уз') && bodyText.includes(counts.words + ' слов'), bodyText.slice(0, 120));
 } else {
   add('статистика показывает счётчики узлов и слов', false, 'вкладка «Статистика» не найдена');
 }
@@ -297,7 +306,7 @@ ui.setLeftTab('search');
 await wait(200);
 const searchInput = () => q('#panelSearchInput');
 if (searchInput()) {
-  searchInput().value = 'Полночь|склад';
+  searchInput().value = 'Проверка|Зона';
   fire(searchInput(), 'input');
   await wait(500);
   const plainHits = qa('#leftBody .list-item').length;
@@ -772,11 +781,12 @@ try {
     attack.value = '42';
     attack.dispatchEvent(new Event('input', { bubbles: true }));
     await wait(80);
-    const target = (ui.studio && ui.studio.state && ui.studio.state.target) || '';
-    const character = target ? (project().characters || []).find((c) => c.id === target) : null;
-    const holder = character ? character.voice : project().voice;
-    attackWhere = (character ? 'персонаж ' + character.name : 'проект') + ', attack=' + ((holder && holder.params && holder.params.attack));
-    attackOk = Number(holder && holder.params && holder.params.attack) === 42;
+    const target = ui.studio.state.target;
+    const { voiceTarget } = await import('./js/voice/profile.js');
+    const owner = voiceTarget(project(), target, nodeById(node.id));
+    const value = owner?.voice?.params?.attack;
+    attackWhere = (target || 'проект') + ', attack=' + value;
+    attackOk = Number(value) === 42;
   }
   add('студия: параметр из вкладки «Голос» пишется в голос', attackOk, attackWhere);
 
@@ -804,7 +814,7 @@ try {
 try {
   const snap = store.snapshot();
   const node = (project().nodes || []).find((n) => n.type === 'line') || project().nodes[0];
-  // В демо уже есть фото у сцены, поэтому считаем дельту, а не абсолютные числа.
+  // В тесте уже есть фото у сцены, поэтому считаем дельту, а не абсолютные числа.
   const baseIds = Object.keys(project().media || {});
   const baseCount = baseIds.length;
   const baseNodeMedia = (node.media || []).length;
@@ -999,12 +1009,12 @@ try {
   // поиск
   const search = q('#vizRoot [data-viz="search"]');
   if (search) {
-    search.value = 'Марк';
+    search.value = 'Диктор';
     fire(search, 'input');
     await wait(360);
   }
   const found = st.nodes.length;
-  add('обзор сюжета: поиск сужает облако', found > 0 && found < before, 'по «Марк» осталось ' + found);
+  add('обзор сюжета: поиск сужает облако', found > 0 && found < before, 'по «Диктор» осталось ' + found);
 
   // клик по точке открывает узел в редакторе
   viz.close();
@@ -1037,7 +1047,7 @@ try {
       many.push({
         id: 'p_n' + i,
         type: i % 9 === 0 ? 'choice' : 'line',
-        text: 'Реплика номер ' + i + ' про ночную смену на складе',
+        text: 'Реплика номер ' + i + ' про проверку индекса',
         speakerId: '',
         locationId: '',
         chapterId: '',
@@ -1164,7 +1174,7 @@ try {
   const final = {id: 'route-b', type: 'end', text: 'Серверная', position: { x: 600, y: 0 } };
   const orphan = {id: 'route-a2', type: 'line', text: 'Серверная снаружи', speakerId: 'route-m', position: { x: 0, y: 180 }};
   try {
-    store.setProject({ ...prior, startNodeId:first.id, nodes:[first, decision, final, orphan], chapters:[], characters:[{id:'route-m',name:'Марк'}], variables:[], locations:[] });
+    store.setProject({ ...prior, startNodeId:first.id, nodes:[first, decision, final, orphan], chapters:[], characters:[{id:'route-m',name:'Диктор'}], variables:[], locations:[] });
     await wait(120);
     ui.graph.setFilter({text:'',chapterId:'',showNotes:true});
     const path = () => q('#graph .edge-choice');
@@ -1214,21 +1224,19 @@ try {
 {
   const previous=store.snapshot(), previousPath=store.filePath, previousKey=store.documentKey;
   try {
-    const raw=await window.sf.file.demo();
-    const {migrateProject}=await import(new URL('./js/model.js',document.baseURI).href);
-    const demo=migrateProject(raw.project||JSON.parse(raw.content)).project;
+    const demo = makeStoryFixture();
     store.setProject(demo);
     const wb=ui.workbench;
-    wb.openTable('type:line speaker:Марк');
+    wb.openTable('type:line speaker:Диктор');
     const row=q('#tableBody [data-doc]');
     const id=row.dataset.doc;
     row.click();
     const editor=q('#documentText');
-    const revised='Я оставил новую запись на складе.';
+    const revised='Изменённая строка редактора.';
     editor.value=revised;
     fire(editor,'input');
     wb.openTable();
-    add('таблица сохраняет фильтр и показывает изменённую реплику',q('#tableQuery').value==='type:line speaker:Марк' && q('#tableBody').textContent.includes(revised));
+    add('таблица сохраняет фильтр и показывает изменённую реплику',q('#tableQuery').value==='type:line speaker:Диктор' && q('#tableBody').textContent.includes(revised));
     const cell=q('#tableBody [data-speaker]');
     const old=nodeById(id).speakerId;
     cell.click();
@@ -1263,13 +1271,13 @@ try {
     add('рабочие вкладки сценариста',false,String(e?.stack||e));
   } finally {store.setProject(previous,{filePath:previousPath,documentKey:previousKey});}
 }
-// Сквозной путь автора по демо проверяет вместе интерфейс, модель и файл.
+// Сквозной путь автора проверяет вместе интерфейс, модель и файл.
 if (tmpProj) {
   const tab = ui.workbench;
-  const filter = 'type:line speaker:Марк location:"Склад №4"';
-  const originalLine = 'На складе снова горит свет. Ты тоже это видишь?';
-  const insertedLine = 'Тише. Слышишь шаги за дверью?';
-  const filename = tmpProj.replace(/\.sfproj$/, '-night-shift.sfproj');
+  const filter = 'type:line speaker:Диктор location:"Зал №2"';
+  const originalLine = 'Текст после редактирования.';
+  const insertedLine = 'Вставленная строка.';
+  const filename = tmpProj.replace(/\.sfproj$/, '-editor.sfproj');
   const fillText = (value) => {
     const field = q('#documentText');
     field.focus();
@@ -1277,56 +1285,54 @@ if (tmpProj) {
     fire(field, 'input');
   };
   try {
-    const raw = await window.sf.file.demo();
-    const { migrateProject } = await import(new URL('./js/model.js', document.baseURI).href);
-    const demo = migrateProject(raw.project || JSON.parse(raw.content)).project;
+    const demo = makeStoryFixture();
     store.setProject(demo, { filePath: filename });
     tab.openTable(filter);
-    add('Ночная смена — запрос Марка на складе находит «Комик»',
-      q('#tableCount').textContent === '1 из 12' && q('[data-doc=n_joke]'));
-    q('[data-doc=n_joke]').click();
-    const incoming = qa('[data-open-node=n_choice1]');
-    add('Ночная смена — два входа показывают название каждого варианта',
-      incoming.length === 2 && incoming.some(el => text(el).includes('Отшутиться')) &&
-      incoming.some(el => text(el).includes('Соврать')));
+    add('Фильтр по спикеру и локации находит общий узел',
+      q('#tableCount').textContent === '1 из 12' && q('[data-doc=qa_shared]'));
+    q('[data-doc=qa_shared]').click();
+    const incoming = qa('[data-open-node=qa_choice]');
+    add('Редактор — два входа показывают название каждого варианта',
+      incoming.length === 2 && incoming.some(el => text(el).includes('Второй путь')) &&
+      incoming.some(el => text(el).includes('Третий путь')));
     fillText(originalLine);
     incoming[0].click();
     q('[data-doc-act=insert]').click();
     qa('.sf-insert-options button')[1].click();
-    await until(() => store.selection.id !== 'n_choice1' && q('#documentText'));
+    await until(() => store.selection.id !== 'qa_choice' && q('#documentText'));
     const inserted = store.selection.id;
     fillText(insertedLine);
     const speaker = q('#inspectorBody select[data-bind=speakerId]');
-    speaker.value = 'c_mark';
+    speaker.value = 'qa_reader';
     fire(speaker, 'change');
     q('[data-doc-act=listen]').click();
     await wait(360);
-    tab.openNode('n_choice1');
+    tab.openNode('qa_choice');
     q('[data-doc-act=play]').click();
     q('[data-option="1"]').click();
-    add('Ночная смена — игрок проходит вставку и возвращается на выбранный переход',
+    add('Редактор — игрок проходит вставку и возвращается на выбранный переход',
       text(q('.sf-play-line')) === insertedLine &&
-      nodeById('n_choice1').choices[1].next === inserted && nodeById(inserted).next === 'n_joke');
+      nodeById('qa_choice').choices[1].next === inserted && nodeById(inserted).next === 'qa_shared');
     q('[data-advance]').click();
-    add('Ночная смена — после вставки игрок читает исправленную реплику', text(q('.sf-play-line')) === originalLine);
+    add('Редактор — после вставки игрок читает исправленную реплику', text(q('.sf-play-line')) === originalLine);
     q('#modalRoot [data-close]').click();
     tab.openTable();
-    add('Ночная смена — после прохождения таблица восстанавливает фильтр и выводит новый текст',
+    add('Редактор — после прохождения таблица восстанавливает фильтр и выводит новый текст',
       q('#tableQuery').value === filter && q('#tableBody').textContent.includes(originalLine));
-    q('[data-doc=n_joke]').click();
+    q('[data-doc=qa_shared]').click();
     fillText(originalLine + '!');
     const saved = await ui.saveProject();
     const reopened = await window.sf.file.openPath(filename);
     const data = migrateProject(reopened.project || JSON.parse(reopened.content)).project;
-    add('Ночная смена — немедленное сохранение и чтение сохраняют текст, голос, изображение и переход',
-      saved && reopened.ok && data.nodes.find(n => n.id === 'n_joke')?.text === originalLine + '!' &&
-      data.nodes.find(n => n.id === inserted)?.next === 'n_joke' &&
-      data.nodes.find(n => n.id === inserted)?.speakerId === 'c_mark' &&
+    add('Редактор — немедленное сохранение и чтение сохраняют текст, голос, изображение и переход',
+      saved && reopened.ok && data.nodes.find(n => n.id === 'qa_shared')?.text === originalLine + '!' &&
+      data.nodes.find(n => n.id === inserted)?.next === 'qa_shared' &&
+      data.nodes.find(n => n.id === inserted)?.speakerId === 'qa_reader' &&
       JSON.stringify(data.voice) === JSON.stringify(demo.voice) &&
       data.characters.every(c => JSON.stringify(c.voice) === JSON.stringify(demo.characters.find(old => old.id === c.id)?.voice)) &&
       JSON.stringify(data.media) === JSON.stringify(demo.media));
   } catch (err) {
-    add('сквозной путь автора по демо «Ночная смена»', false, String(err?.stack || err));
+    add('сквозной путь автора по тестовому графу', false, String(err?.stack || err));
   }
 }
 // Переходы рабочего места должны работать и в окне с нативной строкой заголовка.
@@ -1335,7 +1341,7 @@ if (tmpProj) {
   const rail = q('#toolbar').getBoundingClientRect();
   add('лента команд и вкладки занимают разные области рабочего окна',
     rail.width >= 32 && rail.width <= 56 && rail.height > 200 && header.height > 20 && header.x >= rail.right);
-  const filter = 'type:line speaker:Марк';
+  const filter = 'type:line speaker:Диктор';
   ui.workbench.openTable(filter);
   const row = q('#tableBody [data-doc]');
   row?.click();

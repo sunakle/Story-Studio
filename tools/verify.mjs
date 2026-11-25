@@ -6,6 +6,7 @@
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import { makeStoryFixture, makeStressFixture } from './test-fixtures.mjs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -165,11 +166,9 @@ check('app.js вызывает только те sf.*-методы, что вы�
   const missing = [...used].filter((k) => !preloadSrc.includes(`${k.split('.')[1]}:`));
   assert(!missing.length, `preload.js не выставляет: ${missing.join(', ')}`);
 });
-check('main.js регистрирует обработчик демо-проекта (sf:file:demo)', () => {
-  assert(/sf:file:demo/.test(read(path.join(ROOT, 'main.js'))), "в main.js нет ipcMain.handle('sf:file:demo') — меню «Демо-проект» и первый запуск упадут");
-});
-check('demo/demo-project.json существует', () => {
-  assert(exists(path.join(ROOT, 'demo', 'demo-project.json')), 'демо-проект ещё не создан');
+check('поставка приложения содержит только пользовательский редактор', () => {
+  assert(!exists(path.join(ROOT, 'demo')) || fs.readdirSync(path.join(ROOT, 'demo')).length === 0, 'остался каталог примеров');
+  assert(!read(path.join(ROOT, 'src', 'index.html')).includes('file:demo'), 'осталась команда открытия примера');
 });
 
 // ================================================================ 5. model.js
@@ -184,22 +183,11 @@ if (!exists(jsPath('model'))) {
   });
 }
 
-// --- демо-проект
-const demoPath = path.join(ROOT, 'demo', 'demo-project.json');
-let demo = null;
-if (!exists(demoPath)) {
-  skip('демо-проект: все проверки на демо', 'demo/demo-project.json ещё не создан');
-} else {
-  check('демо-проект: JSON парсится', () => {
-    demo = readJSON(demoPath);
-    assert(Array.isArray(demo.nodes), 'нет массива nodes');
-  });
-}
-
-let P = null; // мигрированный демо-проект
-if (model && demo) {
-  await checkAsync('model.migrateProject: демо мигрирует без исключений', async () => {
-    const mig = model.migrateProject(clone(demo));
+const sample = makeStoryFixture();
+let P = null; // мигрированный набор данных
+if (model && sample) {
+  await checkAsync('model.migrateProject: тестовый проект мигрирует без исключений', async () => {
+    const mig = model.migrateProject(clone(sample));
     assert(mig && mig.project && Array.isArray(mig.project.nodes), 'не вернул project с nodes');
     assert(Array.isArray(mig.warnings), 'не вернул warnings[]');
     P = mig.project;
@@ -207,11 +195,8 @@ if (model && demo) {
 }
 
 // --- большой тестовый проект для «Обзора сюжета»
-const stressPath = path.join(ROOT, 'demo', 'stress-overview.sfproj');
-if (!exists(stressPath)) {
-  skip('большой проект: проверки', 'demo/stress-overview.sfproj ещё не создан');
-} else if (model) {
-  const stress = model.migrateProject(readJSON(stressPath)).project;
+if (model) {
+  const stress = makeStressFixture();
   check('большой проект: сотни узлов', () => {
     assert(stress.nodes.length >= 200, `узлов ${stress.nodes.length}`);
   });
@@ -228,7 +213,7 @@ if (!exists(stressPath)) {
     assert(choices === 45, `выборов ${choices}`);
   });
   check('большой проект: автораскладка расставляет все узлы', () => {
-    const base = model.migrateProject(readJSON(stressPath)).project;
+    const base = makeStressFixture();
     const out = model.autoLayout(base);
     const positions = out && out.positions ? out.positions : base.positions;
     const known = new Set(base.nodes.map((n) => n.id));
@@ -281,7 +266,7 @@ if (model) {
 }
 
 if (model && P) {
-  check('validateProject на демо: 0 ошибок, 0 предупреждений', () => {
+  check('validateProject на тестовых данных: 0 ошибок, 0 предупреждений', () => {
     const issues = model.validateProject(P) || [];
     const errs = issues.filter((i) => i.severity === 'error');
     const warns = issues.filter((i) => i.severity === 'warning');
@@ -306,7 +291,7 @@ if (model && P) {
     assert(sum <= s.words, `по спикерам ${sum} > всего ${s.words}`);
     const lineWords = P.nodes.filter((n) => n.type === 'line' && n.speakerId).reduce((a, n) => a + model.countWords(n.text), 0);
     assert(sum === lineWords, `по спикерам ${sum} ≠ слов в репликах ${lineWords}`);
-    // Главы: сумма слов по главам = общий счётчик (в демо все узлы распределены по главам).
+    // Главы: сумма слов по главам = общий счётчик (в тестовых данных все узлы распределены по главам).
     const chapterWords = (s.chapters || []).reduce((a, c) => a + (c.words || 0), 0);
     assert(chapterWords === s.words, `по главам ${chapterWords} ≠ всего ${s.words}`);
   });
@@ -352,7 +337,7 @@ if (model && P) {
   check('Store: undo/redo восстанавливают текст узла', () => {
     const st = newStore();
     const node = P.nodes.find((n) => n.type === 'line');
-    assert(node, 'в демо нет line-узла');
+    assert(node, 'в тестовых данных нет line-узла');
     st.apply([{ op: 'updateNode', id: node.id, patch: { text: 'новый текст' } }], { label: 'тест' });
     assert(st.project.nodes.find((n) => n.id === node.id).text === 'новый текст', 'правка не применилась');
     st.undo();
@@ -364,7 +349,7 @@ if (model && P) {
     const st = newStore();
     const before = JSON.stringify(st.project);
     const nodes = P.nodes.filter((n) => n.type === 'line').slice(0, 3);
-    assert(nodes.length >= 2, 'нужно ≥2 line-узлов в демо');
+    assert(nodes.length >= 2, 'нужно ≥2 line-узлов в тестовых данных');
     st.beginGroup('тест-группа');
     nodes.forEach((n, i) => st.apply([{ op: 'updateNode', id: n.id, patch: { text: `группа ${i}` } }], { label: 'тест' }));
     st.endGroup();
@@ -387,7 +372,7 @@ if (model && P) {
 // ================================================================ 6. Валидация: 13 классов
 
 if (model && P) {
-  console.log('\n=== 6. Валидация: 13 классов (мутация демо-копии) ===');
+  console.log('\n=== 6. Валидация: 13 классов (мутация копии) ===');
   const summarize = (issues) =>
     `${(issues || []).length} шт: ${(issues || []).slice(0, 10).map((i) => `${i.code}(${i.severity})`).join(', ')}`;
   const newNode = (p, type, text) => ({
@@ -928,9 +913,8 @@ console.log('\n=== 9. Озвучка диалогов (порт Dialogue Voice S
     }
   });
 
-  check('demo: у персонажей демо-проекта заданы голоса', () => {
-    const demo = readJSON(path.join(ROOT, 'demo', 'demo-project.json'));
-    const withVoice = (demo.characters || []).filter((c) => c.voice && typeof c.voice.preset === 'number');
+  check('у тестовых персонажей заданы голоса', () => {
+    const withVoice = (sample.characters || []).filter((c) => c.voice && typeof c.voice.preset === 'number');
     assert(withVoice.length >= 2, `с голосом: ${withVoice.length}`);
   });
 

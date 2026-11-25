@@ -43,7 +43,6 @@ contextBridge.exposeInMainWorld('sf', {
     recent: () => invoke('sf:file:recent'),
     recentAdd: (p) => invoke('sf:file:recentAdd', p),
     recentClear: () => invoke('sf:file:recentClear'),
-    demo: () => invoke('sf:file:demo'),
   },
 
   settings: {
@@ -69,6 +68,11 @@ contextBridge.exposeInMainWorld('sf', {
 
   media: {
     pick: () => invoke('sf:media:pick'),
+  },
+  voiceLibrary: {
+    list: () => invoke('sf:voiceLibrary:list'),
+    load: id => invoke('sf:voiceLibrary:load', id),
+    save: (name, voice, replaceId) => invoke('sf:voiceLibrary:save', { name, voice, replaceId }),
   },
   voice: {
     chooseDir: (suggested) => invoke('sf:voice:chooseDir', suggested),

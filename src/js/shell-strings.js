@@ -64,7 +64,6 @@ export const shellStrings = {
   "Сохранить": "Save",
   "Сохранить как…": "Save as…",
   "Недавние": "Recent",
-  "Открыть демо-проект": "Open demo project",
   "Схема": "Canvas",
   "Скопировать сценарий в буфер": "Copy story to clipboard",
   "Отменить": "Undo",

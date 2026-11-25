@@ -7,6 +7,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, net, native
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
+const { createHash } = require('node:crypto');
 
 const DEV = process.argv.includes('--dev');
 const ROOT = __dirname;
@@ -16,6 +17,7 @@ const packagedProfile = app.isPackaged && path.join(
 );
 if (process.platform === 'win32') app.setAppUserModelId('sunakle.StoryForge');
 const {atomicWrite, scopedFile, recoveryFiles} = require('./project-files.cjs');
+const { createVoiceLibrary } = require('./src/native/voice-library.cjs');
 
 // ---------------------------------------------------------------- журнал
 // Electron — GUI-процесс: без консоли его сообщения теряются, поэтому пишем
@@ -153,9 +155,60 @@ function deepMerge(base, patch) {
   return out;
 }
 
+// Old releases added their bundled examples to recent files. Fingerprint only
+// the original files in an application tree so a user's edits are retained.
+const retiredSamples = {
+  'demo-project.json': 'f22ff9bf9c922c78e8899299e747503c721fb56ce5468d1b8cb2e7fb367d4586',
+  'stress-overview.sfproj': '9aa17c50ecaef5083f26052e3cca36e28f988ad3e9762ba5ee4e49e499f47d94',
+};
+function sampleHashForPath(file) {
+  if (typeof file !== 'string' || !file) return false;
+  const name = path.basename(file);
+  const hash = Object.hasOwn(retiredSamples, name) && retiredSamples[name];
+  if (!hash || path.basename(path.dirname(file)) !== 'demo') return false;
+  const base = path.resolve(path.dirname(file), '..');
+  if (base !== ROOT && readJsonSync(path.join(base, 'package.json'), {})?.name !== 'storyforge') return false;
+  return hash;
+}
+function isRetiredSample(file) {
+  const hash = sampleHashForPath(file);
+  if (!hash) return false;
+  try {
+    const content = fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+    return createHash('sha256').update(content).digest('hex') === hash;
+  } catch (err) {
+    return err.code === 'ENOENT';
+  }
+}
+
+// Fingerprints of the two original and migrated v1.0.1 project objects.
+// Older migration filled absent creation and save timestamps at open time.
+const factoryDraftHashes = new Set([
+  '684e0561adc53bc8c666289c4c01c7ea89e6aa6f033235e7f457b1fbf1880c81',
+  '91f3cde419b1fa221b2e1da562f3cc96f97f05c2e2ddf0a1a2536554c9a971e4',
+  '1f7fa80605071dd778cb4bd2e679eeda6b09c850592c99e848077623333c8bfd',
+  'd235737ef160bd38002e524c2bd6be8c11011cd43f7c3529244cb46ac569fe4d',
+]);
+function isFactoryDraft(draft) {
+  if (draft.filePath && !sampleHashForPath(draft.filePath)) return false;
+  if (draft.key && !draft.filePath && draft.key !== 'demo:night-shift') return false;
+  try {
+    const data = JSON.parse(draft.content);
+    if (!data?.meta) return false;
+    delete data.meta.createdAt;
+    delete data.meta.updatedAt;
+    return factoryDraftHashes.has(createHash('sha256').update(JSON.stringify(data)).digest('hex'));
+  } catch { return false; }
+}
+
 let settingsCache = null;
 function getSettings() {
-  if (!settingsCache) settingsCache = deepMerge(DEFAULT_SETTINGS, readJsonSync(settingsPath(), {}));
+  if (!settingsCache) {
+    settingsCache = deepMerge(DEFAULT_SETTINGS, readJsonSync(settingsPath(), {}));
+    const savedRecent = Array.isArray(settingsCache.recent) ? settingsCache.recent : [];
+    settingsCache.recent = savedRecent.filter(file => typeof file === 'string' && !isRetiredSample(file));
+    if (typeof settingsCache.lastPath !== 'string' || isRetiredSample(settingsCache.lastPath)) settingsCache.lastPath = null;
+  }
   return settingsCache;
 }
 
@@ -513,18 +566,6 @@ function registerFileIpc() {
     return [];
   });
 
-  // Встроенный демо-проект: рендерер не может читать file:// через fetch,
-  // поэтому файл отдаёт main-процесс.
-  ipcMain.handle('sf:file:demo', async () => {
-    const demoPath = path.join(ROOT, 'demo', 'demo-project.json');
-    try {
-      const text = await fsp.readFile(demoPath, 'utf8');
-      const project = JSON.parse(text);
-      return { ok: true, path: null, content: text, project, isDemo: true };
-    } catch (err) {
-      return { ok: false, error: `${uiText("Демо-проект недоступен", "Demo project unavailable")} (${demoPath}): ${err.message}` };
-    }
-  });
 }
 
 async function pushRecent(filePath) {
@@ -570,14 +611,18 @@ function registerSettingsIpc() {
 // ---------------------------------------------------------------- автосохранение
 
 function registerAutosaveIpc() {
-  const recovery = recoveryFiles(userDir());
+  const recovery = recoveryFiles(userDir(), isFactoryDraft);
   ipcMain.handle('sf:autosave:write', async (_e, payload) => {
     try {
       await recovery.write(payload);
       return {ok:true, at:new Date().toISOString()};
     } catch (err) { return {ok:false, error:err.message}; }
   });
-  ipcMain.handle('sf:autosave:read', (_e,key) => recovery.read(key));
+  ipcMain.handle('sf:autosave:read', async (_e, key) => {
+    const draft = await recovery.read(key);
+    if (isRetiredSample(draft?.filePath)) return { ...draft, filePath: null };
+    return draft;
+  });
   ipcMain.handle('sf:autosave:clear', async (_e,key) => {
     await recovery.clear(key);
     return {ok:true};
@@ -675,6 +720,14 @@ function registerMediaIpc() {
 }
 
 function registerVoiceIpc() {
+  const library = createVoiceLibrary(userDir());
+  const libraryCall = action => async (_event, payload) => {
+    try { return await action(payload); }
+    catch (error) { return { ok: false, code: error.code || 'IO_ERROR' }; }
+  };
+  ipcMain.handle('sf:voiceLibrary:list', libraryCall(async () => ({ ok: true, entries: await library.list() })));
+  ipcMain.handle('sf:voiceLibrary:load', libraryCall(async id => ({ ok: true, voice: await library.load(id) })));
+  ipcMain.handle('sf:voiceLibrary:save', libraryCall(({ name, voice, replaceId }) => library.save(name, voice, replaceId)));
   // Папка для сохранения озвученных реплик.
   ipcMain.handle('sf:voice:chooseDir', async (_e, suggested) => {
     const res = await dialog.showOpenDialog(win, {

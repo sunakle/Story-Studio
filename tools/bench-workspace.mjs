@@ -2,8 +2,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Store, outgoingEdges } from '../src/js/model.js';
-const base = JSON.parse(await fs.readFile(new URL('../demo/stress-overview.sfproj', import.meta.url), 'utf8'));
-const demo = JSON.parse(await fs.readFile(new URL('../demo/demo-project.json', import.meta.url), 'utf8'));
+import { makeStoryFixture, makeStressFixture } from './test-fixtures.mjs';
+const base = makeStressFixture();
+const demo = makeStoryFixture();
 export function fixture(kind) {
   const project = structuredClone(base);
   if (kind === '1000') {
@@ -21,7 +22,7 @@ const temp=await fs.mkdtemp(path.join(os.tmpdir(),'sf-bench-'));
 try {
   for(const kind of ['201','1000','media']){
     const project=fixture(kind), store=new Store();store.setProject(project);
-    const words=['склад','Марк','коридор'];
+    const words=['проверка','голос','зона'];
     const edit=[],save=[],search=[];
     const measure=async(fn,arr)=>{const t=performance.now();await fn();arr.push(performance.now()-t);};
     global.gc?.();const memoryBefore=process.memoryUsage().heapUsed;

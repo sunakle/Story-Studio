@@ -60,7 +60,7 @@ function buildRuntime() {
     const {name, productName, version, description, main, license} = metadata;
     fs.writeFileSync(path.join(payload, 'package.json'),
       JSON.stringify({name, productName, version, description, main, license}, null, 2) + '\n');
-    for (const file of ['main.js', 'preload.js', 'project-files.cjs', 'src', 'demo']) {
+    for (const file of ['main.js', 'preload.js', 'project-files.cjs', 'src']) {
       fs.cpSync(path.join(root, file), path.join(payload, file), {recursive: true});
     }
     if (fs.existsSync(path.join(root, 'LICENSE'))) {

@@ -1,4 +1,4 @@
-// Native regression for a long character-node drag with the large bundled story.
+// Native regression for a long character-node drag with a generated 201-node graph.
 // Run with node tools/test-graph-drag.cjs on a desktop that can run Electron.
 const fs = require('node:fs');
 const os = require('node:os');
@@ -56,9 +56,8 @@ if (!process.versions.electron) {
       await ready('!!window.__sfTest');
       await inPage(async () => {
         const { ui, store } = window.__sfTest;
-        const response = await window.sf.file.openPath('demo/stress-overview.sfproj');
-        if (!response.ok) throw Error(response.error);
-        store.setProject(response.project);
+        const { makeStressFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+        store.setProject(makeStressFixture());
         for (const [id, toggle] of [['leftPanel', 'btnToggleLeft'], ['rightPanel', 'btnToggleRight']]) {
           if (document.getElementById(id).classList.contains('collapsed')) document.getElementById(toggle).click();
         }
@@ -71,7 +70,7 @@ if (!process.versions.electron) {
         const view = ui.visualizer.state;
         const canvas = document.querySelector('#vizRoot canvas');
         const box = canvas.getBoundingClientRect();
-        const hub = view.byId.get('c_oleg');
+        const hub = view.byId.get('qa_speaker_0');
         const neighbors = view.links
           .filter(link => link.source === hub.key || link.target === hub.key)
           .map(link => view.byId.get(link.source === hub.key ? link.target : link.source));
@@ -105,7 +104,7 @@ if (!process.versions.electron) {
       result.travel = Math.hypot(target.x - start.x, target.y - start.y);
       mouse('mouseMove', start.x, start.y);
       mouse('mouseDown', start.x, start.y);
-      await ready("window.__sfTest.ui.visualizer.state.dragging?.node.key === 'c_oleg'");
+      await ready("window.__sfTest.ui.visualizer.state.dragging?.node.key === 'qa_speaker_0'");
       for (let i = 1; i <= 6; i++) {
         mouse('mouseMove', start.x + (target.x - start.x) * i / 6, start.y + (target.y - start.y) * i / 6);
         await frames(1);

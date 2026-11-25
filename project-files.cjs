@@ -29,7 +29,7 @@ function scopedFile(dir, kind, key) {
   return path.join(dir, kind, hash + '.json');
 }
 
-function recoveryFiles(userDir) {
+function recoveryFiles(userDir, skipDraft = () => false) {
   const legacy = path.join(userDir, 'autosave.sfproj');
   const pathFor = key => key ? scopedFile(userDir,'recovery',key) : legacy;
   return {
@@ -54,7 +54,7 @@ function recoveryFiles(userDir) {
         try {
           const raw = await fs.readFile(file,'utf8');
           const data = file === legacy ? {content:raw,key:null,filePath:null} : JSON.parse(raw);
-          if (typeof data.content === 'string') return {...data,ok:true,mtime:new Date(time).toISOString(),path:file};
+          if (typeof data.content === 'string' && !skipDraft(data)) return {...data,ok:true,mtime:new Date(time).toISOString(),path:file};
         } catch { /* A different session may have cleared this recovery. */ }
       }
       return {ok:false};

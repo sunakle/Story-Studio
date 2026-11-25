@@ -61,7 +61,12 @@ if (!process.versions.electron) {
     async function run() {
       await waitFor('!!window.__sfTest');
       win.setSize(1120, 780);
-      await js("window.__sfTest.ui.workbench.openNode('n_joke')");
+      await js(`(async () => {
+        const { makeStoryFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+        const { store, ui } = window.__sfTest;
+        store.setProject(makeStoryFixture());
+        ui.workbench.openNode('qa_shared');
+      })()`);
       await pause(150);
       if (scenario === 'clean') {
         closing = true;
@@ -90,7 +95,7 @@ if (!process.versions.electron) {
       }
       await choose('cancel');
       await waitFor("!document.querySelector('.close-prompt') && window.__sfTest.store.dirty");
-      await js(`window.__sfTest.store.apply([{op:'setMeta',patch:{title:'Ночная смена'}}]);`);
+      await js(`window.__sfTest.store.apply([{op:'setMeta',patch:{title:'Проверка редактора'}}]);`);
       await prompt();
       await pause(200);
       fs.writeFileSync(path.join(profile, 'close.png'), (await win.webContents.capturePage()).toPNG());

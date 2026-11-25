@@ -1,7 +1,7 @@
 {
   "name": "storyforge",
   "productName": "StoryForge",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "StoryForge — редактор сценария для игр: ветвящиеся диалоги, персонажи, локации, AI-ассистент, экспорт в Godot",
   "main": "main.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "pack:win": "node tools/windows/build.mjs",
     "dist:win": "node tools/windows/build.mjs --installer",
     "verify": "node tools/verify.mjs",
-    "test": "node tools/verify.mjs && node tools/_selftest-export.mjs && node --test tools/project-persistence.test.mjs tools/test-story-player.mjs tools/writer-audio-ai.test.mjs",
+    "test": "node tools/verify.mjs && node tools/_selftest-export.mjs && node --test tools/project-persistence.test.mjs tools/test-story-player.mjs tools/writer-audio-ai.test.mjs tools/voice-library.test.mjs tools/voice-roundtrip.test.mjs",
     "selftest": "node tools/run-selftest.mjs",
     "acceptance": "node tools/acceptance.mjs",
     "mock": "node tools/mock-ai-server.mjs --port=8799"

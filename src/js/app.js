@@ -597,21 +597,12 @@ async function applyLoaded(res, documentKey) {
     setProject(project, { filePath: res.path, dirty: false, documentKey });
     if (res.path) await window.sf.file.recentAdd(res.path);
     if (warnings?.length) toast(`${uiText("Проект загружен с замечаниями", "Project loaded with warnings")}: ${warnings[0]}`, 'warn', 5000);
-    else if (state.booted) toast(documentKey === 'demo:night-shift' ? uiText("Открыт демо-проект «Ночная смена»", "Opened demo project «Ночная смена»") : uiText("Проект открыт", "Project opened"), 'good');
+    else if (state.booted) toast(uiText("Проект открыт", "Project opened"), 'good');
     ui.graph?.showStart();
     return true;
   } catch (err) {
     toast(`${uiText("Не удалось открыть проект", "Could not open project")}: ${err.message}`, 'bad', 6000);
   }
-}
-
-async function openDemo() {
-  const res = await window.sf.file.demo();
-  if (!res?.ok) {
-    toast(res?.error || uiText("Демо-проект не найден", "Demo project not found"), 'bad', 5000);
-    return;
-  }
-  await applyLoaded({ ok: true, path: null, content: res.content, project: res.project }, 'demo:night-shift');
 }
 
 let saving = Promise.resolve();
@@ -962,9 +953,6 @@ async function handleAction(action) {
     case 'file:saveAs':
       await saveProject(true);
       break;
-    case 'file:demo':
-      await openDemo();
-      break;
     case 'export:godot':
     case 'export:renpy':
     case 'export:markdown':
@@ -1073,12 +1061,8 @@ async function openStudio(explicitTarget) {
   if (target === undefined) {
     const sel = store.selection;
     if (sel && sel.kind === 'character') target = sel.id;
-    else if (sel && sel.kind === 'node') {
-      const node = (store.project.nodes || []).find((n) => n.id === sel.id);
-      target = (node && node.speakerId) || '';
-    } else target = '';
   }
-  ui.studio.open(target || '');
+  ui.studio.open(target);
 }
 
 async function deleteSelected() {
@@ -1508,20 +1492,18 @@ async function restoreAutosave() {
   } catch (err) { toast(uiText("Не удалось восстановить: ", "Could not restore: ") + err.message, 'bad'); }
 }
 async function loadInitialProject() {
-  if (new URLSearchParams(location.search).has('selftest')) {
-    await openDemo();
-    return;
-  }
   const auto = await window.sf.autosave.read();
   const recent = await window.sf.file.recent();
-  const lastPath = state.settings.lastPath || recent[0];
-
+  const candidates = new Set([state.settings.lastPath, ...recent].filter(Boolean));
   let loaded = false;
-  if (lastPath) {
-    const res = await window.sf.file.openPath(lastPath);
-    if (res?.ok) loaded = await applyLoaded(res);
+  for (const filePath of candidates) {
+    const res = await window.sf.file.openPath(filePath);
+    if (res?.ok && await applyLoaded(res)) {
+      loaded = true;
+      break;
+    }
   }
-  if (!loaded) await openDemo();
+  if (!loaded) setProject(createEmptyProject());
   if (auto?.ok) {
     offeredRecovery = auto;
     const owner = auto.filePath || uiText("проект без сохранённого пути", "project without a saved path");

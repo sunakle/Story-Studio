@@ -3,8 +3,8 @@ const ui = window.__sfTest.ui;
 const store = window.__sfTest.store;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const res = await window.sf.file.openPath('demo/stress-overview.sfproj');
-store.setProject(JSON.parse(res.content), { filePath: null, dirty: false });
+const { makeStressFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+store.setProject(makeStressFixture(), { filePath: null, dirty: false });
 await wait(250);
 const nodeId = store.project.startNodeId;
 store.setSelection({ kind: 'node', id: nodeId });

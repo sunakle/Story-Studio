@@ -31,7 +31,6 @@ storyforge/
   src/js/panels.js        -> левая панель (6 вкладок) + оверлей валидации
   src/js/ai.js            -> AI-ассистент: настройки, стриминг, tool-calling, инструменты
   src/js/app.js           (лид)    — bootstrap, тулбар, хоткеи, автосохранение, статусбар, ui-хелперы
-  demo/demo-project.json  -> демо-проект «Ночная смена»
 ```
 
 ## 2. Модель данных (`*.sfproj`, JSON)
@@ -125,7 +124,7 @@ export const store = new Store();
 12. `cycle-no-exit` (warning) — `condition`/`choice` замкнут сам на себя и нет пути к `end`.
 13. `no-chapter` (hint) — узел без главы.
 
-На демо-проекте — **ноль ошибок** и ноль ложных предупреждений (подсказки допустимы, но лучше тоже ноль).
+На корректных тестовых данных — **ноль ошибок** и ноль ложных предупреждений (подсказки допустимы, но лучше тоже ноль).
 
 ### 3.3 Статистика `computeStats(project)`
 
@@ -299,7 +298,7 @@ export function buildJson(project)            // -> строка JSON
 node --check src\js\model.js      # package.json в src/ помечает файлы как ESM
 ```
 
-Дополнительно лид прогоняет: запуск Electron, `node --check` для всех файлов, тест `export.js` на демо-проекте (генерация файлов в temp), проверку валидации на демо (0 ошибок) и на «сломанных» копиях.
+Дополнительно лид прогоняет: запуск Electron, `node --check` для всех файлов, тест `export.js` на тестовой истории (генерация файлов в temp), проверку валидации корректной истории (0 ошибок) и на «сломанных» копиях.
 
 ---
 
@@ -308,12 +307,12 @@ node --check src\js\model.js      # package.json в src/ помечает фай
 1. **`plural(n, forms)` возвращает ТОЛЬКО форму слова** (`'узла'`), без числа: число подставляет вызывающий (`${n} ${plural(...)}`).
 2. **`applyOps(project, ops)` возвращает `{ ok, error?, changed: string[], created: string[] }`**, где `created` — упорядоченный массив реальных id созданных объектов (индексируется как `created[0]`). Карта временных id живёт только внутри модели (`ctx.created`) и наружу не отдаётся.
 3. **Временные id `tmp_N` резолвит только `ai.js`** (`resolveTmp`): модель получает уже реальные id. Внутри одного батча модель дополнительно разрешает forward references (`next` / `choices[].next` / `branches[].next` / `startNodeId` на id, созданные позже в том же батче) и `op.id` / `op.to` / `op.from` по карте созданных.
-4. **`window.sf.file.demo()`** — читает `demo/demo-project.json` из каталога приложения (рендерер не может читать `file://`); ответ `{ ok, path: null, content, project, isDemo: true }`.
+4. **Первый запуск** открывает новый проект. Последний пользовательский документ и восстановление черновика доступны при повторном запуске.
 5. **JSON-экспорт** — это сам `.sfproj` плюс маркеры: `{ ...project, format: 'storyforge-export', exportedAt }` (файл открывается в StoryForge).
 6. **Поиск поддерживает regex**: чекбокс `#panelSearchRegex`, при включении запрос трактуется как регулярное выражение (`new RegExp(q, 'i')`; битый паттерн даёт сообщение, а не падение), подсветка вызывается как `ui.highlight(text, q, { regex: true })`.
 7. **Отладка**: `window.__SF_DEV__` включается `?dev=1` / `--dev`; все `console.log/error` в модулях — только под этим флагом.
 8. **Профиль приложения**: `main.js` выбирает `userData` в порядке `SF_USERDATA` → `<app>/.userdata` → системный `app.getPath('userData')` → temp, с проверкой записи. В ограниченных окружениях нужен запуск с `--no-sandbox --user-data-dir=.userdata` (см. README).
-9. **Авто-приёмка**: `main.js --selftest` выполняет `tools/selftest-renderer.mjs` внутри окна и пишет `.logs/selftest.json`; в этом режиме `app.js` выставляет `window.__sfTest` и грузит демо, игнорируя автосейв. `--ai-base=<url>` подключает AI-провайдера (заглушку).
+9. **Авто-приёмка**: `main.js --selftest` выполняет `tools/selftest-renderer.mjs` внутри окна и пишет `.logs/selftest.json`; в этом режиме `app.js` выставляет `window.__sfTest` и использует изолированные тестовые данные. `--ai-base=<url>` подключает AI-провайдера (заглушку).
 
 ## 12. Дизайн-система после прохода unslop (обязательна к соблюдению)
 
@@ -329,7 +328,7 @@ node --check src\js\model.js      # package.json в src/ помечает фай
 
 1. **Происхождение**: движок перенесён из `sunakle/dialogue-voice-studio` (VST3-плагин FL Studio, AGPL-3.0) в `src/js/voice/` на чистом JS, без сборщиков — рендер идёт в обычном массиве Float32, прослушивание через Web Audio в рендерере.
 2. **Файлы**: `voice/dsp.js` (Noise-LCG, Biquad RBJ, 10 форм волны, Freeverb), `voice/params.js` (SPECS, GROUPS, FACTORY_VOICES 0–3, resolveParams, diffFromPreset, describeVoice), `voice/render.js` (Engine на 24 голоса, renderLine, peakOf), `voice/wav.js` (encodeWav/decodeWav/formatSeconds), `voice.js` (панель).
-3. **Модель**: `project.voice = { preset: 0..3, params: {...} }`, `character.voice` — то же или `null` (наследование проектного). Хранится **диффом от пресета** (`diffFromPreset`), применяется операцией `{ op:'setVoice', id?, voice }`; `normalizeVoice` округляет preset до 0–3 и params до 2 знаков.
+3. **Модель**. У проекта, персонажа и реплики может быть голос с полями `preset`, `params` и необязательным `sample: {name, data}`. Поле `data` содержит исходные байты WAV в Base64. Реплика с собственным дублем хранит `voiceSeed`. При воспроизведении учитываются голос реплики, голос персонажа и голос проекта в порядке приоритета.
 4. **Рендер**: `renderLine({ params, sample, text, seed, mode })` -> `{ left, right, rate, text, reveal, seconds }`. Тайминги как в оригинале: `1000/speed` на букву, многоточие +ellipsis, точки/восклицание/вопрос +period, запятая/точка с запятой/двоеточие/перевод строки +comma, каждый N-й импульс с разбросом высоты (spread) и громкости (jitter); хвост delay/reverb добавляется к длине; seed делает результат детерминированным.
 5. **IPC** (`main.js` + `preload.js`, паритет обязателен): `sf:voice:chooseDir`, `sf:voice:writeWav` (имя санитайзится, возврат `{ok, path, size}`), `sf:voice:pickSample` (`{ok, name, bytes}`), `sf:voice:reveal`. Каталог экспорта хранится в настройках как `voiceDir`.
 6. **UI**: третья вкладка правой панели `data-tab="voice"` -> `#voiceBody`; фабрика `createVoice({ root, store, ui })` -> `{ render, playNode, stop, exportNode, exportAll, isBusy, dir }`; кнопка `data-act="voice-play"` в шапке line-узла; хоткей `Ctrl+Shift+V`.
@@ -376,7 +375,7 @@ isOpen(), setTarget(id), setNode(id), state }`.
 `sf.voice.makeDir(dir, name)` — подпапка «Вариации голоса» для восьми дублей
 (seed `+ i * 7919`); `encodeWave({ left, right, rate, targetRate, channels, bits })`
 — 16/24 бита, моно/стерео, линейный ресемплинг. Пресеты голоса — `.dvoice` (JSON
-`{ format: 'storyforge-voice', version: 1, preset, params, phrase, sampleName }`)
+`{ format: 'storyforge-voice', version: 2, preset, params, phrase, seed, sample? }`)
 через `sf.voice.savePreset` / `sf.voice.openPreset`.
 
 **Проверки.** `tools/verify.mjs` (секция «7б. Студия голоса»),

@@ -2,7 +2,7 @@
 
 **A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.0.1/StoryForge-Setup-1.0.1-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.1.0/StoryForge-Setup-1.1.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
 
 [Story flow](docs/gallery/flow.png)
 
@@ -10,7 +10,11 @@
 
 1. Run the Windows installer and open **StoryForge** from the desktop. The installer includes the application runtime.
 2. Open **Настройки → Оформление** and select **English**. The choice persists across launches and applies to interface labels. Story text and character names stay in their original language.
-3. Open the bundled *Night Shift* demo from the project menu. Open a scene, follow one of its choices in the graph, or start a playthrough from that scene.
+3. Start a new story or press **Ctrl+O** to open your own `.sfproj`. Add a scene and a line, then start a playthrough from that scene.
+
+## Save a voice
+
+Select a line and open Voice Studio. Choose the character to set a voice for their lines, or choose **Selected line** to give it its own voice. Adjust the sound or import a WAV, then save with **Ctrl+S**. The `.sfproj` carries the settings and sample to another computer. Add a voice to the local library to reuse it in other stories on this computer.
 
 ## Inside the editor
 
@@ -44,5 +48,5 @@ npm.cmd start
 
 Run `npm.cmd test` for the model, persistence, playback and export checks. Run `npm.cmd run selftest` for the Electron UI suite. To build the Windows installer, install Inno Setup 6.3 or later and run `npm.cmd run dist:win` on Windows.
 
-[Demo with 201 story nodes](demo/stress-overview.sfproj) · [Project format](CONTRACT.md) · [MIT License](LICENSE)
+[Project format](CONTRACT.md) · [MIT License](LICENSE)
 

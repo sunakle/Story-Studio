@@ -9,13 +9,12 @@ const out = [];
 const add = (name, info) => out.push({ ok: true, name, info });
 
 // 1. Демо с картинкой + 200 реплик: имитируем «тяжёлый» проект.
-const res = await window.sf.file.openPath('demo/demo-project.json');
-const demo = JSON.parse(res.content);
+const { makeStoryFixture, makeStressFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+const demo = makeStoryFixture();
 const media = Object.keys(demo.media || {});
 add('демо', `узлов ${demo.nodes.length}, картинок ${media.length}, размер ${JSON.stringify(demo).length} байт`);
 
-const stress = await window.sf.file.openPath('demo/stress-overview.sfproj');
-const big = JSON.parse(stress.content);
+const big = makeStressFixture();
 // переносим картинку из демо в большой проект — так выглядит реальный проект с фото
 big.media = demo.media || {};
 const withPhoto = big.nodes.find((n) => n.type === 'scene') || big.nodes[0];

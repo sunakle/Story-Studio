@@ -19,6 +19,8 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, rmSync } from 'node
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { makeStoryFixture } from './test-fixtures.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 const EXE = join(ROOT, 'node_modules', 'electron', 'dist', 'electron.exe');
@@ -33,10 +35,13 @@ const log = (...a) => console.log('[e2e]', ...a);
 // ---------------------------------------------------------------- 1. профиль
 rmSync(PROFILE, { recursive: true, force: true });
 mkdirSync(PROFILE, { recursive: true });
+const fixturePath = join(PROFILE, 'acceptance.sfproj');
+writeFileSync(fixturePath, JSON.stringify(makeStoryFixture()), 'utf8');
 writeFileSync(
   join(PROFILE, 'settings.json'),
   JSON.stringify({
     theme: 'dark',
+    lastPath: fixturePath,
     ai: {
       preset: 'openai',
       baseUrl: `http://127.0.0.1:${MOCK_PORT}/v1`,
@@ -151,9 +156,9 @@ const waitFor = async (expr, timeoutMs = 30000, poll = 400) => {
   }
 };
 
-// приложение и демо загрузились
+// приложение и тестовые данные загрузились
 check('window.sf доступен', await waitFor('!!window.sf', 20000));
-check('демо-проект отрисован (узлы на графе)', await waitFor(`document.querySelectorAll('#graph .node-card').length > 0`, 30000));
+check('проверочный проект отрисован (узлы на графе)', await waitFor(`document.querySelectorAll('#graph .node-card').length > 0`, 30000));
 
 const nodesBefore = await ev(`document.querySelectorAll('#graph .node-card').length`);
 const themeBefore = await ev(`document.documentElement.dataset.theme`);

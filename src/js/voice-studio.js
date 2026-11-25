@@ -19,7 +19,6 @@ import { icon } from './icons.js';
 import {
   FACTORY_VOICES,
   MAIN_SPECS,
-  SPECS,
   TABS,
   diffFromPreset,
   factoryById,
@@ -29,7 +28,9 @@ import {
 } from './voice/params.js';
 import { eqResponseDb } from './voice/dsp.js';
 import { synthesize } from './voice/job.js';
-import { decodeWav, formatSeconds } from './voice/wav.js';
+import { formatSeconds } from './voice/wav.js';
+import { LINE_TARGET, clearSampleCache, effectiveVoice, packSample, sampleAudio, takeSeed, voiceOperation, voiceTarget } from './voice/profile.js';
+import { openVoiceLibrary } from './voice-library.js';
 
 const PORTRAIT_ART = [
   '  ##        ##  ',
@@ -86,7 +87,6 @@ export function createVoiceStudio({ root, store, ui }) {
     sampleName: '',
     zoom: 1,
     offset: 0,
-    seed: 1,
 
     playing: null,
     exporting: false,
@@ -95,9 +95,7 @@ export function createVoiceStudio({ root, store, ui }) {
     meter: 0,
     clip: 0,
     bins: new Float32Array(512).fill(-90),
-    rate: 48000,
-    channels: 2,
-    bits: 24,
+
   };
 
   let audio = null; // { ctx, analyser, data, spectrum }
@@ -115,10 +113,9 @@ export function createVoiceStudio({ root, store, ui }) {
     return (project().characters || []).find((c) => c.id === state.target) || null;
   };
 
-  const voice = () => {
-    const ch = targetCharacter();
-    return ch?.voice || project().voice || null;
-  };
+  const voice = () => effectiveVoice(project(), state.target, node());
+
+  const output = () => voice().output || { rate: 48000, channels: 2, bits: 24 };
 
   const preset = () => {
     const v = voice();
@@ -127,17 +124,16 @@ export function createVoiceStudio({ root, store, ui }) {
 
   const params = () => resolveParams(voice() || { preset: preset(), params: {} });
 
-  const saveVoice = (next, label = uiText("Настройка голоса", "Voice settings")) => {
-    const voiceValue = {
-      preset: preset(),
-      params: diffFromPreset(next, preset()),
-    };
-    const op = { op: 'setVoice', voice: voiceValue };
-    if (state.target) op.id = state.target;
-    const res = store.apply([op], label);
-    if (!res.ok) ui.toast(res.error || uiText("Не удалось сохранить голос", "Could not save voice"), 'bad');
-    return res;
+  const applyVoice = (value, label = uiText("Настройка голоса", "Voice settings")) => {
+    const hadVoice = !!voiceTarget(project(), state.target, node())?.voice;
+    const applied = store.apply([voiceOperation(state.target, node(), value)], label);
+    if (!applied.ok) ui.toast(applied.error, 'bad');
+    else if (state.open && hadVoice !== !!value) syncHeader();
+    return applied;
   };
+  const saveVoice = (next, label, extras = {}) => applyVoice({
+    ...voice(), ...extras, preset: preset(), params: diffFromPreset(next, preset()),
+  }, label);
 
   const setParam = (id, value) => {
     const next = { ...params(), [id]: Number(value) };
@@ -145,6 +141,13 @@ export function createVoiceStudio({ root, store, ui }) {
   };
 
   const node = () => (state.nodeId ? (project().nodes || []).find((n) => n.id === state.nodeId) : null);
+
+  // A line's own take applies only when that line is the selected voice target.
+  const previewSeed = () => {
+    const line = node();
+    if (!line || state.target === LINE_TARGET) return takeSeed(line, voice());
+    return takeSeed({ id: line.id, text: line.text }, voice());
+  };
 
   const phrase = () => {
     const n = node();
@@ -241,18 +244,25 @@ export function createVoiceStudio({ root, store, ui }) {
     loop();
   };
 
-  function renderTake(mode, signal, { seed = state.seed, wav } = {}) {
+  function renderTake(mode, signal, { seed = previewSeed(), wav } = {}) {
     const text = mode === 'line' ? phrase() : '';
     return synthesize({
-      params: params(), sample: state.sample,
+      params: params(), sample: sampleAudio(voice().sample),
       text: wav ? text : text.slice(0, 600), seed, mode,
     }, { signal, wav });
   }
 
   const preview = async (mode, fresh) => {
     stop();
+    if (fresh) {
+      const seed = (Math.random() * 0xffffff) >>> 0 || 1;
+      const label = uiText("Новый дубль", "New take");
+      const result = state.target === LINE_TARGET && node()
+        ? store.apply([{ op: 'updateNode', id: node().id, patch: { voiceSeed: seed } }], label)
+        : applyVoice({ ...voice(), seed }, label);
+      if (!result.ok) return report(result.error);
+    }
     const signal = operation.signal;
-    if (fresh) state.seed = (Math.random() * 0xffffff) >>> 0 || 1;
     report(uiText("Подготовка звука…", "Preparing audio…"));
     try {
       const take = await renderTake(mode, signal);
@@ -283,7 +293,8 @@ export function createVoiceStudio({ root, store, ui }) {
     stop();
     const signal = operation.signal;
     state.exporting = true;
-    const wav = { targetRate: state.rate, channels: state.channels, bits: state.bits };
+    const { rate, channels, bits } = output();
+    const wav = { targetRate: rate, channels, bits };
     try {
       if (kind === 1 || kind === 0) {
         const n = node();
@@ -304,7 +315,7 @@ export function createVoiceStudio({ root, store, ui }) {
       for (let i = 0; i < 8; i++) {
         signal.throwIfAborted();
         report(uiText("Вариация ", "Variation ") + (i + 1) + uiText(" из 8", " of 8"));
-        const take = await renderTake('variation', signal, { seed: (state.seed + i * 7919) >>> 0, wav });
+        const take = await renderTake('variation', signal, { seed: (previewSeed() + i * 7919) >>> 0, wav });
         signal.throwIfAborted();
         const saved = await window.sf.voice.writeWav(folder.dir, 'voice-' + String(i + 1).padStart(2, '0') + '.wav', take.bytes);
         if (!saved?.ok) throw new Error(saved?.error || uiText("Не удалось записать WAV", "Could not write WAV"));
@@ -319,14 +330,38 @@ export function createVoiceStudio({ root, store, ui }) {
 
   // ---------------------------------------------------------------- голосовые пресеты .dvoice
 
+  const applyPortableVoice = (incoming, label) => {
+    if (incoming.sample) sampleAudio(incoming.sample);
+    const value = { ...incoming, params: diffFromPreset(resolveParams(incoming), incoming.preset) };
+    const ops = [voiceOperation(state.target, node(), value)];
+    if (state.target === LINE_TARGET && node()) {
+      ops.push({ op: 'updateNode', id: node().id, patch: { voiceSeed: null } });
+    }
+    const result = store.apply(ops, label);
+    if (result.ok) { syncHeader(); renderPage(); }
+    return result;
+  };
+
+  const library = () => {
+    const generation = store.generation, target = state.target, line = state.nodeId;
+    return openVoiceLibrary({
+      ui,
+      suggestedName: (target === LINE_TARGET ? node()?.title : targetCharacter()?.name) || project().meta?.title,
+      readVoice: () => ({ ...voice(), seed: previewSeed() }),
+      applyVoice: value => {
+        if (!state.open || generation !== store.generation || target !== state.target || line !== state.nodeId) return false;
+        return applyPortableVoice(value, uiText('Голос из библиотеки', 'Voice from library')).ok;
+      },
+    });
+  };
+
   const savePreset = async () => {
     const payload = {
       format: 'storyforge-voice',
-      version: 1,
-      preset: preset(),
-      params: params(),
+      version: 2,
+      ...voice(),
+      seed: previewSeed(),
       phrase: phrase(),
-      sampleName: state.sampleName || '',
     };
     const res = await window.sf.voice.savePreset(`${slug(targetCharacter() ? targetCharacter().name : 'voice')}.dvoice`, JSON.stringify(payload, null, 2));
     report(res && res.ok ? `${uiText("Голос сохранён", "Voice saved")}: ${res.path}` : (res && res.error) || uiText("Ошибка записи", "Write error"));
@@ -342,19 +377,10 @@ export function createVoiceStudio({ root, store, ui }) {
     }
     try {
       const data = JSON.parse(res.text);
-      const incoming = data.params && typeof data.params === 'object' ? data.params : {};
-      const merged = { ...params() };
-      for (const spec of SPECS) {
-        if (spec.id in incoming) {
-          const num = Number(incoming[spec.id]);
-          if (Number.isFinite(num)) merged[spec.id] = num;
-        }
+      if (!data || typeof data.params !== 'object' || !data.params || Array.isArray(data.params)) {
+        throw new Error(uiText('Некорректный файл голоса', 'Invalid voice file'));
       }
-      const presetId = Number.isFinite(Number(data.preset)) ? Number(data.preset) : preset();
-      const voiceValue = { preset: presetId, params: diffFromPreset(merged, presetId) };
-      const op = { op: 'setVoice', voice: voiceValue };
-      if (state.target) op.id = state.target;
-      const applied = store.apply([op], uiText("Голос из файла", "Voice from file"));
+      const applied = applyPortableVoice(data, uiText("Голос из файла", "Voice from file"));
       if (!applied.ok) {
         report(applied.error || uiText("Не удалось применить голос", "Could not apply voice"));
         return;
@@ -363,7 +389,7 @@ export function createVoiceStudio({ root, store, ui }) {
         state.phrase = String(data.phrase);
         if (el.words) el.words.value = state.phrase;
       }
-      state.seed = (Math.random() * 0xffffff) >>> 0 || 1;
+
       renderPage();
       report(`${uiText("Голос восстановлен", "Voice restored")}: ${res.name || uiText("файл", "file")}`);
     } catch (err) {
@@ -372,6 +398,16 @@ export function createVoiceStudio({ root, store, ui }) {
   };
 
   // ---------------------------------------------------------------- сэмпл
+
+  const attachSample = (bytes, name) => {
+    const sample = packSample(bytes, name);
+    const next = { ...params(), source: params().source || 2 };
+    const res = saveVoice(next, uiText("Источник — сэмпл", "Sample source"), { sample });
+    if (!res.ok) return false;
+    state.zoom = 1;
+    state.offset = 0;
+    return true;
+  };
 
   const openSample = async () => {
     const signal = operation.signal;
@@ -382,13 +418,7 @@ export function createVoiceStudio({ root, store, ui }) {
       return;
     }
     try {
-      const decoded = decodeWav(res.bytes);
-      state.sample = decoded;
-      state.sampleName = res.name || decoded.name || uiText("сэмпл", "sample");
-      state.zoom = 1;
-      state.offset = 0;
-      const next = { ...params(), source: params().source === 0 ? 2 : params().source };
-      saveVoice(next, uiText("Источник — сэмпл", "Sample source"));
+      if (!attachSample(res.bytes, res.name)) return;
       renderPage();
       report(`${uiText("Загружен", "Loaded")} ${state.sampleName}`);
     } catch (err) {
@@ -419,7 +449,7 @@ export function createVoiceStudio({ root, store, ui }) {
         raf = 0;
         return;
       }
-      sampleAudio();
+      readAnalyser();
       paintPortrait();
       if (state.page === 2) paintEq();
       raf = requestAnimationFrame(step);
@@ -427,7 +457,7 @@ export function createVoiceStudio({ root, store, ui }) {
     raf = requestAnimationFrame(step);
   };
 
-  const sampleAudio = () => {
+  const readAnalyser = () => {
     if (!audio || !state.playing) return;
     const { analyser, spectrum, time } = audio;
     analyser.getByteFrequencyData(spectrum);
@@ -762,9 +792,9 @@ export function createVoiceStudio({ root, store, ui }) {
         <p class="hint-text">${uiText("Точки 1–7 перетаскиваются: по горизонтали частота, по вертикали усиление. Срез низких и высоких — только частота", "Drag points 1–7 horizontally to change frequency and vertically to change gain. The low-cut and high-cut bands only adjust frequency")}.</p>
         ${gridHtml(2)}`;
     }
-    const rateOptions = RATES.map((r) => `<option value="${r.id}"${state.rate === r.id ? ' selected' : ''}>${r.label}</option>`).join('');
-    const chOptions = CHANNELS.map((c) => `<option value="${c.id}"${state.channels === c.id ? ' selected' : ''}>${c.label}</option>`).join('');
-    const bitOptions = DEPTHS.map((d) => `<option value="${d.id}"${state.bits === d.id ? ' selected' : ''}>${d.label}</option>`).join('');
+    const rateOptions = RATES.map((r) => `<option value="${r.id}"${output().rate === r.id ? ' selected' : ''}>${r.label}</option>`).join('');
+    const chOptions = CHANNELS.map((c) => `<option value="${c.id}"${output().channels === c.id ? ' selected' : ''}>${c.label}</option>`).join('');
+    const bitOptions = DEPTHS.map((d) => `<option value="${d.id}"${output().bits === d.id ? ' selected' : ''}>${d.label}</option>`).join('');
     return `<label class="studio-words-wrap">
         <span class="studio-label">${uiText("Реплика для озвучки", "Line to voice")} ${node() ? uiText("· пишется в узел", "· saved to the node") : uiText("· предпросмотр", "· preview")} · ${uiText("прослушивание до 600 знаков", "preview up to 600 characters")}</span>
         <textarea class="textarea studio-words" data-el="words" rows="3">${ui.escapeHTML(phrase())}</textarea>
@@ -782,6 +812,9 @@ export function createVoiceStudio({ root, store, ui }) {
 
   const renderPage = () => {
     if (!el.page) return;
+    state.sampleName = voice().sample?.name || '';
+    try { state.sample = sampleAudio(voice().sample); }
+    catch (err) { state.sample = null; report(err.message); }
     if (el.main) {
       el.main.innerHTML = MAIN_SPECS.map(controlHtml).join('');
       wireControls(el.main);
@@ -832,12 +865,13 @@ export function createVoiceStudio({ root, store, ui }) {
       });
     });
 
-    const rate = el.page.querySelector('[data-st="rate"]');
-    if (rate) rate.addEventListener('change', () => { state.rate = Number(rate.value); });
-    const channels = el.page.querySelector('[data-st="channels"]');
-    if (channels) channels.addEventListener('change', () => { state.channels = Number(channels.value); });
-    const bits = el.page.querySelector('[data-st="bits"]');
-    if (bits) bits.addEventListener('change', () => { state.bits = Number(bits.value); });
+    for (const key of ['rate', 'channels', 'bits']) {
+      const select = el.page.querySelector(`[data-st="${key}"]`);
+      select?.addEventListener('change', () => {
+        applyVoice({ ...voice(), output: { ...output(), [key]: Number(select.value) } },
+          uiText("Формат WAV", "WAV format"));
+      });
+    }
 
     wireWave();
     wireEq();
@@ -959,6 +993,7 @@ export function createVoiceStudio({ root, store, ui }) {
       <section class="studio-card" role="dialog" aria-label="${uiText("Студия голоса", "Voice Studio")}">
         <header class="studio-head">
           <h2 class="studio-title">${icon('volume', 18)} ${uiText("Студия голоса", "Voice Studio")}</h2>
+          <button class="btn btn-sm" data-st="library">${icon('folder', 14)} ${uiText("Библиотека голосов", "Voice library")}</button>
           <button class="btn btn-sm" data-st="openVoice">${icon('search', 14)} ${uiText("Открыть голос", "Open voice")}</button>
           <button class="btn btn-sm" data-st="saveVoice">${icon('copy', 14)} ${uiText("Сохранить голос", "Save voice")}</button>
           <span class="studio-status" data-el="status"></span>
@@ -970,6 +1005,7 @@ export function createVoiceStudio({ root, store, ui }) {
           <select class="select select-sm" id="studioVoiceTarget" data-st="target"></select>
           <label class="studio-label" for="studioVoicePreset">${uiText("Характер", "Personality")}</label>
           <select class="select select-sm" id="studioVoicePreset" data-st="preset"></select>
+          <button class="btn btn-sm" data-st="inherit">${uiText("Наследовать", "Inherit")}</button>
         </div>
         <canvas class="studio-portrait" data-el="portrait"></canvas>
         <div class="studio-main" data-el="main"></div>
@@ -997,6 +1033,10 @@ export function createVoiceStudio({ root, store, ui }) {
       button.addEventListener('click', () => {
         if (act === 'backdrop' || act === 'close') close();
         else if (act === 'openVoice') openPreset();
+        else if (act === 'library') library();
+        else if (act === 'inherit') {
+          if (applyVoice(null, uiText('Наследовать голос', 'Inherit voice')).ok) { syncHeader(); renderPage(); }
+        }
         else if (act === 'saveVoice') savePreset();
         else if (act === 'compact') {
           state.compact = !state.compact;
@@ -1026,10 +1066,7 @@ export function createVoiceStudio({ root, store, ui }) {
 
     el.preset.addEventListener('change', () => {
       const id = Number(el.preset.value);
-      const next = { ...resolveParams({ preset: id, params: {} }) };
-      const op = { op: 'setVoice', voice: { preset: id, params: diffFromPreset(next, id) } };
-      if (state.target) op.id = state.target;
-      store.apply([op], uiText("Характер голоса", "Voice character"));
+      applyVoice({ ...voice(), preset: id, params: {} }, uiText("Характер голоса", "Voice character"));
       renderPage();
     });
 
@@ -1058,11 +1095,8 @@ export function createVoiceStudio({ root, store, ui }) {
         const signal = operation.signal;
         const bytes = new Uint8Array(await file.arrayBuffer());
         if (signal.aborted) return;
-        const decoded = decodeWav(bytes);
-        state.sample = decoded;
-        state.sampleName = file.name;
+        if (!attachSample(bytes, file.name)) return;
         state.page = 1;
-        saveVoice({ ...params(), source: params().source === 0 ? 2 : params().source }, uiText("Источник — сэмпл", "Sample source"));
         syncTabs();
         renderPage();
         report(`${uiText("Загружен", "Loaded")} ${file.name}`);
@@ -1083,15 +1117,19 @@ export function createVoiceStudio({ root, store, ui }) {
 
   const syncHeader = () => {
     const characters = project().characters || [];
+    if (state.target && !voiceTarget(project(), state.target, node())) state.target = '';
+    const line = node();
     const options = [`<option value="">${uiText("Голос проекта", "Project voice")}</option>`]
+      .concat(line?.type === 'line' ? [`<option value="${LINE_TARGET}"${state.target === LINE_TARGET ? ' selected' : ''}>${uiText('Выбранная реплика', 'Selected line')} · ${ui.escapeHTML(line.title || line.id)}</option>`] : [])
       .concat(
         characters.map(
           (ch) =>
-            `<option value="${ch.id}"${state.target === ch.id ? ' selected' : ''}>${ui.escapeHTML(ch.name)}${ch.voice ? '' : uiText(" · наследует", " · inherits")}</option>`,
+            `<option value="${ui.escapeHTML(ch.id)}"${state.target === ch.id ? ' selected' : ''}>${ui.escapeHTML(ch.name)}${ch.voice ? '' : uiText(" · наследует", " · inherits")}</option>`,
         ),
       )
       .join('');
     el.target.innerHTML = options;
+    root.querySelector('[data-st="inherit"]').disabled = !state.target || !voiceTarget(project(), state.target, line)?.voice;
     el.preset.innerHTML = FACTORY_VOICES.map(
       (v) => `<option value="${v.id}"${preset() === v.id ? ' selected' : ''}>${ui.escapeHTML(v.name)}</option>`,
     ).join('');
@@ -1105,7 +1143,7 @@ export function createVoiceStudio({ root, store, ui }) {
     state.open = true;
     const selection = store.selection;
     state.nodeId = selection && selection.kind === 'node' ? selection.id : '';
-    state.target = targetId ?? node()?.speakerId ?? '';
+    state.target = targetId ?? (node()?.type === 'line' ? LINE_TARGET : '');
     root.classList.remove('hidden');
     syncHeader();
     syncTabs();
@@ -1129,6 +1167,7 @@ export function createVoiceStudio({ root, store, ui }) {
       close();
       state.sample = null;
       state.sampleName = '';
+      clearSampleCache();
       state.phrase = '';
       return;
     }
@@ -1162,7 +1201,7 @@ export function createVoiceStudio({ root, store, ui }) {
     setNode: (id) => {
       stop();
       state.nodeId = id || '';
-      state.target = node()?.speakerId || '';
+      state.target = node()?.type === 'line' ? LINE_TARGET : '';
       if (state.open) syncHeader();
       if (state.open) renderPage();
     },

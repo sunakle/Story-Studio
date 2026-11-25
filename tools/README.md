@@ -9,7 +9,7 @@
 | `acceptance.md` | Человекочитаемый отчёт приёмки: таблица 20 критериев с вердиктами и доказательствами (file:line / цитаты из артефактов). |
 | `_smoke-launch.mjs` | Запуск Electron с флагами и перехватом крэш-строк (использует профиль `.userdata-prime`; `--smoke-shot` пишет `.logs/smoke.json`). |
 | `_prime-ai-e2e.mjs` | E2E AI-цикла через CDP (порт 9223) на мок-сервере: подключение, стрим, tool-цикл, undo, тема. Пишет `.logs/prime-ai-e2e.json`. |
-| `_selftest-export.mjs` | Самопроверка экспорта: godot/renpy/markdown/json/clipboard на демо и битых проектах. |
+| `_selftest-export.mjs` | Самопроверка экспорта: godot/renpy/markdown/json/clipboard на корректных и повреждённых данных. |
 
 ## Запуск
 
@@ -43,9 +43,9 @@ node tools/acceptance.mjs --e2e      # + перезапуск E2E AI (мок-с�
 1. **Окружение** — node/electron, `package.json`, main.js/preload.js как CJS (`node --check` через временную `.cjs`-копию).
 2. **Синтаксис** — `node --check` всех `src/js/*.js` как ESM.
 3. **DOM-каркас** — все id контракта §5 есть в `index.html`; все `$('…')`/`getElementById('…')` из готовых js существуют в html.
-4. **Интеграция** — app.js не зовёт методов, которых нет в preload.js; в main.js есть `sf:file:demo`; есть `demo/demo-project.json`.
-5. **model.js** — countWords/plural, миграция и валидация демо (0 ошибок / 0 предупреждений), согласованность computeStats, чистота autoLayout, Store (created/undo/redo/группировка/атомарность applyOps).
-6. **Валидация** — 18 кодов из 13 классов контракта §3.2: мутация клона демо → код найден, severity совпадает.
+4. **Интеграция** проверяет соответствие методов рендерера, preload и main.
+5. **model.js** — countWords/plural, миграция и валидация тестовой истории (0 ошибок / 0 предупреждений), согласованность computeStats, чистота autoLayout, Store (created/undo/redo/группировка/атомарность applyOps).
+6. **Валидация** — 18 кодов из 13 классов контракта §3.2: мутация копии проверочного проекта → код найден, severity совпадает.
 7. **export.js** — godot 3 файла, dialogue.json парсится, битая ссылка не роняет экспорт, renpy/markdown/json/clipboard.
 8. **Фабрики** — `createGraph/createInspector/createPanels/createAI/createVisualizer`: функция с ≤1 аргументом, импорт без DOM.
 9. **Обзор сюжета** — секция «11»: canvas-рендер, force-directed физика, фильтры, поиск, «только достижимые», подписи от степени, `#vizRoot`/`#btnViz`, подключение действия и хоткея, пункт меню, стили.
@@ -68,7 +68,7 @@ node -e "console.log(require('./.logs/selftest.json').summary)"
 # AI-цикл на заглушке (мок должен быть запущен)
 node tools/_smoke-launch.mjs 120 --no-sandbox --user-data-dir=.userdata-test --selftest --ai-base=http://127.0.0.1:8799/v1
 
-# перед приёмкой профиль должен быть чистым, иначе автосейв подменит демо
+# для приёмки используйте отдельный профиль
 node tools/_clean-profile.mjs .userdata-test
 node tools/_smoke-launch.mjs 40 --no-sandbox --user-data-dir=.userdata-test --smoke-shot
 node tools/acceptance.mjs
@@ -126,30 +126,14 @@ node tools/_smoke-launch.mjs 150 --no-sandbox --user-data-dir=.userdata-test --s
 до записи `.logs/selftest.json` — это выглядит как зависание. Результат всегда в
 `.logs/selftest.json`, разбор — `node tools/_probe-read.mjs`.
 
-## Большой проект для проверки облака
+## Тестовые данные
 
-```
-node tools/_gen-stress-project.mjs
-```
-
-Собирает `demo/stress-overview.sfproj` — 200 узлов, 8 персонажей, 6 локаций, 10 переменных,
-5 глав, 45 выборов, 0 проблем валидации. Нужен, чтобы «Обзор сюжета» показывал плотное
-облако связей, а не 12 карточек демо.
-
-Снимок облака на этом проекте:
-
-```
-node tools/_clean-profile.mjs .userdata-shot
-node tools/_smoke-launch.mjs 120 --no-sandbox --user-data-dir=.userdata-shot ^
-  --selftest --selftest-file=tools/_probe-viz-stress.mjs --selftest-shot=viz-stress
-```
-
-Результат: `.logs/viz-stress.png` (230 точек, 871 связь).
+`tools/test-fixtures.mjs` создаёт малую историю и граф из 201 узла в памяти процесса проверки. Тесты запускаются отдельно от пользовательского профиля.
 
 ## Обзор сюжета (граф в духе Obsidian)
 
-Команда `node tools/test-graph-drag.cjs` открывает «Смену в сто этажей» в отдельном
-профиле Electron. Тест оттаскивает персонажа Олега на минимальном масштабе,
+Команда `node tools/test-graph-drag.cjs` строит синтетический граф в отдельном
+профиле Electron. Тест оттаскивает связанный узел персонажа на минимальном масштабе,
 удерживает его и после отпускания измеряет длину связей вплоть до остановки раскладки.
 
 Снимок окна обзора и проверка, что облако рисуется:
@@ -179,8 +163,6 @@ node tools/_smoke-launch.mjs 90 --no-sandbox --user-data-dir=.userdata-shot --se
 - `--selftest` — раздел 11 (13 проверок через реальные события: импорт файла,
   превью на карточке, миниатюры в инспекторе, сжатие 2400×1600 → 1400, переключение
   превью, удаление и возврат высоты карточки).
-- Демо-изображение генерируется скриптом `node tools/_demo-media.mjs` (PNG 320×180
-  «ночной склад» → `data:image/png;base64,…`, привязан к сцене `n_scene_cor`).
 
 ## Производительность
 
@@ -210,7 +192,7 @@ node tools/_smoke-launch.mjs 150 --no-sandbox --user-data-dir=.userdata-shot ^
 - `_probe-perf32.mjs` — тяжёлый проект с изображением: `store.apply`,
   `JSON.stringify` для автосохранения, `validateProject`, набор с фото.
 
-Ожидаемые цифры на `demo/stress-overview.sfproj` (201 узел, после `view:layout`):
+Архивные замеры предыдущего выпуска (201 узел, после `view:layout`):
 нажатие 1–2 мс, набор 20 символов — 23 мс работы и 0 длинных задач, кадр пана/зума
 6–8 мс, автораскладка 126 мс, `store.apply` 2.8 мс, валидация 3.3 мс.
 

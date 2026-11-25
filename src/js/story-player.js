@@ -152,8 +152,10 @@ export function showPlayback(store, ui, id) {
   body.className = 'sf-playback';
   let author = true;
   let unsubscribe;
+  let voiced = false;
+  const stopVoice = () => { if (voiced) ui.voice?.stop(); voiced = false; };
   const priorFocus = document.activeElement;
-  const dialog = ui.modal({ title: uiText("Пройти ветку", "Play branch"), wide: true, body, buttons: [{ label: uiText("Закрыть", "Close") }], onClose: () => { unsubscribe?.(); priorFocus?.focus?.(); } });
+  const dialog = ui.modal({ title: uiText("Пройти ветку", "Play branch"), wide: true, body, buttons: [{ label: uiText("Закрыть", "Close") }], onClose: () => { stopVoice(); unsubscribe?.(); priorFocus?.focus?.(); } });
   const generation = store.generation;
   unsubscribe = store.subscribe(() => { if (generation !== store.generation) dialog.close(); });
   const esc = ui.escapeHTML;
@@ -166,7 +168,7 @@ export function showPlayback(store, ui, id) {
       <div class="sf-play-options">${state.options.map((opt, i) => '<button class="btn" data-option="' + i + '">' + esc(opt.text || uiText("Вариант ", "Choice ") + (i+1)) + icon('right', 15) + '</button>').join('')}
       ${state.status === 'reading' ? uiText("<button class=\"btn btn-primary\" data-advance>Далее", "<button class=\"btn btn-primary\" data-advance>Next") + icon('right', 15) + '</button>' : ''}</div>
       ${author && state.trace.length ? uiText("<div class=\"sf-play-trace\"><strong>Условия и эффекты</strong>", "<div class=\"sf-play-trace\"><strong>Conditions and effects</strong>") + state.trace.map(t => '<div>' + esc(t) + '</div>').join('') + '</div>' : ''}
-      <div class="sf-play-tools"><button class="btn" data-back ${player.canBack ? '' : 'disabled'}>${uiText("Шаг назад", "Step back")}</button>
+      <div class="sf-play-tools">${ui.voice && node.type === 'line' && node.text ? `<button class="btn" data-voice-line>${icon('volume', 14)} ${uiText("Прослушать реплику", "Preview line")}</button>` : ''}<button class="btn" data-back ${player.canBack ? '' : 'disabled'}>${uiText("Шаг назад", "Step back")}</button>
       <button class="btn" data-reset>${uiText("Начать заново", "Restart")}</button><button class="btn" data-open ${state.id ? '' : 'disabled'}>${uiText("Открыть текущий узел", "Open current node")}</button></div>`;
   }
   body.addEventListener('change', ev => {
@@ -175,6 +177,12 @@ export function showPlayback(store, ui, id) {
   body.addEventListener('click', ev => {
     const t = ev.target.closest('button');
     if (!t) return;
+    if (t.hasAttribute('data-voice-line')) {
+      voiced = true;
+      ui.voice.playNode(player.state.id);
+      return;
+    }
+    stopVoice();
     if (t.hasAttribute('data-open')) {
       dialog.close();
       if (ui.workbench) ui.workbench.openNode(player.state.id);

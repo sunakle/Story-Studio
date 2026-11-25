@@ -43,7 +43,9 @@ export function encodeWav(channels, rate = 48000) {
 
 /** Разбор WAV (8/16/24/32-бит PCM и float32) → моно Float32 + частота. */
 export function decodeWav(bytes) {
-  const view = new DataView(bytes instanceof ArrayBuffer ? bytes : bytes.buffer);
+  const view = ArrayBuffer.isView(bytes)
+    ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new DataView(bytes instanceof ArrayBuffer ? bytes : Uint8Array.from(bytes).buffer);
   const tag = (offset) => String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
   if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') throw new Error(t('Это не WAV-файл', 'This is not a WAV file'));
 

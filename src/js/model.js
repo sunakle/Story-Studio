@@ -176,6 +176,8 @@ function defaultNode(raw = {}, created = {}) {
     chapterId: asString(raw.chapterId),
     title: asString(raw.title),
     speakerId: asString(raw.speakerId),
+    ...(raw.voice && { voice: normalizeVoice(raw.voice) }),
+    ...(Number.isInteger(raw.voiceSeed) && { voiceSeed: raw.voiceSeed >>> 0 }),
     locationId: asString(raw.locationId),
     text: asString(raw.text),
     emotion: asString(raw.emotion),
@@ -209,7 +211,19 @@ function normalizeVoice(raw) {
       if (Number.isFinite(num)) params[key] = Math.round(num * 100) / 100;
     }
   }
-  return { preset, params };
+  const voice = { preset, params };
+  if (typeof raw.sample?.data === 'string' && raw.sample.data.length) {
+    voice.sample = { name: asString(raw.sample.name) || 'sample.wav', data: raw.sample.data };
+  }
+  if (Number.isInteger(raw.seed)) voice.seed = raw.seed >>> 0;
+  if (isObj(raw.output)) {
+    voice.output = {
+      rate: raw.output.rate === 44100 ? 44100 : 48000,
+      channels: raw.output.channels === 1 ? 1 : 2,
+      bits: raw.output.bits === 16 ? 16 : 24,
+    };
+  }
+  return voice;
 }
 
 function defaultCharacter(raw = {}) {
@@ -1235,6 +1249,10 @@ function applyOneOp(project, op, ctx) {
             x: pos.x === undefined ? node.position.x : asNumber(pos.x, node.position.x),
             y: pos.y === undefined ? node.position.y : asNumber(pos.y, node.position.y),
           };
+        } else if (key === 'voiceSeed') {
+          if (value == null) delete node.voiceSeed;
+          else if (Number.isInteger(value)) node.voiceSeed = value >>> 0;
+          else throw new Error(uiText("Некорректный номер дубля.", "Invalid take seed."));
         } else if (key === 'choices') {
           node.choices = normalizeChoices(value, ctx.created);
         } else if (key === 'branches') {
@@ -1642,8 +1660,15 @@ function applyOneOp(project, op, ctx) {
 
     case 'setVoice': {
       const voice = normalizeVoice(op.voice);
-      if (!voice) throw new Error(uiText("setVoice: ожидается объект голоса.", "setVoice: expected a voice object."));
-      if (op.id) {
+      if (!voice && !(op.voice === null && (op.nodeId || op.id))) {
+        throw new Error(uiText("setVoice: ожидается объект голоса.", "setVoice: expected a voice object."));
+      }
+      if (op.nodeId) {
+        const node = requireNode(project, asString(op.nodeId));
+        if (voice) node.voice = voice;
+        else delete node.voice;
+        mark(node.id);
+      } else if (op.id) {
         const ch = requireEntity(project.characters, asString(op.id), uiText("Персонаж", "Character"));
         ch.voice = voice;
         mark(ch.id);
@@ -1659,6 +1684,23 @@ function applyOneOp(project, op, ctx) {
   }
 }
 
+// Voice edits replace the complete normalized descriptor. Sharing it across
+// undo snapshots avoids copying embedded WAVs for every unrelated text edit.
+function cloneRecordForEdit(record) {
+  if (!record?.voice) return deepClone(record);
+  const { voice, ...rest } = record;
+  return { ...deepClone(rest), voice };
+}
+
+function cloneRecordsForEdit(records) {
+  if (!Array.isArray(records)) return records;
+  const copies = deepClone(records.map(record => record?.voice ? { ...record, voice: null } : record));
+  for (let i = 0; i < records.length; i++) {
+    if (records[i]?.voice) copies[i].voice = records[i].voice;
+  }
+  return copies;
+}
+
 // Атомарное применение списка операций: работаем на глубокой копии,
 // при ошибке оригинальный объект не меняется вовсе.
 export function applyOps(project, ops) {
@@ -1671,12 +1713,15 @@ export function applyOps(project, ops) {
   let work;
   if (list.every(op => op.op === 'updateNode' || op.op === 'setNodeTexts')) {
     const ids = new Set(list.flatMap(op => op.op === 'updateNode' ? [op.id] : asArray(op.items).map(item => item?.id)));
-    work = { ...project, nodes: project.nodes.map(node => ids.has(node?.id) ? deepClone(node) : node) };
+    work = { ...project, nodes: project.nodes.map(node => ids.has(node?.id) ? cloneRecordForEdit(node) : node) };
   } else {
     // Media operations add/remove complete entries. Their data URLs and
     // metadata are immutable; only the dictionary itself needs a fresh copy.
-    const {media, ...content} = project;
+    const {media, voice, characters, nodes, ...content} = project;
     work = deepClone(content);
+    work.nodes = cloneRecordsForEdit(nodes);
+    work.characters = cloneRecordsForEdit(characters);
+    work.voice = voice;
     if (media) work.media = { ...media };
   }
   // created — карта tmp_→реальный id для разрешения ссылок внутри батча,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { makeStoryFixture } from './test-fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
@@ -11,10 +11,10 @@ import { createAI } from '../src/js/ai.js';
 import { renderLine } from '../src/js/voice/render.js';
 import { synthesize } from '../src/js/voice/job.js';
 
-const demo = JSON.parse(await readFile(new URL('../demo/demo-project.json', import.meta.url), 'utf8'));
+const sample = makeStoryFixture();
 const makeStore = () => {
   const s = new Store();
-  s.setProject(migrateProject(demo).project, { filePath: 'A.sfproj' });
+  s.setProject(migrateProject(sample).project, { filePath: 'A.sfproj' });
   return s;
 };
 
@@ -76,7 +76,7 @@ test('late response cannot edit or write the history of another project', async 
   const { app, history } = chatApp(store, () => { entered.resolve(); return pending.promise; });
   const sending = app.send('Создай узел');
   await entered.promise;
-  store.setProject(migrateProject(demo).project, { filePath: 'B.sfproj' });
+  store.setProject(migrateProject(sample).project, { filePath: 'B.sfproj' });
   const before = store.snapshot();
   pending.resolve({ ok: true, toolCalls: [{ id: 'old', name: 'create_node', arguments: '{"type":"note"}' }] });
   await sending;

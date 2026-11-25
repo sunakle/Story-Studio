@@ -14,10 +14,9 @@ const measure = async task => {
 const q = selector => document.querySelector(selector);
 const check = (value, msg) => { if (!value) throw Error(msg); };
 
-const stressFile = await window.sf.file.openPath('demo/stress-overview.sfproj');
-const demoFile = await window.sf.file.demo();
-const stress = JSON.parse(stressFile.content);
-const example = JSON.parse(demoFile.content);
+const { makeStressFixture, makeStoryFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+const stress = makeStressFixture();
+const example = makeStoryFixture();
 const results = [];
 for (const kind of ['stress201', 'synthetic1000', 'media201']) {
   const p = structuredClone(stress);

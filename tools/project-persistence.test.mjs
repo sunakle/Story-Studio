@@ -1,3 +1,4 @@
+import { makeStoryFixture, makeStressFixture } from './test-fixtures.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import fs from 'node:fs/promises';
@@ -34,6 +35,15 @@ test('Recovery survives restart, separates projects and handles a legacy autosav
   assert.equal((await recovery.read('A')).ok,false);
   assert.equal((await recovery.read(null)).content,'keep');
 });
+test('An unchanged retired recovery does not mask an older author draft', async t => {
+  const dir = await fixture(t);
+  const recovery = recoveryFiles(dir, draft => draft.content === 'unchanged sample');
+  await recovery.write({key:'author', filePath:null, content:'edited project'});
+  await recovery.write('unchanged sample');
+  assert.equal((await recovery.read()).content, 'edited project');
+  await recovery.write('user changes to the old sample');
+  assert.equal((await recovery.read()).content, 'user changes to the old sample');
+});
 test('New edits while saving remain dirty, historical media and batch rollback stay intact',()=>{
   const s=new Store();s.setProject(createEmptyProject());
   const change=ops=>assert.equal(s.apply(ops).ok,true);
@@ -53,10 +63,9 @@ test('New edits while saving remain dirty, historical media and batch rollback s
   assert.equal(s.generation,gen);s.setProject(pic);assert.ok(s.generation>gen);
 });
 
-test('shipping projects retain IDs, geometry, transitions, embedded images and voices on disk', async t => {
+test('saved projects retain IDs, geometry, transitions, embedded images and voices on disk', async t => {
   const dir = await fixture(t);
-  for (const name of ['stress-overview.sfproj', 'demo-project.json']) {
-    const original = JSON.parse(await fs.readFile(new URL('../demo/' + name, import.meta.url), 'utf8'));
+  for (const [name, original] of [['large', makeStressFixture()], ['small', makeStoryFixture()]]) {
     const file = path.join(dir, name + '.sfproj');
     const store = new Store();
     store.setProject(migrateProject(structuredClone(original)).project, {filePath:file});

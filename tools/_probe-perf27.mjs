@@ -10,8 +10,8 @@ const style = document.createElement('style');
 style.textContent = '.graph .node-card.is-far text { display: none !important; }';
 document.head.appendChild(style);
 
-const res = await window.sf.file.openPath('demo/stress-overview.sfproj');
-store.setProject(JSON.parse(res.content), { filePath: null, dirty: false });
+const { makeStressFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+store.setProject(makeStressFixture(), { filePath: null, dirty: false });
 await wait(300);
 store.setSelection({ kind: 'node', id: store.project.startNodeId });
 await wait(150);

@@ -4,8 +4,8 @@ const store = window.__sfTest.store;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const checks = [];
 
-const res = await window.sf.file.openPath('demo/stress-overview.sfproj');
-const project = JSON.parse(res.content);
+const { makeStressFixture } = await import(new URL('../tools/test-fixtures.mjs', document.baseURI).href);
+const project = makeStressFixture();
 store.setProject(project, { filePath: null, dirty: false });
 await wait(300);
 ui.graph.fit();

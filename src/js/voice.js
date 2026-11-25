@@ -5,7 +5,8 @@ import { t as uiText } from './i18n.js';
 import { icon } from './icons.js';
 import { FACTORY_VOICES, SPECS, diffFromPreset, resolveParams, specById } from './voice/params.js';
 import { synthesize } from './voice/job.js';
-import { decodeWav, formatSeconds } from './voice/wav.js';
+import { formatSeconds } from './voice/wav.js';
+import { LINE_TARGET, clearSampleCache, effectiveVoice, packSample, sampleAudio, takeSeed, voiceOperation, voiceTarget } from './voice/profile.js';
 
 // Параметры, которые показываем в панели (остальные — в «Дополнительно»).
 const MAIN_IDS = ['pitch', 'speed', 'duration', 'release', 'every', 'spread', 'jitter', 'source', 'blend'];
@@ -22,8 +23,7 @@ export function createVoice({ root, store, ui }) {
   const state = {
     target: '', // '' — голос проекта, иначе id персонажа
     dir: (ui.settings && ui.settings.voiceDir) || '',
-    sample: null,
-    sampleName: '',
+
     busy: false,
     playing: null,
     progress: '',
@@ -42,28 +42,20 @@ export function createVoice({ root, store, ui }) {
 
   // ------------------------------------------------------------- голос
 
-  const currentVoice = () => {
-    if (!state.target) return project().voice || { preset: 0, params: {} };
-    const ch = (project().characters || []).find((c) => c.id === state.target);
-    return ch ? ch.voice : null;
-  };
-
-  const effectiveParams = () => {
-    const own = currentVoice();
-    if (own) return resolveParams(own);
-    if (state.target) {
-      const base = project().voice;
-      return resolveParams(base);
-    }
-    return resolveParams(project().voice);
-  };
-
-  const saveParams = (next) => {
-    const preset = next.preset != null ? next.preset : (currentVoice()?.preset ?? project().voice?.preset ?? 0);
-    const voice = { preset, params: diffFromPreset(next, preset) };
-    const op = state.target ? { op: 'setVoice', id: state.target, voice } : { op: 'setVoice', voice };
+  const selectedLine = () => store.selection?.kind === 'node'
+    ? project().nodes.find(n => n.id === store.selection.id && n.type === 'line') : null;
+  const currentVoice = () => voiceTarget(project(), state.target, selectedLine())?.voice;
+  const voice = () => effectiveVoice(project(), state.target, selectedLine());
+  const effectiveParams = () => resolveParams(voice());
+  const setVoice = (value) => {
+    const op = voiceOperation(state.target, selectedLine(), value);
     const res = store.apply([op], uiText("Настройка голоса", "Voice settings"));
     if (!res.ok) ui.toast(res.error, 'bad');
+    return res.ok;
+  };
+  const saveParams = (next, extras = {}) => {
+    const preset = next.preset ?? voice().preset;
+    return setVoice({ ...voice(), ...extras, preset, params: diffFromPreset(next, preset) });
   };
 
   const setPreset = (index) => {
@@ -120,26 +112,19 @@ export function createVoice({ root, store, ui }) {
   };
 
   const renderNode = (node, signal, wav) => {
-    const voice = node.speakerId
-      ? (() => {
-          const ch = (project().characters || []).find((c) => c.id === node.speakerId);
-          return ch && ch.voice ? ch.voice : project().voice;
-        })()
-      : project().voice;
-    const params = resolveParams(voice);
+    const profile = effectiveVoice(project(), LINE_TARGET, node);
     return synthesize({
-      params,
-      sample: state.sample,
+      params: resolveParams(profile),
+      sample: sampleAudio(profile.sample),
       text: wav ? node.text : node.text.slice(0, 600),
-      seed: Math.abs(hashSeed(node.id + node.text)) || 1,
+      seed: takeSeed(node, profile),
       mode: 'line',
-    }, { signal, wav });
-  };
-
-  const hashSeed = (text) => {
-    let h = 2166136261;
-    for (let i = 0; i < text.length; ++i) h = (h ^ text.charCodeAt(i)) * 16777619;
-    return h | 0;
+    }, {
+      signal,
+      wav: wav && profile.output
+        ? { targetRate: profile.output.rate, channels: profile.output.channels, bits: profile.output.bits }
+        : wav,
+    });
   };
 
   const playNode = async (id) => {
@@ -264,22 +249,20 @@ export function createVoice({ root, store, ui }) {
       return;
     }
     try {
-      const decoded = decodeWav(res.bytes);
-      state.sample = { ...decoded, name: res.name };
-      state.sampleName = `${res.name} · ${formatSeconds(decoded.frames / decoded.rate)}`;
+      const sample = packSample(res.bytes, res.name);
       const params = effectiveParams();
-      if (!params.source) saveParams({ ...params, source: 2 });
-      else render();
-      ui.toast(uiText("Сэмпл загружен", "Sample loaded"), 'good');
+      if (saveParams({ ...params, source: params.source || 2 }, { sample })) {
+        render();
+        ui.toast(uiText("Сэмпл загружен", "Sample loaded"), 'good');
+      }
     } catch (err) {
       ui.toast(err.message, 'bad');
     }
   };
 
   const clearSample = () => {
-    state.sample = null;
-    state.sampleName = '';
-    render();
+    const { sample, ...withoutSample } = voice();
+    if (setVoice(withoutSample)) render();
   };
 
   // ------------------------------------------------------------- разметка
@@ -311,6 +294,8 @@ export function createVoice({ root, store, ui }) {
   const voiceCard = () => {
     const own = currentVoice();
     const params = effectiveParams();
+    const line = selectedLine();
+    const profile = voice();
     const targetName = state.target
       ? ((project().characters || []).find((c) => c.id === state.target)?.name || uiText("Персонаж", "Character"))
       : uiText("Проект", "Project");
@@ -319,12 +304,12 @@ export function createVoice({ root, store, ui }) {
       .map((c) => `<option value="${esc(c.id)}"${state.target === c.id ? ' selected' : ''}>${esc(c.name || uiText("Без имени", "Untitled"))}</option>`)
       .join('');
     const presets = FACTORY_VOICES.map(
-      (v, i) => `<option value="${i}"${(own ? own.preset : project().voice?.preset ?? 0) === i ? ' selected' : ''}>${esc(v.name)}</option>`,
+      (v, i) => `<option value="${i}"${profile.preset === i ? ' selected' : ''}>${esc(v.name)}</option>`,
     ).join('');
 
-    const sampleRow = state.sample
+    const sampleRow = profile.sample
       ? `<div class="voice-sample">
-           <span class="voice-sample-name">${esc(state.sampleName)}</span>
+           <span class="voice-sample-name">${esc(profile.sample.name)}</span>
            <button class="btn btn-sm btn-ghost" data-voice-act="sample-clear">${uiText("Убрать", "Remove")}</button>
          </div>`
       : `<button class="btn btn-sm" data-voice-act="sample-load">${icon('plus', 12)} ${uiText("Загрузить", "Load")} WAV</button>`;
@@ -334,11 +319,12 @@ export function createVoice({ root, store, ui }) {
         <span class="card-title">${uiText("Голос", "Voice")}</span>
         <select class="select select-sm" data-voice-target>
           <option value=""${state.target ? '' : ' selected'}>${uiText("Проект — для всех", "Project default for all characters")}</option>
+          ${line ? `<option value="${LINE_TARGET}"${state.target === LINE_TARGET ? ' selected' : ''}>${uiText('Выбранная реплика', 'Selected line')} · ${esc(line.title || line.id)}</option>` : ''}
           ${options}
         </select>
       </div>
       <div class="card-body">
-        ${inherits ? `<p class="hint-text">${uiText("У персонажа", "Character")} «${esc(targetName)}» ${uiText("свой голос не задан — звучит голос проекта", "uses the project voice")}.</p>` : ''}
+        ${inherits ? `<p class="hint-text">${state.target === LINE_TARGET ? uiText("Реплика наследует голос персонажа или проекта.", "This line inherits the character or project voice.") : `${esc(targetName)} · ${uiText("Голос проекта", "Project voice")}`}</p>` : ''}
         <div class="voice-row">
           <label class="field">
             <span class="field-label">${uiText("Характер", "Personality")}</span>
@@ -346,7 +332,7 @@ export function createVoice({ root, store, ui }) {
           </label>
           ${state.target ? `<button class="btn btn-sm" data-voice-act="reset">${icon('target', 12)} ${uiText("Наследовать", "Inherit")}</button>` : ''}
         </div>
-        <p class="hint-text">${esc(FACTORY_VOICES[own ? own.preset : project().voice?.preset ?? 0]?.hint || '')}</p>
+        <p class="hint-text">${esc(FACTORY_VOICES[profile.preset]?.hint || '')}</p>
         <div class="voice-grid">${MAIN_IDS.map(control).join('')}</div>
         <div class="voice-row">${sampleRow}</div>
         <button class="btn btn-sm btn-ghost" data-voice-act="more">${state.showAll ? uiText("Свернуть", "Collapse") : uiText("Все параметры", "All parameters")}</button>
@@ -390,6 +376,7 @@ export function createVoice({ root, store, ui }) {
 
   function render() {
     if (!root) return;
+    if (state.target && !voiceTarget(project(), state.target, selectedLine())) state.target = '';
     const nodes = lineNodes();
     const busy = state.busy ? ' aria-busy="true"' : '';
     root.innerHTML = `<div class="voice-panel${state.busy ? ' is-busy' : ''}"${busy}>
@@ -420,9 +407,7 @@ export function createVoice({ root, store, ui }) {
   function bind() {
     root.querySelectorAll('[data-voice-act="studio"]').forEach((button) => {
       button.addEventListener('click', () => {
-        const node = store.selection && store.selection.kind === 'node' ? store.selection.id : '';
-        const target = node ? (store.project.nodes || []).find((n) => n.id === node) : null;
-        if (ui.studio) ui.studio.open((target && target.speakerId) || '');
+        if (ui.studio) ui.studio.open(state.target || (selectedLine() ? LINE_TARGET : ''));
         else ui.toast(uiText("Студия голоса не инициализирована", "Voice Studio is not ready"), 'bad');
       });
     });
@@ -467,9 +452,7 @@ export function createVoice({ root, store, ui }) {
           state.showAll = !state.showAll;
           render();
         } else if (act === 'reset') {
-          const res = store.apply([{ op: 'setVoice', id: state.target, voice: null }], uiText("Сброс голоса персонажа", "Reset character voice"));
-          if (!res.ok) ui.toast(res.error, 'bad');
-          else render();
+          if (setVoice(null)) render();
         }
       });
     });
@@ -487,8 +470,7 @@ export function createVoice({ root, store, ui }) {
   store.subscribe(event => {
     if (generation !== store.generation) {
       generation = store.generation;
-      state.sample = null;
-      state.sampleName = '';
+      clearSampleCache();
       state.target = '';
       stop();
     } else if (event.type === 'selection' || event.type === 'project' || event.type === 'change') {

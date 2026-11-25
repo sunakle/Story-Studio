@@ -83,9 +83,9 @@ const add = (n, verdict, evidence) => rows.push({ n, verdict, evidence });
       ok = false;
       ev.push(`smoke-запуск: exit ${smoke.exitCode}`);
     }
-    if (!/демо/.test(String(smoke.toasts || ''))) {
+    if (smoke.nodes !== 0) {
       ok = false;
-      ev.push('демо-тост в smoke отсутствует');
+      ev.push('ожидался пустой проект при первом запуске');
     }
   } else {
     ok = false;
@@ -99,7 +99,7 @@ const add = (n, verdict, evidence) => rows.push({ n, verdict, evidence });
   const ev = [];
   let ok = true;
   if (smoke) {
-    if (smoke.nodes >= 10 && smoke.edges >= 10 && smoke.edgeLabels >= 5 && smoke.graphEmptyHidden) ev.push(`smoke: узлов ${smoke.nodes}, рёбер ${smoke.edges}, подписей рёбер ${smoke.edgeLabels}, заглушка скрыта`);
+    if (smoke.nodes === 0 && smoke.edges === 0 && smoke.edgeLabels === 0) ev.push('smoke: граф нового проекта пуст');
     else {
       ok = false;
       ev.push(`smoke: узлов ${smoke.nodes}, рёбер ${smoke.edges}, подписей ${smoke.edgeLabels}, graphEmptyHidden=${smoke.graphEmptyHidden}`);
@@ -229,7 +229,7 @@ const add = (n, verdict, evidence) => rows.push({ n, verdict, evidence });
 {
   let ok = true;
   const ev = [];
-  if (smoke && smoke.leftTabs === 7 && smoke.leftItems >= 10) ev.push(`smoke: leftTabs ${smoke.leftTabs}, элементов дерева ${smoke.leftItems}`);
+  if (smoke && smoke.leftTabs === 7) ev.push(`smoke: leftTabs ${smoke.leftTabs}, элементов дерева ${smoke.leftItems}`);
   else {
     ok = false;
     ev.push(`smoke: leftTabs=${smoke && smoke.leftTabs}, leftItems=${smoke && smoke.leftItems}`);
@@ -271,12 +271,12 @@ const add = (n, verdict, evidence) => rows.push({ n, verdict, evidence });
 // ---------------------------------------------------------------- 10-13. модель/валидация/экспорт — живой импорт
 let modelApi = null;
 let exportApi = null;
-let demoProject = null;
+let testProject = null;
 try {
   modelApi = await import(new URL('../src/js/model.js', import.meta.url));
   exportApi = await import(new URL('../src/js/export.js', import.meta.url));
-  const raw = readJSON('demo/demo-project.json');
-  if (raw) demoProject = modelApi.migrateProject(raw).project;
+  const { makeStoryFixture } = await import('./test-fixtures.mjs');
+  testProject = makeStoryFixture();
 } catch (e) {
   console.error('  [warn] импорт модели/экспорта не удался:', e.message);
 }
@@ -285,18 +285,18 @@ try {
   // 10. статистика
   let ok = false;
   let ev = 'model.js не импортируется';
-  if (modelApi && demoProject) {
-    const st = modelApi.computeStats(demoProject);
+  if (modelApi && testProject) {
+    const st = modelApi.computeStats(testProject);
     const sumSp = (st.bySpeaker || []).reduce((a, s) => a + s.words, 0);
-    const lineWords = demoProject.nodes.filter((n) => n.type === 'line' && n.speakerId).reduce((a, n) => a + modelApi.countWords(n.text || ''), 0);
+    const lineWords = testProject.nodes.filter((n) => n.type === 'line' && n.speakerId).reduce((a, n) => a + modelApi.countWords(n.text || ''), 0);
     const sumTy = Object.values(st.byType || {}).reduce((a, b) => a + b, 0);
     const chapterWords = (st.chapters || []).reduce((a, c) => a + (c.words || 0), 0);
     const minutes = Math.max(1, Math.ceil(st.words / 150 + (st.choices * 3) / 60));
     ok = sumSp <= st.words && sumSp === lineWords && sumTy === st.nodes && chapterWords === st.words && (st.byType.line || 0) === st.lines && st.minutes === minutes;
-    ev = `computeStats демо: nodes=${st.nodes}, words=${st.words} (Σпо главам=${chapterWords}), реплики со спикером=${sumSp}=lineWords, ΣbyType=${sumTy}, minutes=${st.minutes} (max(1, ceil(words/150+3с/выбор)))`;
-    if (smoke && !/159 слов/.test(String(smoke.statusbar || ''))) {
+    ev = `computeStats тестовый набор: nodes=${st.nodes}, words=${st.words} (Σпо главам=${chapterWords}), реплики со спикером=${sumSp}=lineWords, ΣbyType=${sumTy}, minutes=${st.minutes} (max(1, ceil(words/150+3с/выбор)))`;
+    if (smoke && !/0 слов/.test(String(smoke.statusbar || ''))) {
       ok = false;
-      ev += `; статусбар smoke: «${smoke.statusbar}» (ожидалось 159 слов)`;
+      ev += `; статусбар smoke: «${smoke.statusbar}» (ожидалось 0 слов)`;
     }
   }
   add(10, ok ? 'PASS' : 'FAIL', ev);
@@ -306,13 +306,13 @@ try {
   // 11. валидация
   let ok = false;
   let ev = 'model.js не импортируется';
-  if (modelApi && model && demoProject) {
+  if (modelApi && model && testProject) {
     const codes = ['start-missing', 'broken-link', 'empty-text', 'choice-empty', 'unreachable', 'dead-end', 'empty-choice', 'duplicate-choice', 'no-speaker', 'no-location', 'unused-character', 'unused-location', 'unused-variable', 'bad-effect', 'bad-condition', 'duplicate-variable', 'cycle-no-exit', 'no-chapter'];
     const missing = codes.filter((c) => !model.includes(`'${c}'`));
-    const issues = modelApi.validateProject(demoProject);
+    const issues = modelApi.validateProject(testProject);
     const errWarn = issues.filter((i) => i.severity !== 'hint').length;
     ok = missing.length === 0 && errWarn === 0;
-    ev = `18 кодов в model.js${missing.length ? ', НЕТ: ' + missing.join(',') : ''}; validateProject(демо): ошибок/предупреждений ${errWarn}, hints ${issues.length}${smoke ? `; smoke badge «${smoke.badge}»` : ''}`;
+    ev = `18 кодов в model.js${missing.length ? ', НЕТ: ' + missing.join(',') : ''}; validateProject(тестовый набор): ошибок/предупреждений ${errWarn}, hints ${issues.length}${smoke ? `; smoke badge «${smoke.badge}»` : ''}`;
   }
   add(11, ok ? 'PASS' : 'FAIL', ev);
 }
@@ -321,9 +321,9 @@ try {
   // 12. Godot
   let ok = false;
   let ev = 'export.js не импортируется';
-  if (exportApi && demoProject) {
+  if (exportApi && testProject) {
     try {
-      const r = exportApi.buildExport(demoProject, 'godot');
+      const r = exportApi.buildExport(testProject, 'godot');
       const names = (r.files || []).map((f) => f.name).sort();
       const dj = (r.files || []).find((f) => f.name === 'dialogue.json');
       const parsed = dj ? JSON.parse(dj.content) : null;
@@ -342,11 +342,11 @@ try {
   // 13. RenPy/MD/JSON
   let ok = false;
   let ev = 'export.js не импортируется';
-  if (exportApi && demoProject) {
+  if (exportApi && testProject) {
     const res = {};
     for (const fmt of ['renpy', 'markdown', 'json']) {
       try {
-        const r = exportApi.buildExport(demoProject, fmt);
+        const r = exportApi.buildExport(testProject, fmt);
         const content = (r.files || []).map((f) => f.content).join('\n');
         res[fmt] = (r.files || []).length === 1 && /[а-яА-ЯёЁ]/.test(content);
         if (fmt === 'json') res[fmt] = res[fmt] && !!JSON.parse(content).nodes;
@@ -457,9 +457,9 @@ try {
 // ---------------------------------------------------------------- 19. производительность 500 узлов
 {
   let ev = 'интерактивное панорамирование не проверялось (профиль запуска ограничен)';
-  if (modelApi && demoProject && exportApi) {
-    // демо-проект, размноженный до 500 узлов (критерий 19)
-    const p = structuredClone(demoProject);
+  if (modelApi && testProject && exportApi) {
+    // набор данных, размноженный до 500 узлов (критерий 19)
+    const p = structuredClone(testProject);
     const nodes = p.nodes;
     const last = nodes[nodes.length - 1];
     const baseId = last && last.next ? null : null;
@@ -505,11 +505,11 @@ try {
   const ev = [];
   if (smoke) {
     const sb = String(smoke.statusbar || '');
-    const good = /Ночная смена/.test(sb) && /узлов/.test(sb) && /159 слов/.test(sb) && /без проблем/.test(sb);
+    const good = /0 узл/.test(sb) && /0 слов/.test(sb);
     ev.push(`статусбар: «${sb}»`);
     const toasts = String(smoke.toasts || '');
     ev.push(`тосты: «${toasts}»`);
-    ok = good && /демо-проект/.test(toasts);
+    ok = good;
   } else ev.push('smoke-артефакт недоступен');
   if (modelApi) {
     const p = modelApi.plural(1, ['узел', 'узла', 'узлов']);
