@@ -1,17 +1,18 @@
 --- a/main.go
 +++ b/main.go
-@@ -54,6 +54,10 @@
+@@ -54,6 +54,11 @@
  type stopThinkingGlowKey struct{}
  
  type Daemon struct {
 + dictationDrainUntil time.Time
++ dictationLastStartAt time.Time
 + dictation *dictationSession
 + dictationCancel func()
 + dictationListen func(func() bool)(bool,error)
  	cfgPath, statusPath, cmdPath string
  	modePath                     string
  
-@@ -587,6 +591,7 @@
+@@ -587,6 +592,7 @@
  }
  
  func (d *Daemon) setModeWithPersistence(on bool, announce bool, persist bool) {
@@ -19,7 +20,7 @@
  	d.mu.Lock()
  	if on && !d.cfg.Enabled {
  		d.err, d.dirty = "сначала включите помощник", true
-@@ -657,6 +662,7 @@
+@@ -657,6 +663,7 @@
  // stopAnswer обрывает текущий ответ модели (запрос, озвучку и речь Алисы).
  func (d *Daemon) stopAnswer() {
  	d.mu.Lock()
@@ -27,7 +28,7 @@
  	if d.cancel != nil {
  		d.cancel()
  	}
-@@ -784,6 +790,7 @@
+@@ -784,6 +791,7 @@
  
  func (d *Daemon) onEvent(ev logEvent) {
  	if strings.HasPrefix(ev.kind, "button_") {
@@ -35,7 +36,7 @@
  		d.onButtonEvent(ev)
  		return
  	}
-@@ -812,6 +819,7 @@
+@@ -812,6 +820,7 @@
  	if nativeClock {
  		return
  	}
@@ -43,7 +44,7 @@
  	if ev.kind == "listening" && d.consumePCFollowup() {
  		d.alice.Cancel()
  		return
-@@ -1127,6 +1135,7 @@
+@@ -1127,6 +1136,7 @@
  			d.command()
  			d.modeTimeout()
  			d.expirePC()
@@ -86,9 +87,59 @@
  	d.mu.Unlock()
  	d.pcSay(p.turn, "Компьютер не подтвердил выполнение команды.")
  }
+--- a/alice.go
++++ b/alice.go
+@@ -137,6 +137,27 @@
+ func (a *aliceCLI) Warm() error        { return a.send() }
+ func (a *aliceCLI) Listen() error      { return a.send("s") }
+ func (a *aliceCLI) PausePlayer() error { return a.send("o") }
++
++// The previous native dialog has already been cancelled or ended on its own.
++// Check the session again after warming the CLI, before sending the single listen.
++func (a *aliceCLI) listenForDictation(current func() bool) (bool, error) {
++	a.mu.Lock()
++	defer a.mu.Unlock()
++	if !current() {
++		return false, nil
++	}
++	if err := a.ensure(); err != nil {
++		return false, err
++	}
++	if !current() {
++		return false, nil
++	}
++	if _, err := io.WriteString(a.in, "s\n"); err != nil {
++		a.discard()
++		return false, err
++	}
++	return true, nil
++}
+ 
+ func (a *aliceCLI) cancelSpeech() {
+ 	a.speechMu.Lock()
+@@ -255,13 +276,16 @@
+ 		if i := strings.LastIndex(s, "'"); i >= 0 {
+ 			s = s[:i]
+ 		}
+-		return logEvent{kind: "phrase", phrase: strings.TrimSpace(s)}, true
++		at, _ := buttonLogTime(line)
++		return logEvent{kind: "phrase", phrase: strings.TrimSpace(s), at: at}, true
+ 	case strings.Contains(line, "onAliceStateChanged: SPEAKING"):
+ 		return logEvent{kind: "speaking"}, true
+ 	case strings.Contains(line, "onAliceStateChanged: LISTENING"):
+-		return logEvent{kind: "listening"}, true
++		at, _ := buttonLogTime(line)
++		return logEvent{kind: "listening", at: at}, true
+ 	case strings.Contains(line, "onAliceStateChanged: IDLE"):
+-		return logEvent{kind: "idle"}, true
++		at, _ := buttonLogTime(line)
++		return logEvent{kind: "idle", at: at}, true
+ 	// Алиса начинает свою музыку — из приложения, панели, голосом или продолжая после паузы
+ 	case strings.Contains(line, "music_thin_client_on_started"),
+ 		strings.Contains(line, "routeDirective (") && (strings.Contains(line, ")audio_play") || strings.Contains(line, ")audio_player_continue")):
 --- /dev/null
 +++ b/dictation.go
-@@ -0,0 +1,290 @@
+@@ -0,0 +1,359 @@
 +package main
 +
 +import (
@@ -109,15 +160,21 @@
 +	lastText, lastContact        time.Time
 +	listenAfter, listenRequested time.Time
 +	listening                    bool
++	// receipt times bound missing IDLE and a final delivered just after IDLE.
++	waitIdleFrom, finalUntil time.Time
++	// Device log time is only compared to other events from the same log.
++	boundaryAt, closedAt time.Time
 +}
 +
 +const (
-+	dictStart     = "storyforge_start"
-+	dictAppend    = "storyforge_append"
-+	dictStop      = "storyforge_stop"
-+	dictStatus    = "storyforge_status"
-+	dictSilence   = 90 * time.Second
-+	dictHeartbeat = 4 * time.Second
++	dictStart         = "storyforge_start"
++	dictAppend        = "storyforge_append"
++	dictStop          = "storyforge_stop"
++	dictStatus        = "storyforge_status"
++	dictSilence       = 90 * time.Second
++	dictHeartbeat     = 4 * time.Second
++	dictWindowTimeout = 7 * time.Second
++	dictFinalGrace    = 750 * time.Millisecond
 +)
 +
 +func dictationStartPhrase(s string) bool {
@@ -191,12 +248,16 @@
 +
 +func (d *Daemon) endDictation() {
 +	d.mu.Lock()
-+	open := d.dictation != nil
++	cancelNative := d.dictation != nil && d.dictation.nativeOpen()
 +	d.endDictLocked(time.Now())
 +	d.mu.Unlock()
-+	if open {
++	if cancelNative {
 +		d.dictCancel()
 +	}
++}
++
++func (s *dictationSession) nativeOpen() bool {
++	return !s.listenRequested.IsZero() && s.finalUntil.IsZero()
 +}
 +
 +func (d *Daemon) dictCancel() {
@@ -219,13 +280,20 @@
 +		if ev.kind == "spotted" {
 +			d.dictationDrainUntil = time.Time{}
 +		}
-+		if now.Before(d.dictationDrainUntil) && ev.kind == "phrase" && !dictationStartPhrase(ev.phrase) {
++		if now.Before(d.dictationDrainUntil) && ev.kind == "phrase" {
 +			d.mu.Unlock()
 +			return true
 +		}
 +		if !enabled || ownPlayback || ev.kind != "phrase" || !dictationStartPhrase(ev.phrase) {
 +			d.mu.Unlock()
 +			return false
++		}
++		if !ev.at.IsZero() {
++			if ev.at.Equal(d.dictationLastStartAt) {
++				d.mu.Unlock()
++				return true
++			}
++			d.dictationLastStartAt = ev.at
 +		}
 +		if d.pcPending != nil {
 +			turn := d.turn
@@ -239,7 +307,7 @@
 +			d.mu.Unlock()
 +			return true
 +		}
-+		d.dictation = &dictationSession{id: id, nextSeq: 1, lastText: now}
++		d.dictation = &dictationSession{id: id, nextSeq: 1, lastText: now, boundaryAt: ev.at}
 +		if d.cancel != nil {
 +			d.cancel()
 +		}
@@ -253,50 +321,92 @@
 +		return true
 +	}
 +	if !enabled {
++		cancelNative := session.nativeOpen()
 +		d.endDictLocked(now)
 +		d.mu.Unlock()
-+		d.dictCancel()
++		if cancelNative {
++			d.dictCancel()
++		}
 +		return true
 +	}
 +	switch ev.kind {
 +	case "listening":
-+		if !session.listenRequested.IsZero() {
++		if !session.listenRequested.IsZero() && !session.listening && session.finalUntil.IsZero() &&
++			(ev.at.IsZero() || ev.at.After(session.boundaryAt)) {
 +			session.listening = true
++			if !ev.at.IsZero() {
++				session.boundaryAt = ev.at
++			}
 +		}
 +		d.mu.Unlock()
 +		return true
 +	case "idle":
-+		if session.listening {
-+			// The native speech service closed an empty listening window.
++		if !ev.at.IsZero() && ev.at.Before(session.boundaryAt) {
++			d.mu.Unlock()
++			return true
++		}
++		if !session.waitIdleFrom.IsZero() {
++			session.waitIdleFrom = time.Time{}
++			if !ev.at.IsZero() {
++				session.boundaryAt = ev.at
++			}
++		} else if session.listening {
++			// One native window ends here. A late final may still complete it.
++			// Silence never opens another window or sends another native cancel.
 +			session.listening = false
-+			session.listenRequested = time.Time{}
-+			session.listenAfter = now.Add(350 * time.Millisecond)
++			session.finalUntil = now.Add(dictFinalGrace)
++			session.closedAt = ev.at
 +		}
 +		d.mu.Unlock()
 +		return true
 +	case "phrase":
++		if !ev.at.IsZero() && ev.at.Before(session.boundaryAt) {
++			d.mu.Unlock()
++			return true
++		}
 +		if dictationStopPhrase(ev.phrase) {
++			cancelNative := session.nativeOpen()
 +			d.endDictLocked(now)
 +			d.mu.Unlock()
-+			d.dictCancel()
++			if cancelNative {
++				d.dictCancel()
++			}
 +			return true
 +		}
 +		// A repeated recognition event for the previous native dialog is
 +		// ignored until the new native LISTENING event.
-+		if !session.ready || !session.listening || session.listenRequested.IsZero() {
++		if !session.ready || session.listenRequested.IsZero() ||
++			(!session.listening && (session.finalUntil.IsZero() || !now.Before(session.finalUntil))) {
 +			d.mu.Unlock()
 +			return true
 +		}
 +		text := strings.TrimSpace(ev.phrase)
++		if text == "" {
++			d.mu.Unlock()
++			return true
++		}
++		cancelNative := session.listening
++		if cancelNative {
++			session.waitIdleFrom = now
++		}
 +		session.listening = false
-+		session.listenRequested, session.listenAfter = time.Time{}, time.Time{}
++		session.listenRequested, session.listenAfter, session.finalUntil = time.Time{}, time.Time{}, time.Time{}
++		if !ev.at.IsZero() {
++			session.boundaryAt = ev.at
++		}
++		if session.closedAt.After(session.boundaryAt) {
++			session.boundaryAt = session.closedAt
++		}
++		session.closedAt = time.Time{}
 +		if !dictPhraseValid(text) || !d.queueDictLocked(dictAppend, session.nextSeq, text, now) {
 +			d.endDictLocked(now)
 +		} else {
 +			session.lastText = now
 +		}
 +		d.mu.Unlock()
-+		d.dictCancel()
++		if cancelNative {
++			d.dictCancel()
++		}
 +		return true
 +	case "spotted", "speaking":
 +		d.mu.Unlock()
@@ -314,17 +424,26 @@
 +		d.mu.Unlock()
 +		return
 +	}
-+	if !d.cfg.Enabled || d.cfg.Microphone.Source != "alice" || now.Sub(s.lastText) >= dictSilence ||
-+		(!s.listenRequested.IsZero() && !s.listening && now.Sub(s.listenRequested) > 7*time.Second) {
++	if (!s.finalUntil.IsZero() && !now.Before(s.finalUntil)) ||
++		(!s.waitIdleFrom.IsZero() && now.Sub(s.waitIdleFrom) >= dictWindowTimeout) {
 +		d.endDictLocked(now)
 +		d.mu.Unlock()
-+		d.dictCancel()
++		return
++	}
++	if !d.cfg.Enabled || d.cfg.Microphone.Source != "alice" || now.Sub(s.lastText) >= dictSilence ||
++		(!s.listenRequested.IsZero() && !s.listening && s.finalUntil.IsZero() && now.Sub(s.listenRequested) >= dictWindowTimeout) {
++		cancelNative := s.nativeOpen()
++		d.endDictLocked(now)
++		d.mu.Unlock()
++		if cancelNative {
++			d.dictCancel()
++		}
 +		return
 +	}
 +	if s.ready && d.pcPending == nil && now.Sub(s.lastContact) >= dictHeartbeat {
 +		d.queueDictLocked(dictStatus, 0, "", now)
 +	}
-+	if !s.ready || s.listenAfter.IsZero() || now.Before(s.listenAfter) {
++	if !s.ready || s.listenAfter.IsZero() || now.Before(s.listenAfter) || !s.waitIdleFrom.IsZero() {
 +		d.mu.Unlock()
 +		return
 +	}
@@ -336,12 +455,12 @@
 +	current := func() bool {
 +		d.mu.Lock()
 +		defer d.mu.Unlock()
-+		return d.dictation == s && s.listenRequested == now && !s.listening
++		return d.dictation == s && s.listenRequested == now && s.nativeOpen() && !s.listening
 +	}
 +	go func() {
 +		start := d.dictationListen
 +		if start == nil {
-+			start = d.alice.sendButton
++			start = d.alice.listenForDictation
 +		}
 +		_, err := start(current)
 +		if err != nil {
@@ -365,8 +484,9 @@
 +		return false
 +	}
 +	if !ok {
++		cancelNative := s.nativeOpen()
 +		d.endDictLocked(now)
-+		return true
++		return cancelNative
 +	}
 +	s.lastContact = now
 +	switch command.Action {
@@ -381,7 +501,7 @@
 +}
 --- /dev/null
 +++ b/dictation_test.go
-@@ -0,0 +1,183 @@
+@@ -0,0 +1,371 @@
 +package main
 +
 +import (
@@ -464,12 +584,14 @@
 +	if c.Seq != 1 || c.Query != phrase || c.Session != start.ID || c.ID == c.Session {
 +		t.Fatalf("bad append: %#v", c)
 +	}
++	d.onEvent(logEvent{kind: "idle"})
 +	windowForTest(t, d, starts)
 +	d.onEvent(logEvent{kind: "phrase", phrase: "Открой Spotify"})
 +	c = confirmDict(t, d, dictAppend, "ok")
 +	if c.Seq != 2 || c.Query != "Открой Spotify" {
 +		t.Fatal("utterance interpreted as command")
 +	}
++	d.onEvent(logEvent{kind: "idle"})
 +	windowForTest(t, d, starts)
 +	d.onEvent(logEvent{kind: "phrase", phrase: "Алиса, стоп, диктовка!"})
 +	if d.dictation != nil {
@@ -502,6 +624,7 @@
 +		t.Fatal("editor stop was ignored")
 +	}
 +	confirmDict(t, d, dictStop, "ok")
++	d.onEvent(logEvent{kind: "spotted"})
 +	d.onEvent(logEvent{kind: "phrase", phrase: "Включи стори фордж"})
 +	confirmDict(t, d, dictStart, "ok")
 +	windowForTest(t, d, starts)
@@ -563,5 +686,190 @@
 +	d.dictationEvent(logEvent{kind: "spotted"}, true, false)
 +	if d.dictationEvent(logEvent{kind: "phrase", phrase: "Открой Spotify"}, true, false) {
 +		t.Fatal("a fresh wake did not restore ordinary commands")
++	}
++}
++
++func TestDictationEmptyDialogNeverReopens(t *testing.T) {
++	d, starts := newDictTest()
++	cancels := 0
++	d.dictationCancel = func() { cancels++ }
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	before := cancels
++	for i := 0; i < 30; i++ {
++		d.onEvent(logEvent{kind: "phrase", phrase: "  "})
++	}
++	if d.dictation == nil || d.pcPending != nil || cancels != before {
++		t.Fatal("empty recognition interrupted an active listening window")
++	}
++	for i := 0; i < 30; i++ {
++		d.onEvent(logEvent{kind: "idle"})
++		d.onEvent(logEvent{kind: "listening"})
++	}
++	d.tickDictation(time.Now().Add(3 * time.Second))
++	if d.dictation != nil || cancels != before {
++		t.Fatal("empty native dialog should end without another button or cancel")
++	}
++	confirmDict(t, d, dictStop, "ok")
++	for i := 0; i < 20; i++ {
++		d.tickDictation(time.Now().Add(time.Duration(i+5) * time.Second))
++	}
++	select {
++	case <-starts:
++		t.Fatal("native button fired after silence")
++	default:
++	}
++	d.onEvent(logEvent{kind: "spotted"})
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++}
++
++func TestDictationIdleOnlyDoesNotSendAnotherButton(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	requested := d.dictation.listenRequested
++	d.onEvent(logEvent{kind: "idle"})
++	d.tickDictation(time.Now().Add(500 * time.Millisecond))
++	if d.dictation != nil && d.dictation.listenRequested.After(requested) {
++		t.Fatal("IDLE scheduled another native listen during silence")
++	}
++	d.tickDictation(time.Now().Add(2 * time.Second))
++	if d.dictation != nil {
++		t.Fatal("empty native dialog still active")
++	}
++	confirmDict(t, d, dictStop, "ok")
++}
++
++func TestDictationMissingIdleAfterCommittedPhraseHasFiniteWait(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	windowForTest(t, d, starts)
++	d.onEvent(logEvent{kind: "phrase", phrase: "Конец сцены."})
++	confirmDict(t, d, dictAppend, "ok")
++	d.tickDictation(time.Now().Add(9 * time.Second))
++	if d.dictation != nil {
++		t.Fatal("missing native close kept the session alive")
++	}
++	confirmDict(t, d, dictStop, "ok")
++}
++
++func TestDictationNativeOpenWritesOnlyOneListen(t *testing.T) {
++	cli, path, _ := fakeAliceCLI(t)
++	if ok, err := cli.listenForDictation(func() bool { return false }); ok || err != nil {
++		t.Fatal("stale request was sent")
++	}
++	if ok, err := cli.listenForDictation(func() bool { return true }); !ok || err != nil {
++		t.Fatalf("requested listen failed: %v", err)
++	}
++	lines := waitCLIEvent(t, path, "1:s\n")
++	if strings.Contains(lines, ":c\n") || strings.Count(lines, ":s\n") != 1 {
++		t.Fatal("unexpected native commands: " + lines)
++	}
++}
++
++func TestDictationStopInvalidatesPendingNativeOpen(t *testing.T) {
++	d, _ := newDictTest()
++	entered, resume, sent := make(chan struct{}), make(chan struct{}), make(chan bool, 1)
++	d.dictationListen = func(current func() bool) (bool, error) {
++		close(entered)
++		<-resume
++		ok := current()
++		sent <- ok
++		return ok, nil
++	}
++	activation := logEvent{kind: "phrase", phrase: "Открой StoryForge", at: time.Now()}
++	d.onEvent(activation)
++	confirmDict(t, d, dictStart, "ok")
++	d.tickDictation(time.Now().Add(time.Millisecond))
++	select {
++	case <-entered:
++	case <-time.After(time.Second):
++		close(resume)
++		t.Fatal("native open was never requested")
++	}
++	d.onEvent(logEvent{kind: "phrase", phrase: "Стоп, диктовка"})
++	close(resume)
++	if <-sent {
++		t.Fatal("an interrupted native open went through")
++	}
++	confirmDict(t, d, dictStop, "ok")
++	d.onEvent(activation)
++	if d.dictation != nil {
++		t.Fatal("a late replay of the original activation reopened the session")
++	}
++	d.onEvent(logEvent{kind: "spotted"})
++	d.onEvent(activation)
++	if d.dictation != nil {
++		t.Fatal("replayed timestamp was accepted as a fresh activation")
++	}
++	activation.at = activation.at.Add(time.Second)
++	d.onEvent(activation)
++	confirmDict(t, d, dictStart, "ok")
++}
++
++func TestDictationRepeatedTextBelongsToItsOwnWindow(t *testing.T) {
++	d, starts := newDictTest()
++	d.onEvent(logEvent{kind: "phrase", phrase: "Открой StoryForge"})
++	confirmDict(t, d, dictStart, "ok")
++	f := func(line string) {
++		t.Helper()
++		ev, ok := parseLine(line)
++		if !ok {
++			t.Fatalf("unrecognized test log: %s", line)
++		}
++		d.onEvent(ev)
++	}
++	listen := func(line string) {
++		t.Helper()
++		d.tickDictation(time.Now().Add(time.Millisecond))
++		select {
++		case ok := <-starts:
++			if !ok {
++				t.Fatal("current listen rejected")
++			}
++		case <-time.After(time.Second):
++			t.Fatal("missing listen after accepted phrase")
++		}
++		f(line)
++	}
++	const firstWindow = "[2026-11-25 09:00:01.000] onAliceStateChanged: LISTENING"
++	const firstFinal = "[2026-11-25 09:00:02.000] onRequestStateChanged: LISTENING, recognizedPhrase='Да.'"
++	listen(firstWindow)
++	f("[2026-11-25 09:00:01.001] onRequestStateChanged: LISTENING, recognizedPhrase=''")
++	f(firstFinal)
++	confirmDict(t, d, dictAppend, "ok")
++	for i := 0; i < 20; i++ {
++		f(firstWindow)
++		f(firstFinal)
++	}
++	d.tickDictation(time.Now().Add(time.Millisecond))
++	if !d.dictation.listenRequested.IsZero() {
++		t.Fatal("editor acknowledgement reopened the previous dialog before its IDLE")
++	}
++	f("[2026-11-25 09:00:02.100] onAliceStateChanged: IDLE")
++	listen("[2026-11-25 09:00:03.000] onAliceStateChanged: LISTENING")
++	for i := 0; i < 20; i++ {
++		f(firstWindow)
++		f(firstFinal)
++	}
++	if d.pcPending != nil {
++		t.Fatal("previous dialog replay became a new append")
++	}
++	f("[2026-11-25 09:00:04.100] onAliceStateChanged: IDLE")
++	f("[2026-11-25 09:00:04.101] onRequestStateChanged: LISTENING, recognizedPhrase='Да.'")
++	if c := confirmDict(t, d, dictAppend, "ok"); c.Seq != 2 || c.Query != "Да." {
++		t.Fatal("a deliberate repeat in the next dialog was lost")
++	}
++	listen("[2026-11-25 09:00:05.000] onAliceStateChanged: LISTENING")
++	f("[2026-11-25 09:00:06.000] onRequestStateChanged: LISTENING, recognizedPhrase='Стоп, диктовка'")
++	confirmDict(t, d, dictStop, "ok")
++	f(firstFinal)
++	if d.dictation != nil || d.pcPending != nil {
++		t.Fatal("stopped dictation restarted")
 +	}
 +}
