@@ -266,6 +266,13 @@ function windowControls(theme) {
   };
 }
 
+function presentWindow(window) {
+  if (!window || window.isDestroyed()) return;
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+}
+
 function createWindow() {
   const theme = getSettings().theme;
   win = new BrowserWindow({
@@ -292,10 +299,7 @@ function createWindow() {
     },
   });
 
-  win.once('ready-to-show', () => {
-    logLine('ready-to-show');
-    win.show();
-  });
+  win.once('ready-to-show', () => logLine('ready-to-show'));
   const loadOpts = SELFTEST
     ? {
         query: {
@@ -305,8 +309,6 @@ function createWindow() {
         },
       }
     : undefined;
-  win.loadFile(path.join(ROOT, 'src', 'index.html'), loadOpts);
-
   win.webContents.on('did-fail-load', (_e, code, desc, url) => logLine('did-fail-load', `${code} ${desc} ${url}`));
   win.webContents.on('render-process-gone', (_e, details) => logLine('render-process-gone', details));
   win.webContents.on('preload-error', (_e, preloadPath, error) => logLine('preload-error', preloadPath, (error && error.stack) || String(error)));
@@ -333,10 +335,16 @@ function createWindow() {
   if (DEV) win.webContents.openDevTools({ mode: 'detach' });
 
   win.webContents.on('did-finish-load', () => {
+    logLine('main document loaded');
     win.webContents.send('sf:menu', { action: 'app:ready' });
     if (SMOKE) runSmoke();
     if (SELFTEST) runSelfTest();
   });
+  win.loadFile(path.join(ROOT, 'src', 'index.html'), loadOpts).catch(err => logLine('main document load failed', err.code || err.message));
+  // A hidden renderer can stall before its first paint. Show the themed
+  // native window as soon as navigation starts, including on a cold launch.
+  presentWindow(win);
+  logLine('main window shown', win.isVisible());
 }
 
 async function registerAliceDictation() {
@@ -1174,10 +1182,10 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
+    // If this arrives during initialization, createWindow will present the
+    // single window as soon as it is constructed.
+    logLine('shortcut activated', win ? 'existing window' : 'starting');
+    presentWindow(win);
   });
 
   app.on('child-process-gone', (_e, details) => logLine('child-process-gone', details));
@@ -1199,7 +1207,12 @@ if (!gotLock) {
     registerAliceDictation().catch(err => logLine('Alice integration unavailable', err.code || 'startup'));
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      else presentWindow(win);
     });
+  }).catch(err => {
+    logLine('startup failed', err?.stack || String(err));
+    dialog.showErrorBox('StoryForge', uiText('Не удалось открыть редактор.', 'The editor could not open.') + '\n' + String(err?.message || err));
+    app.quit();
   });
 
   app.on('window-all-closed', () => {
