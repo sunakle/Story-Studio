@@ -1,6 +1,9 @@
 #ifndef AppVersion
   #error Build with npm run dist:win
 #endif
+#if Ver < EncodeVer(6, 7, 0)
+  #error This wizard requires Inno Setup 6.7 or later.
+#endif
 
 [Setup]
 AppId={{9DBBB0F5-FB14-4458-8D51-C134636C8743}
@@ -15,11 +18,17 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
-WizardStyle=modern
+WizardStyle=modern dark
+WizardBackColor=#201f23
+WizardImageFile=branding\wizard-cover.png
+WizardSmallImageFile=..\..\src\assets\storyforge-mark.png
+WizardSmallImageBackColor=none
 OutputDir=..\..\dist
-OutputBaseFilename=StoryForge-Setup-{#AppVersion}-x64
+OutputBaseFilename=StoryForge-Setup-x64
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=StoryForge Setup
+VersionInfoProductName=StoryForge
+VersionInfoProductVersion={#AppVersion}
 SetupIconFile=..\..\src\assets\storyforge.ico
 UninstallDisplayIcon={app}\StoryForge.exe
 Compression=lzma2/fast
@@ -30,6 +39,18 @@ RestartApplications=no
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+
+[Messages]
+english.WelcomeLabel1=Install StoryForge
+english.WelcomeLabel2=Write your script, connect scenes and design layouts in Gigma Studio.%n%nVersion {#AppVersion} will be installed for your Windows account.
+english.FinishedHeadingLabel=StoryForge is ready
+english.FinishedLabel=Open StoryForge to create a project or continue an existing one.
+english.FinishedLabelNoIcons=Open StoryForge to create a project or continue an existing one.
+russian.WelcomeLabel1=Установка StoryForge
+russian.WelcomeLabel2=Пишите сценарии, связывайте сцены и создавайте макеты в Gigma Studio.%n%nВерсия {#AppVersion} будет установлена для вашей учётной записи Windows.
+russian.FinishedHeadingLabel=StoryForge готов к работе
+russian.FinishedLabel=Откройте StoryForge, чтобы создать проект или продолжить работу над существующим.
+russian.FinishedLabelNoIcons=Откройте StoryForge, чтобы создать проект или продолжить работу над существующим.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"

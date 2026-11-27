@@ -94,10 +94,10 @@ function buildInstaller() {
     if (run.error?.code === 'ENOENT') continue;
     if (run.error) throw run.error;
     if (run.status !== 0) throw Error('Inno Setup returned ' + run.status);
-    console.log(path.join(dist, 'StoryForge-Setup-' + metadata.version + '-x64.exe'));
+    console.log(path.join(dist, 'StoryForge-Setup-x64.exe'));
     return;
   }
-  throw Error('Install Inno Setup 6.3+ or set ISCC to the path of ISCC.exe.');
+  throw Error('Install Inno Setup 6.7+ or set ISCC to the path of ISCC.exe.');
 }
 
 if (process.platform !== 'win32') throw Error('Build the Windows package on Windows.');

@@ -1,71 +1,68 @@
-![StoryForge — branching dialogue editor](docs/gallery/cover-en.png)
+# ![StoryForge — a workspace for game writers](docs/gallery/cover-en.png)
 
-**A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
+**StoryForge** is a desktop editor for branching dialogue. Write a scene, connect the player’s choices, play through a branch, then export the dialogue to Godot or Ren’Py. The script, graph, Gigma designs and character voices travel together in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.4.0/StoryForge-Setup-1.4.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[![Download the StoryForge installer for Windows x64](docs/gallery/download-windows-en.svg)](https://github.com/sunakle/Story-Studio/releases/latest/download/StoryForge-Setup-x64.exe)
 
-[Story flow](docs/gallery/flow.png)
+[All releases](https://github.com/sunakle/Story-Studio/releases) · [User guide (Russian)](docs/guide.ru.md) · [Gallery](#gallery) · [Русский](README.md)
 
-## Start writing
+## Your first scene
 
-1. Run the Windows installer and open **StoryForge** from the desktop. The installer includes the application runtime.
-2. Open **Настройки → Оформление** and select **English**. The choice persists across launches and applies to interface labels. Story text and character names stay in their original language.
-3. Start a new story or press **Ctrl+O** to open your own `.sfproj`. Add a scene and a line, then start a playthrough from that scene.
+1. Run the installer and choose whether to add a desktop shortcut. Open **StoryForge** from the Start menu or the shortcut.
+2. Choose **+ → Open screenplay**. Write where the scene takes place and what the characters say. To open an existing project, press **Ctrl+O**.
+3. Choose **+ → Create line** to add your first line of dialogue. Connect it to the player’s choices in the flow editor, then start a playthrough from the selected node. **Ctrl+S** saves the whole project.
 
-## Gigma Studio designs
+<details>
+<summary>Windows setup and interface language</summary>
 
-Choose **+ → Create a Gigma Studio design**. The canvas opens between the page and layer tree and the properties inspector. Press **R** to draw a rectangle, **T** to add text, or **F** to create a frame. Edit the design name above the canvas.
+The installer includes the runtime. If the editor opens in Russian, go to **Настройки → Оформление** and select **English**. You can switch back under **Settings → Appearance**.
 
-Each design has its own tab. **Ctrl+S** saves the entire project, including design pages, layers, images and prototype links, in the `.sfproj` file. Reopen a closed design under **+ → Project designs**. Import a `.gigma` file from the editor menu or use **Export** to save a standalone design, SVG or PNG.
+![StoryForge setup wizard for Windows](docs/gallery/setup-en.png)
 
-![Gigma Studio design workspace](docs/gallery/gigma-workspace.png)
+</details>
 
-[View the light theme](docs/gallery/gigma-workspace-light.png)
+## Design in Gigma Studio
 
-## From a screenplay to a playable graph
+Choose **+ → Create a Gigma Studio design** to sketch a game screen alongside your script. Pages and layers sit to the left of the canvas. The inspector on the right shows the selected object’s properties. Press **F** for a frame, **R** for a rectangle or **T** for text.
 
-Open **Screenplay** and write a scene in plain text. Include the location, speakers and what happens after each choice. The text is part of the project. Use the action to create nodes, review the request in chat and send it. The assistant can revise a passage, reuse characters or extend a branch. A single undo reverses the edits from one request.
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/gallery/gigma-workspace-light.png">
+  <img src="docs/gallery/gigma-workspace.png" alt="The Polar Station chapter artwork on the Gigma canvas with its layer tree and color inspector">
+</picture>
 
-AI settings default to one DeepSeek model. For a multi-model gateway, enter its OpenAI-compatible URL, API key and primary model ID. Enable **Agent mode** and add one coauthor model ID per line. Optionally add a role after a vertical bar. Coauthors draft in parallel through the same endpoint. The primary model reconciles their contributions and applies edits. Each contribution is available in the conversation.
+Each design opens in its own tab. Find a closed design under **+ → Project designs**. Pages, images and prototype links are saved with the story. You can also import an existing `.gigma` file or export your design as Gigma, SVG or PNG. [Dark theme](docs/gallery/gigma-workspace.png) · [Light theme](docs/gallery/gigma-workspace-light.png)
 
-Paste, drop or attach a photo to a chat message. On the official DeepSeek API, use `deepseek-flash` for images. [DeepSeek vision guide](https://api-docs.deepseek.com/guides/vision/)
-
-Expand **Built-in writing skills** in AI settings for the three read-only skills covering dialogue, scene sequencing and revision. [Upstream writing skills](https://github.com/jwynia/agent-skills)
-
-![Screenplay notebook, photo in chat and generated nodes](docs/gallery/screenplay.png)
-
-## Dictate with Alice
-
-With a configured Yandex Station Lite 2 and its Windows command bridge, say **«Алиса, открой StoryForge»**. The editor opens the **Screenplay** tab and indicates that dictation is active. Pause between phrases. End the session with **«Стоп, диктовка»** or the stop button in StoryForge, then save the project with **Ctrl+S**.
-
-The editor receives text from the paired bridge. Audio capture and transcription use the speaker’s configured assistant.
-
-## Save a voice
-
-Select a line and open Voice Studio. Choose the character to set a voice for their lines, or choose **Selected line** to give it its own voice. Adjust the sound or import a WAV, then save with **Ctrl+S**. The `.sfproj` carries the settings and sample to another computer. Add a voice to the local library to reuse it in other stories on this computer.
-
-## Inside the editor
+## Write, voice and play a branch
 
 | Workspace | What you can do |
 | --- | --- |
-| Scene editor and graph | Write dialogue, assign a speaker, and connect choices, conditions and jumps. |
-| Story table | Search scenes, filter by speaker or location, and save named views. |
-| Playback | Try decisions, inspect variables, and undo a step. |
-| Graph overview | Explore how scenes, characters and chapters connect. Hover to focus on a neighborhood or drag a node to change the layout. |
-| Voice Studio | Design a character voice, preview a line, shape a sample and render WAV files. |
-| Export | Write Godot 4, Ren’Py, Markdown or JSON output. The optional AI assistant connects to an OpenAI-compatible service you configure. |
+| Screenplay and AI chat | Write in plain text, then select **Create nodes…** to prepare a request in chat. Send it to turn the scene into dialogue nodes and choices. A single **Ctrl+Z** undoes the edits from that request. |
+| Story table and graph overview | Filter a character’s dialogue with a query such as `type:line speaker:Anna`. Hover over a node in the overview to see its direct connections. |
+| Voice Studio | Give a character or an individual line a voice, preview it and save it with the project. Add a voice to the local library to use it in another story. |
+| Playback and export | Try a choice, inspect story variables and step back to explore another branch. Export to Godot 4, Ren’Py, Markdown or JSON. |
 
-| English preferences | Voice Studio |
+<details>
+<summary>Model setup, image attachments and dictation</summary>
+
+Enter your OpenAI-compatible service URL, key and model ID in AI settings. A single DeepSeek model is selected by default. In **Agent mode**, coauthors draft in parallel and the primary model combines their edits. You can paste, drop or attach photos when the selected model supports images. Three built-in writing skills cover dialogue, scene sequencing and revision. [Writing skill sources](https://github.com/jwynia/agent-skills)
+
+With a configured Yandex Station Lite 2 and the Windows command bridge, say **«Алиса, открой StoryForge»** to dictate into the screenplay. Stop with the speaker’s top button, the stop button in the editor or **«Стоп, диктовка»**. [Alice integration (Russian)](integrations/alice/README.md)
+
+</details>
+
+## Gallery
+
+| Dialogue graph | Screenplay and AI chat |
 | --- | --- |
-| [![Language setting](docs/gallery/english.png)](docs/gallery/english.png) | [![Synthesizer and audio controls](docs/gallery/voice.png)](docs/gallery/voice.png) |
+| [![Story nodes connected by branching paths](docs/gallery/flow.png)](docs/gallery/flow.png) | [![A scene draft alongside the assistant conversation](docs/gallery/screenplay.png)](docs/gallery/screenplay.png) |
+| **Playthrough** | **Voice Studio** |
+| [![Player choices in the playthrough window](docs/gallery/playback.png)](docs/gallery/playback.png) | [![Line preview and character voice controls](docs/gallery/voice.png)](docs/gallery/voice.png) |
 
-[Scene editor](docs/gallery/scene.png) · [Story table](docs/gallery/table.png) · [Playback](docs/gallery/playback.png) · [Save on exit](docs/ui-obsidian/09-close.png)
-
-![Hovering, dragging and releasing a node in the graph](docs/ui-obsidian/graph-interaction.gif)
+[Scene editor](docs/gallery/scene.png) · [Story table](docs/gallery/table.png) · [Graph in motion](docs/ui-obsidian/graph-interaction.gif) · [English settings](docs/gallery/english.png) · [Save on exit](docs/ui-obsidian/09-close.png)
 
 ## Run from source
 
-Install Git and Node.js 22 or later with npm.
+For development on Windows, install Git and Node.js 22 or later with npm.
 
 ```powershell
 git clone https://github.com/sunakle/Story-Studio.git
@@ -74,7 +71,6 @@ npm.cmd ci
 npm.cmd start
 ```
 
-Run `npm.cmd test` for the model, persistence, playback and export checks. Run `npm.cmd run selftest` for the Electron UI suite. To build the Windows installer, install Inno Setup 6.3 or later and run `npm.cmd run dist:win` on Windows.
+`npm.cmd test` checks the project model, persistence, playback and exports. Run `npm.cmd run selftest` for the Electron UI suite. To build the installer, install Inno Setup 6.7 or later and run `npm.cmd run dist:win`.
 
-[Project format](CONTRACT.md) · [MIT License](LICENSE)
-
+[Project format](CONTRACT.md) · [Gigma integration](integrations/gigma/README.md) · [Test tools](tools/README.md) · [MIT license](LICENSE)
