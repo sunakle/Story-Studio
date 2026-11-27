@@ -57,7 +57,7 @@ type Gesture = {
   client: Point;
   view: DesignPage["view"];
   original: DesignNode[];
-  moving?: Element[];
+  moving?: SVGGraphicsElement[];
   delta?: Point;
   selected: string[];
   box?: Bounds;
@@ -443,15 +443,18 @@ export function Canvas({
         studio.select(ids);
         if (!ids.length) return;
         const rootIds = roots(page.nodes, ids);
-        const moving: Element[] = [];
+        const moving: SVGGraphicsElement[] = [];
         for (const id of rootIds) {
-          const object = svg.current!.querySelector(
+          const object = svg.current!.querySelector<SVGGElement>(
             '[data-object="' + id + '"]',
           );
-          const label = svg.current!.querySelector(
+          const label = svg.current!.querySelector<SVGTextElement>(
             '[data-frame-label="' + id + '"]',
           );
-          if (object) moving.push(object);
+          if (object) {
+            object.classList.add("dragging-object");
+            moving.push(object);
+          }
           if (label) moving.push(label);
         }
         g.current = {
@@ -658,12 +661,12 @@ export function Canvas({
         Math.round((a.box.y + dy) / prefs.gridSize) * prefs.gridSize - a.box.y;
     }
     a.delta = { x: dx, y: dy };
-    const transform = "translate(" + dx + " " + dy + ")";
+    // CSS animations own transform. Individual translate composes outside it.
     for (const element of a.moving!)
-      element.setAttribute("transform", transform);
+      element.style.translate = dx + "px " + dy + "px";
     svg.current
       ?.querySelector(".selection")
-      ?.setAttribute("transform", transform);
+      ?.setAttribute("transform", "translate(" + dx + " " + dy + ")");
   }
   function up(e: ReactPointer<SVGSVGElement>) {
     const a = g.current;
@@ -703,7 +706,7 @@ export function Canvas({
       setMarquee(null);
     } else if (a.type === "move") {
       if (
-        e.type !== "pointercancel" &&
+        e.type === "pointerup" &&
         (a.delta || e.clientX !== a.client.x || e.clientY !== a.client.y)
       )
         previewTranslation(
@@ -712,9 +715,12 @@ export function Canvas({
           (e.clientY - a.client.y) / a.view.zoom,
           e.shiftKey,
         );
-      for (const element of a.moving!) element.removeAttribute("transform");
+      for (const element of a.moving!) {
+        element.style.removeProperty("translate");
+        element.classList.remove("dragging-object");
+      }
       svg.current?.querySelector(".selection")?.removeAttribute("transform");
-      if (a.delta && e.type !== "pointercancel")
+      if (a.delta && e.type === "pointerup")
         studio.translate(page, a.selected, a.delta.x, a.delta.y);
     } else if (a.type === "pan") {
       const x = a.view.x + e.clientX - a.client.x,
@@ -769,6 +775,7 @@ export function Canvas({
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
+        onLostPointerCapture={e => { if (g.current?.type === "move") up(e); }}
         onContextMenu={(e) => {
           e.preventDefault();
           const target = hit(e);

@@ -624,6 +624,11 @@ button.primary,
   touch-action: none;
   user-select: none;
 }
+.dragging-object,
+.dragging-object [data-object],
+[data-object]:has(.dragging-object) {
+  animation-play-state: paused;
+}
 .tool-pan {
   cursor: grab;
 }
