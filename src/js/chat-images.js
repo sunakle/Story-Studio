@@ -28,8 +28,8 @@ export function imageRejection(message) {
   return /HTTP 415\b|(?:image|multimodal|vision|multi.modal|content\s+parts?).{0,110}(?:not support|unsupported|expected.*string|text.only|not allowed|invalid)|(?:unsupported|does not support|only supports?|not accept|invalid|unknown variant).{0,110}(?:image|multimodal|vision)|content.{0,80}(?:must|should|expected).{0,25}string/i.test(String(message));
 }
 
-export function imagesForProvider(message, settings) {
-  if (message.imageEndpoint !== imageEndpoint(settings) || visionUnavailable(settings)) return [];
+export function imagesForProvider(message, settings, localOnly = false) {
+  if (localOnly || message.localAttachments || message.imageEndpoint !== imageEndpoint(settings) || visionUnavailable(settings)) return [];
   return (Array.isArray(message.images) ? message.images : []).filter(validChatImage).slice(0, CHAT_IMAGE_LIMIT);
 }
 
@@ -37,9 +37,14 @@ export function originText(message) {
   return message.origin ? '[StoryForge] ' + JSON.stringify(message.origin) + '\n' : '';
 }
 
-export function userMessageContent(message, settings) {
+export function userMessageContent(message, settings, localOnly = false) {
   const content = originText(message) + (message.content || '');
-  const images = imagesForProvider(message, settings);
+  if ((localOnly || message.localAttachments) && message.images?.length && message.imageEndpoint === imageEndpoint(settings)) {
+    const files = message.images.slice(0,CHAT_IMAGE_LIMIT).map((image,index) => ({attachment:index,name:String(image.name || '').slice(0,200)}));
+    return content + '\n' + t('[Локальные вложения этого сообщения. Доступны по номеру для размещения. Содержимое изображения модели не передано.]',
+      '[Local attachments for this message, indexed for placement. The image pixels were not sent to the model.]') + '\n' + JSON.stringify(files);
+  }
+  const images = imagesForProvider(message, settings, localOnly);
   if (!images.length) {
     if (!message.images?.length) return content;
     const note = t('[Фото из истории недоступно текущему подключению.]', '[Photo in chat history is unavailable to this connection.]');
@@ -52,13 +57,13 @@ export function userMessageContent(message, settings) {
 
 // Keep both model requests and the local history bounded without estimating
 // text tokens from base64, which would crowd out the last entire conversation.
-export function turnCost(turn, settings) {
+export function turnCost(turn, settings, localOnly = false) {
   let text = 0, images = 0;
   for (const message of turn) {
     const { images: pictures, ...rest } = message;
     text += JSON.stringify(rest).length;
     if (Array.isArray(pictures)) {
-      const eligible = settings ? imagesForProvider(message, settings) : pictures;
+      const eligible = settings ? imagesForProvider(message, settings, localOnly) : pictures;
       for (const pic of eligible) images += pic.data?.length || 0;
     }
   }
@@ -74,7 +79,7 @@ export async function prepareChatImage(file) {
   if (!result || result.error) throw new Error(result?.error || t('Не удалось прочитать изображение.', 'Could not read the image.'));
   if (!validChatImage(result)) throw new Error(t('Слишком большое изображение. Уменьшите его и повторите.', 'This image is too large. Resize it and try again.'));
   const thumb = await prepareImage(result, { maxEdge: 160, quality: 0.72 });
-  return { name: result.name, data: result.data, thumb: thumb.data };
+  return { name: result.name, data: result.data, thumb: thumb.data, w: result.w, h: result.h };
 }
 
 export function imageStrip(images, escape, removeIcon) {

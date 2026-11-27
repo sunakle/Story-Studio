@@ -99,3 +99,19 @@ test('raster data can be transferred locally without leaking bytes through objec
   assert.ok(!JSON.stringify(describeArtwork(p, { objectId: id })).includes(dataUrl));
   assert.deepEqual(await exportArtworkImage(p, { objectId: id }), { name: 'Asset', dataUrl, width: 1, height: 1 });
 });
+
+test('a photo can bounce after reopen, change timing, or return to a still image', () => {
+  const p = createEmptyProject();
+  const imageData = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jOUkAAAAASUVORK5CYII=';
+  const { objectIds: [id] } = edit(p, { action:'create', kind:'image', x:17, y:23, rotation:21, imageData });
+  const motion = { type:'bounce', durationMs:1100, delayMs:150, loop:true };
+  edit(p, { action:'animate', objectId:id, animation:motion });
+  const { project } = migrateProject(JSON.parse(JSON.stringify(p)));
+  assert.deepEqual(node(project,id).animation,motion);
+  edit(project, { action:'animate', objectId:id, animation:{ ...motion, loop:false, durationMs:450 } });
+  assert.equal(node(project,id).animation.durationMs,450);
+  edit(project, { action:'animate', objectId:id, animation:null });
+  const photo = project.gigmaWorkspaces[0].document.pages[0].nodes[0];
+  assert.equal(photo.animation, undefined);
+  assert.deepEqual([photo.x,photo.y,photo.rotation,photo.image],[17,23,21,imageData]);
+});

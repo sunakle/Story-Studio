@@ -67,9 +67,13 @@ try {
     const sourceRef = makeProjectReference(run.plan.project,{kind:'gigma',workspaceId:generated.workspaceId,
       pageId:generated.pageId,objectId:generated.objectIds[0]});
     const placed = await tools.get('place_project_image')({sourceRef,target:'node',nodeId:'image_scene'});
+    run.message.images = [{name:'Portrait',data:run.plan.project.media[placed.mediaId].data}];
+    const bounced=await tools.get('place_project_image')({attachment:0,target:'canvas',animation:{type:'bounce',loop:true}});
     run.plan.commit('Create and attach a photo');
     const stored = store.project.media[placed.mediaId];
-    const image = {w:stored.w,h:stored.h,preview:store.project.nodes[0].previewId === placed.mediaId};
+    const bouncedLayer=store.project.gigmaWorkspaces.find(w=>w.id===bounced.workspaceId).document.pages
+      .find(p=>p.id===bounced.pageId).nodes.find(n=>n.id===bounced.objectIds[0]);
+    const image = {w:stored.w,h:stored.h,preview:store.project.nodes[0].previewId === placed.mediaId,bounce:bouncedLayer.animation.type};
     store.undo();
     image.undone = Object.keys(store.project.media).length === 0 && store.project.gigmaWorkspaces.length === 0;
     const local=await window.sf.ai.readLink('https://127.0.0.1/test');
@@ -78,7 +82,7 @@ try {
   if (mockError) throw mockError;
   assert.equal(data.tested.models[0],'test-claude');
   assert.equal(data.answer.content,'OK',data.answer.error);
-  assert.deepEqual(data.image,{w:1,h:1,preview:true,undone:true});
+  assert.deepEqual(data.image,{w:1,h:1,preview:true,bounce:'bounce',undone:true});
   assert.equal(data.local.ok,false);
   assert.deepEqual(seen,['/v1/models','/v1/messages','/v1/images/generations']);
   console.log('Desktop provider bridge passed: Claude, generated image and private link rejection.');

@@ -12,15 +12,16 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 const call = (name, args) => ({ok:true,toolCalls:[{id:crypto.randomUUID(),name,arguments:JSON.stringify(args)}]});
 function fixture(rounds, overrides = {}) {
   const store = new Store(), history = new Map(), art = {surface:'workshop',view:'assistant',title:'AI Studio',workspaceId:'gg_assistant'};
-  const bodies = [];
+  const bodies = [], revealed = [];
   globalThis.window = {sf:{ai:{abort() {},async chat({body}) {
     const last = body.messages.filter(m => m.role === 'tool').at(-1);
     bodies.push(body);
     return rounds(bodies.length - 1,last && JSON.parse(last.content),body);
   },...overrides},history:{read:key => history.get(key) || [],write:(messages,key) => history.set(key,messages)}}};
   const app = createAI({root:null,store,ui:{escapeHTML:String,settings:{ai:{baseUrl:'http://localhost/v1',model:'fixture'}},
-    workbench:{assistantContext:() => ({...art}),flushDesigns:() => true}}});
-  return {store,app,bodies,art,history};
+    workbench:{assistantContext:() => ({...art}),current:() => art.view,navigationRevision:() => art.revision || 0,flushDesigns:() => true,
+      revealWorkshopLayer:layer => revealed.push(layer)}}});
+  return {store,app,bodies,art,history,revealed};
 }
 
 test('chat routes frozen source, explicit links, artwork, animation and project media through one undo', async () => {
@@ -92,6 +93,38 @@ test('image generator failure discards all staged changes and bad links cannot r
   assert.equal(store.project.screenplay,'');
   assert.equal(history.get(store.documentKey).length,0);
   assert.deepEqual([...messageLinks('[source](https://example.org/wiki/Test_(film)). Next https://u:p@example.org/')],['https://example.org/wiki/Test_(film)']);
+});
+
+test('one photo placement creates native bounce, offers full tools on demand and plays only a surviving visible workshop layer', async () => {
+  for (const outcome of ['usual','navigated','reopened','removed']) {
+    let objectId;
+    const {app,store,art,revealed}=fixture((round,result,body) => {
+      const names=body.tools.map(x=>x.function.name);
+      if (round===0) {
+        assert.ok(names.includes('place_project_image')); assert.ok(!names.includes('edit_screenplay'));
+        return call('expand_project_tools',{});
+      }
+      assert.ok(names.includes('edit_screenplay'));
+      if (round===1) return call('place_project_image',{target:'canvas',mediaId:'m_source',name:'Portrait',animation:{type:'bounce',loop:true}});
+      if (round===2) {
+        assert.equal(result.objectIds.length,1); [objectId]=result.objectIds;
+        if (outcome==='navigated') Object.assign(art,{view:'screenplay',surface:'sidebar'});
+        if (outcome==='reopened') art.revision=2;
+        if (outcome==='removed') return call('edit_artwork',{action:'animate',objectId,animation:null});
+      }
+      return {ok:true,content:'Ready'};
+    });
+    store.apply({op:'addMedia',media:{id:'m_source',name:'Original',data:png,mime:'image/png',w:1,h:1}});
+    const before=store.snapshot();
+    const done=await app.send('Animate this photo with a bounce',[{name:'photo.png',data:png}]);
+    assert.ok(done.changed);
+    const layer=describeArtwork(store.project,{workspaceId:'gg_assistant',objectId}).objects[0];
+    assert.equal(layer.animation?.type,outcome==='removed'?undefined:'bounce');
+    assert.equal(revealed.length,outcome==='usual'?1:0);
+    if (revealed.length) assert.deepEqual(revealed[0],{workspaceId:'gg_assistant',pageId:store.project.gigmaWorkspaces.at(-1).document.activePageId,objectId,playAnimation:true});
+    store.undo();
+    assert.deepEqual(store.project,before);
+  }
 });
 
 test('manual edits to a canvas read by the model cancel its cross-editor operation', async () => {

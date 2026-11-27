@@ -175,6 +175,7 @@ export function createGigmaHost(store, ui, stage) {
         if (!active(entry) || document.activeElement !== entry.frame) break;
         if (data.command === 'new') ui.newProject();
         else if (data.command === 'open') ui.openProject();
+        else if (data.command === 'undo' || data.command === 'redo') store.stepDesignHistory(data.command, entry.id);
         break;
       case 'preferences':
         if (active(entry) && data.preferences && typeof data.preferences === 'object' && !Array.isArray(data.preferences)) {
@@ -251,11 +252,11 @@ export function createGigmaHost(store, ui, stage) {
       const document = workspace(id)?.document, selected = frames.get(id)?.pageId;
       return document?.pages.some(page => page.id === selected) ? selected : document?.activePageId;
     },
-    reveal({workspaceId, pageId, objectId}) {
+    reveal({workspaceId, pageId, objectId, playAnimation = false}) {
       const entry = frames.get(workspaceId);
       if (!entry) return;
-      if (entry.loaded) post(entry, 'reveal', {pageId, objectId});
-      else entry.reveal = {pageId, objectId};
+      if (entry.loaded) post(entry, 'reveal', {pageId, objectId, playAnimation});
+      else entry.reveal = {pageId, objectId, playAnimation};
     },
     focus(id) { frames.get(id)?.frame.focus({preventScroll:true}); },
     async flushAll() { return (await Promise.all([...frames.values()].map(flush))).every(Boolean); },

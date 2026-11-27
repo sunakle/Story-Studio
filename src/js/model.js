@@ -2014,6 +2014,15 @@ export class Store {
   canUndo() { return this._undo.length > 0; }
   canRedo() { return this._redo.length > 0; }
 
+  // A focused Gigma frame can undo a host insertion after its own history ends.
+  stepDesignHistory(direction, workspaceId) {
+    const stack = direction === 'undo' ? this._undo : direction === 'redo' ? this._redo : null;
+    const next = stack?.at(-1)?.snapshot;
+    if (!next || this._openGroup) return;
+    const document = project => project.gigmaWorkspaces?.find(workspace => workspace.id === workspaceId)?.document ?? null;
+    if (document(next) !== document(this.project)) this[direction]();
+  }
+
   clearHistory() {
     this._undo = [];
     this._redo = [];

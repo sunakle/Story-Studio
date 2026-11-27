@@ -78,8 +78,8 @@ export function zoomAt(page: DesignPage, value: number, at?: Point) {
     y: (host?.height ?? 600) / 2,
   };
   const zoom = Math.min(32, Math.max(0.02, value)),
-    ratio = zoom / page.view.zoom;
-  if (zoom === page.view.zoom) return;
+    ratio = zoom / studio.viewFor(page).zoom;
+  if (zoom === studio.viewFor(page).zoom) return;
   studio.camera((p) => {
     p.view = {
       x: center.x - (center.x - p.view.x) * ratio,
@@ -88,7 +88,7 @@ export function zoomAt(page: DesignPage, value: number, at?: Point) {
     };
   });
 }
-export function fitPage(page: DesignPage, ids?: string[]) {
+export function fitPage(page: DesignPage, ids?: string[], transient = false) {
   const host = document.querySelector("[data-stage]")?.getBoundingClientRect();
   if (!host) return;
   const b = exportBounds(page, ids),
@@ -96,13 +96,13 @@ export function fitPage(page: DesignPage, ids?: string[]) {
       0.02,
       Math.min(2, (host.width - 96) / b.width, (host.height - 96) / b.height),
     );
-  studio.camera((p) => {
-    p.view = {
-      zoom,
-      x: (host.width - b.width * zoom) / 2 - b.x * zoom,
-      y: (host.height - b.height * zoom) / 2 - b.y * zoom,
-    };
-  });
+  const view = {
+    zoom,
+    x: (host.width - b.width * zoom) / 2 - b.x * zoom,
+    y: (host.height - b.height * zoom) / 2 - b.y * zoom,
+  };
+  if (transient) studio.revealView(page, view);
+  else studio.camera(p => { p.view = view; });
 }
 export const Scene = memo(function Scene({
   nodes,
@@ -112,6 +112,7 @@ export const Scene = memo(function Scene({
   onCommitText,
   selection,
   animate = false,
+  animationTarget,
 }: {
   nodes: DesignNode[];
   artworkVersion?: number;
@@ -121,6 +122,7 @@ export const Scene = memo(function Scene({
   onCommitText?: (n: DesignNode, value: string) => void;
   selection?: string[];
   animate?: boolean;
+  animationTarget?: string;
 }) {
   const selected = new Set(selection);
   const children = new Map<string | null, DesignNode[]>();
@@ -131,7 +133,7 @@ export const Scene = memo(function Scene({
   function draw(n: DesignNode): React.ReactNode {
     if (n.hidden) return null;
     const clip = prefix + "-" + n.id;
-    const motion = animate && n.animation;
+    const motion = animate && (!animationTarget || n.id === animationTarget) && n.animation;
     return (
       <g
         key={n.id}
@@ -261,6 +263,8 @@ export function Canvas({
   space,
   grid,
   animate = false,
+  animationRun,
+  animationTarget,
   onContextSelection,
 }: {
   page: DesignPage;
@@ -269,6 +273,8 @@ export function Canvas({
   space: boolean;
   grid: boolean;
   animate?: boolean;
+  animationRun?: number;
+  animationTarget?: string;
   onContextSelection: (x: number, y: number, ids: string[]) => void;
 }) {
   const prefs = usePrefs();
@@ -289,7 +295,7 @@ export function Canvas({
       });
     setEditing(null);
   }, []);
-  const v = page.view,
+  const v = studio.viewFor(page),
     selected = studio.selection,
     box = selectionBounds(page.nodes, selected);
   useEffect(() => {
@@ -302,7 +308,7 @@ export function Canvas({
       if (!p) return;
       if (event.ctrlKey || event.metaKey) {
         const r = el.getBoundingClientRect();
-        zoomAt(p, p.view.zoom * Math.exp(-event.deltaY * 0.008), {
+        zoomAt(p, studio.viewFor(p).zoom * Math.exp(-event.deltaY * 0.008), {
           x: event.clientX - r.left,
           y: event.clientY - r.top,
         });
@@ -826,8 +832,10 @@ export function Canvas({
               </text>
             ))}
           <Scene
+            key={animationRun}
             nodes={page.nodes}
             animate={animate}
+            animationTarget={animationTarget}
             editingId={editing}
             selection={selected}
             artworkVersion={studio.artworkVersion}

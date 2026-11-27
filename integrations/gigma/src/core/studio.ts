@@ -24,6 +24,8 @@ type Entry = Snapshot | Translation;
 export class Studio {
   artworkVersion = 0;
   private cameraFrame = 0;
+  private revealedPage: { id: string; from: string } | null = null;
+  private revealedView: { page: DesignPage; view: DesignPage["view"] } | null = null;
   document: DesignDocument | null = null;
   selection: string[] = [];
   version = 0;
@@ -47,10 +49,25 @@ export class Studio {
     this.listeners.forEach((fn) => fn());
   };
   get page(): DesignPage | null {
-    return (
-      this.document?.pages.find((p) => p.id === this.document?.activePageId) ??
-      null
-    );
+    const doc = this.document;
+    if (!doc) return null;
+    const id = this.revealedPage?.from === doc.activePageId ? this.revealedPage.id : doc.activePageId;
+    return doc.pages.find(p => p.id === id) ?? null;
+  }
+  // Following a project link must not create an undo entry above the artwork
+  // operation which produced that link, even if the host later flushes the iframe.
+  revealPage(id: string) {
+    if (!this.document || this.page?.id === id) return;
+    this.revealedPage = { id, from:this.document.activePageId };
+    this.revealedView = null;
+    this.emit(false);
+  }
+  viewFor(page: DesignPage) {
+    return this.revealedView?.page === page ? this.revealedView.view : page.view;
+  }
+  revealView(page: DesignPage, view: DesignPage["view"]) {
+    this.revealedView = { page, view };
+    this.emit(false);
   }
   select(ids: string[]) {
     if (
@@ -145,6 +162,10 @@ export class Studio {
   }
   changed(immediate = true) {
     if (!this.document) return;
+    if (this.revealedPage?.from === this.document.activePageId && this.page) {
+      this.document.activePageId = this.page.id;
+    }
+    this.revealedPage = null;
     this.generation++;
     this.document.revision++;
     this.document.updatedAt = new Date().toISOString();
@@ -152,7 +173,14 @@ export class Studio {
     publishEdit(this.document, immediate);
   }
   activatePage(id: string) {
-    if (!this.document || this.document.activePageId === id) return;
+    if (!this.document) return;
+    const previous = this.page?.id;
+    this.revealedPage = null;
+    if (previous !== id) this.revealedView = null;
+    if (this.document.activePageId === id) {
+      if (previous !== id) this.emit(false);
+      return;
+    }
     this.document.activePageId = id;
     this.changed();
     this.emit();
@@ -163,6 +191,8 @@ export class Studio {
     const page = this.page;
     if (!page) return;
     const { x, y, zoom } = page.view;
+    if (this.revealedView?.page === page) page.view = {...this.revealedView.view};
+    this.revealedView = null;
     fn(page);
     if (page.view.x === x && page.view.y === y && page.view.zoom === zoom) return;
     this.changed(false);
@@ -190,11 +220,13 @@ export class Studio {
     else this.restore(entry.after);
   }
   private replayTranslation(entry: Translation, forward: boolean) {
+    this.revealedPage = this.revealedView = null;
     if (this.document) this.document.activePageId = entry.pageId;
     this.selection = [];
     this.applyTranslation(entry, forward);
   }
   private restore(doc: DesignDocument) {
+    this.revealedPage = this.revealedView = null;
     const revision = this.document?.revision ?? doc.revision;
     this.document = { ...structuredClone(doc), revision };
     this.selection = [];
@@ -202,6 +234,7 @@ export class Studio {
     this.emit();
   }
   open(value: DesignDocument) {
+    this.revealedPage = this.revealedView = null;
     const doc = validateDocument(value);
     this.before = null;
     this.document = doc;

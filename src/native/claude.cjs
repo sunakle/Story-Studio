@@ -87,7 +87,11 @@ async function claudeResponse(response, send) {
     for (const line of lines) handle(line.trim());
   }
   handle((pending + decoder.decode()).trim());
-  if (!completed) throw Error('Claude stream ended before the message was complete.');
+  if (!completed) {
+    const error = new Error('Claude stream ended before the message was complete.');
+    error.code = 'INCOMPLETE_AI_STREAM';
+    throw error;
+  }
   const toolCalls = [...calls.values()].map(({ id, name, arguments: args, initial }) => ({ id, name, arguments: args || JSON.stringify(initial) }));
   send({ done: true });
   return { ok: true, content, finishReason, toolCalls, usage };

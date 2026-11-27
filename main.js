@@ -1157,7 +1157,11 @@ function registerAiIpc() {
       return { ok: true, content, toolCalls, finishReason, usage, reasoningContent };
     } catch (err) {
       const aborted = err && (err.name === 'AbortError' || /aborted/i.test(String(err.message)));
-      const message = aborted ? uiText("Запрос отменён или истёк таймаут", "Request cancelled or timed out") : String(err && err.message ? err.message : err);
+      let message = String(err?.message || err);
+      if (aborted) message = uiText("Запрос отменён или истёк таймаут", "Request cancelled or timed out");
+      if (err?.code === 'INCOMPLETE_AI_STREAM') {
+        message = uiText("Соединение с моделью прервалось до конца ответа. Отправьте сообщение ещё раз.", "The connection ended before the model finished. Send the message again.");
+      }
       send({ done: true, error: message });
       return { ok: false, error: message, aborted };
     } finally {

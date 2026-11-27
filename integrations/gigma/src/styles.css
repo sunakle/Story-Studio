@@ -406,6 +406,7 @@ button.primary,
   height: 100dvh;
   min-height: 380px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 50px minmax(0, 1fr) 31px;
   overflow: hidden;
   background: white;
@@ -803,6 +804,12 @@ select,
   height: 24px;
   padding: 2px 5px;
 }
+.editor footer .page-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .editor footer svg {
   width: 14px;
   height: 14px;
@@ -1057,4 +1064,25 @@ select,
 @keyframes gigma-rotate {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+/* Each rebound loses height and spends less time in the air. Percentages use
+   the selected object's SVG fill box; the cap keeps large photos in view. */
+@keyframes gigma-bounce {
+  0%, 48%, 80% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(.2,.67,.45,1);
+  }
+  24% {
+    transform: translateY(clamp(-48px, -24%, -6px));
+    animation-timing-function: cubic-bezier(.55,0,.8,.33);
+  }
+  64% {
+    transform: translateY(clamp(-20px, -10%, -2.5px));
+    animation-timing-function: cubic-bezier(.55,0,.8,.33);
+  }
+  88% {
+    transform: translateY(clamp(-6px, -3%, -.75px));
+    animation-timing-function: cubic-bezier(.55,0,.8,.33);
+  }
+  96%, 100% { transform: translateY(0); }
 }

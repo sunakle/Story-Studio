@@ -47,7 +47,7 @@ export function requestSave(saveAs = false) {
 export function shareSelection(pageId: string, objectIds: string[], copy = false) {
   if (session) post(copy ? "copy-reference" : "selection", { pageId, objectIds });
 }
-export function requestProjectCommand(command: "open" | "new") {
+export function requestProjectCommand(command: "open" | "new" | "undo" | "redo") {
   sendEdit();
   post("project-command", { command });
 }
@@ -96,7 +96,7 @@ export function bindWorkspace(
   finish: () => DesignDocument | null,
   report: (reason: Error) => void,
   showProjectName: (name: string) => void,
-  reveal: (pageId: string, objectId?: string) => void,
+  reveal: (pageId: string, objectId?: string, playAnimation?: boolean) => void,
 ) {
   let loaded = false;
   const receive = (event: MessageEvent) => {
@@ -139,7 +139,7 @@ export function bindWorkspace(
         } else if (msg.type === "storyforge:gigma-appearance") {
           appearance(msg);
         } else if (msg.type === "storyforge:gigma-reveal" && typeof msg.pageId === "string") {
-          reveal(msg.pageId, typeof msg.objectId === "string" ? msg.objectId : undefined);
+          reveal(msg.pageId, typeof msg.objectId === "string" ? msg.objectId : undefined, msg.playAnimation === true);
         } else if (msg.type === "storyforge:gigma-project-name" && typeof msg.projectName === "string") {
           showProjectName(msg.projectName);
         } else if (msg.type === "storyforge:gigma-illustrator-result") {

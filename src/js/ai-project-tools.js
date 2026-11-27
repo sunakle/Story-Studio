@@ -22,7 +22,7 @@ const destination = {
   name:text('Image or layer name'),
 };
 const animation = object({
-  type:choices('fade','pulse','slide','rotate'), durationMs:number('100..60000'), delayMs:number('0..60000'), loop:bool,
+  type:choices('fade','pulse','slide','rotate','bounce'), durationMs:number('100..60000'), delayMs:number('0..60000'), loop:bool,
 }, ['type']);
 const drawing = {
   ...artIds, action:choices('createPage','renamePage','deletePage','create','update','move','copy','delete','animate'),
@@ -126,6 +126,10 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
     }
     if (changes.length) stageOrFail(changes);
     const changed = project().gigmaWorkspaces?.find(w => w.id === workshop());
+    if (!automatic && changes.length && workspaceId === workshop() && (input.animation || input.action === 'copy' || input.action === 'create')) {
+      const layer = changed?.document?.pages.find(p => p.id === pageId)?.nodes.find(node => objectIds.includes(node.id) && node.animation);
+      if (layer) active().animatedLayer = {workspaceId,pageId,objectId:layer.id};
+    }
     if (changed) ui.workbench?.previewAssistantDesign?.(changed.document, {workspaceId:changed.id,generation:active().plan.generation});
     return {ok:true,workspaceId,pageId,objectIds};
   }
@@ -251,7 +255,7 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
       const width = args.width ?? (args.height ? args.height * media.w / media.h : media.w);
       const height = args.height ?? width * media.h / media.w;
       return edit({action:'create',kind:'image', workspaceId:args.workspaceId,pageId:args.pageId,parentId:args.parentId,
-        x:args.x,y:args.y,width,height,name,imageData:media.data});
+        x:args.x,y:args.y,width,height,name,imageData:media.data,animation:args.animation});
     }
     const id = existingId || uid('m_');
     const ops = existingId ? [] : [{op:'addMedia',media:{...media,id,name}}];
@@ -262,9 +266,12 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
     if (ops.length) stageOrFail(ops);
     return {ok:true,mediaId:id,nodeId:args.nodeId,name};
   }
-  define('place_project_image','Copy an image into a story node, the project media library or a canvas. Choose exactly one source: Gigma layer URL (shapes/groups rendered as a picture), project media ID, or zero-based photo index from this message. For editable canvas-to-canvas copies use edit_artwork.', object({
-    ...destination,sourceRef:artIds.objectRef,mediaId:text('Existing project media ID'),attachment:number('0-based attachment index'),
+  define('place_project_image','Place an image from exactly one source: Gigma layer URL, project media ID, or zero-based attachment index in this message. For a canvas layer, optionally set its animation in this same call and use the returned objectIds. For editable canvas-to-canvas copies use edit_artwork.', object({
+    ...destination,animation,sourceRef:artIds.objectRef,mediaId:text('Existing project media ID'),attachment:number('0-based attachment index'),
   },['target']), async args => {
+    if (Object.hasOwn(args,'animation') && (args.target !== 'canvas' || !args.animation)) {
+      throw Error(t('Анимацию можно назначить изображению при размещении на холсте.', 'To animate an image, place it on the canvas.'));
+    }
     imageTarget(args);
     if ([!!args.sourceRef,!!args.mediaId,args.attachment !== undefined].filter(Boolean).length !== 1) throw Error(t('Укажите один источник изображения.', 'Specify one image source.'));
     if (args.mediaId) {

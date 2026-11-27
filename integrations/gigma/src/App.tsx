@@ -117,7 +117,7 @@ export default function App() {
   const [menu, setMenu] = useState(false),
     [modal, setModal] = useState<"" | "export" | "keys">(""),
     [preview, setPreview] = useState<string | null>(null);
-  const [motionPage, setMotionPage] = useState<string | null>(null);
+  const [motion, setMotion] = useState<{ pageId: string; objectId?: string; run: number } | null>(null);
   const [format, setFormat] = useState("svg"),
     [scope, setScope] = useState("page"),
     [scale, setScale] = useState(1),
@@ -194,6 +194,7 @@ export default function App() {
           setMenu(false);
           setModal("");
           setPreview(null);
+          setMotion(null);
           setContextSelection(null);
         },
         () => {
@@ -203,14 +204,17 @@ export default function App() {
         },
         report,
         setProjectName,
-        (pageId, objectId) => {
+        (pageId, objectId, playAnimation) => {
           const target = studio.document?.pages.find((p) => p.id === pageId);
           if (!target || (objectId && !target.nodes.some((n) => n.id === objectId))) return;
-          studio.activatePage(pageId);
+          studio.revealPage(pageId);
           studio.select(objectId ? [objectId] : []);
+          if (playAnimation && target.nodes.some(n => n.id === objectId && n.animation)) {
+            setMotion(last => ({ pageId, objectId, run: (last?.run ?? 0) + 1 }));
+          }
           setTool("select");
           requestAnimationFrame(() => {
-            if (studio.page === target) fitPage(target, objectId ? [objectId] : undefined);
+            if (studio.page === target) fitPage(target, objectId ? [objectId] : undefined, true);
           });
         },
       ),
@@ -356,10 +360,11 @@ export default function App() {
       ),
       w = img.naturalWidth * ratio,
       h = img.naturalHeight * ratio;
+    const view = studio.viewFor(page);
     const n = newNode(
       "image",
-      (host.width / 2 - page.view.x) / page.view.zoom - w / 2,
-      (host.height / 2 - page.view.y) / page.view.zoom - h / 2,
+      (host.width / 2 - view.x) / view.zoom - w / 2,
+      (host.height / 2 - view.y) / view.zoom - h / 2,
       Math.max(w, 1),
       Math.max(h, 1),
     );
@@ -389,11 +394,13 @@ export default function App() {
       return;
     }
     if (action === "undo") {
-      studio.undo();
+      if (studio.before || studio.undoStack.length) studio.undo();
+      else requestProjectCommand("undo");
       return;
     }
     if (action === "redo") {
-      studio.redo();
+      if (studio.redoStack.length) studio.redo();
+      else requestProjectCommand("redo");
       return;
     }
     if (action === "selectAll") {
@@ -818,16 +825,6 @@ export default function App() {
                 <Redo2 />
               </button>
               <span className="divider" />
-              {page.nodes.some((n) => n.animation) && (
-                <button
-                  title={ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
-                  aria-label={ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
-                  aria-pressed={motionPage === page.id}
-                  onClick={() => setMotionPage(motionPage === page.id ? null : page.id)}
-                >
-                  <Clapperboard />
-                </button>
-              )}
               <button
                 title={ui("Просмотр прототипа", "Preview prototype")}
                 aria-label={ui("Просмотр прототипа", "Preview prototype")}
@@ -861,7 +858,9 @@ export default function App() {
             />
             <Canvas
               page={page}
-              animate={motionPage === page.id}
+              animate={motion?.pageId === page.id}
+              animationTarget={motion?.objectId}
+              animationRun={motion?.run}
               tool={tool}
               setTool={setTool}
               space={space}
@@ -881,6 +880,16 @@ export default function App() {
             )}
             <span className="page-name">{page.name}</span>
             <span className="save-state" />
+            {page.nodes.some(n => n.animation) && (
+              <button
+                title={motion?.pageId === page.id ? ui("Остановить анимацию", "Stop animation") : ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
+                aria-label={ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
+                aria-pressed={motion?.pageId === page.id}
+                onClick={() => setMotion(motion?.pageId === page.id ? null : { pageId:page.id, run:1 })}
+              >
+                {motion?.pageId === page.id ? <Square /> : <Clapperboard />}
+              </button>
+            )}
             <button
               title={ui("Точечная сетка", "Dot grid")}
               aria-pressed={grid}
@@ -890,7 +899,7 @@ export default function App() {
             </button>
             <button
               title={ui("Уменьшить", "Zoom out")}
-              onClick={() => zoomAt(page, page.view.zoom / 1.25)}
+              onClick={() => zoomAt(page, studio.viewFor(page).zoom / 1.25)}
             >
               <Minus />
             </button>
@@ -898,11 +907,11 @@ export default function App() {
               title={ui("Масштаб 100%", "Zoom to 100%")}
               onClick={() => zoomAt(page, 1)}
             >
-              {Math.round(page.view.zoom * 100)}%
+              {Math.round(studio.viewFor(page).zoom * 100)}%
             </button>
             <button
               title={ui("Увеличить", "Zoom in")}
-              onClick={() => zoomAt(page, page.view.zoom * 1.25)}
+              onClick={() => zoomAt(page, studio.viewFor(page).zoom * 1.25)}
             >
               <Plus />
             </button>

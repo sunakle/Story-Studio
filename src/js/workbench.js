@@ -130,7 +130,7 @@ export function createWorkbench(store, ui) {
     else { designLayout = current; storyLayout = null; }
     sidebars.forEach((panel, i) => panel.classList.toggle('collapsed', layout[i]));
   }
-  let trail = [], cursor = -1, lastLocation = '', lastTabs = '';
+  let trail = [], cursor = -1, lastLocation = '', lastTabs = '', navigationRevision = 0;
   let overviewTab = null, overviewOrigin = null;
   let tabs = [],
     active,
@@ -156,6 +156,7 @@ export function createWorkbench(store, ui) {
     }
   }
   function reset() {
+    navigationRevision++;
     if (jump) jump.close();
     clearAssistantPreview();
     gigma.reset();
@@ -343,6 +344,7 @@ export function createWorkbench(store, ui) {
     ui.flushEdits?.();
     ui.voice?.stop?.();
     if (active && active !== t) {
+      navigationRevision++;
       if (active.kind === 'assistant') clearAssistantPreview();
       if (!['empty', 'assistant'].includes(active.kind)) lastReferences = referencesForView();
       if (t.kind === 'assistant' && active.kind !== 'empty') assistantOrigin = active;
@@ -918,6 +920,8 @@ export function createWorkbench(store, ui) {
     refreshLanguage() { issues = null; gigma.appearance(); render(); },
     flushDesigns: gigma.flushAll,
     assistantWorkspaceId: () => assistantId,
+    navigationRevision: () => navigationRevision,
+    revealWorkshopLayer(layer) { showPane('canvas'); gigma.reveal(layer); },
     previewAssistantDesign, clearAssistantPreview,
     openAssistant, copyReferences, copyLink, openReference, referenceInfo, currentReferences, assistantContext,
     currentReference: () => currentReferences()[0] || '',

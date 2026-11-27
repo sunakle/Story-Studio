@@ -38,6 +38,8 @@ Press **Ctrl+S** on the canvas to save the script, graph, pages, images and prot
 
 Choose **+ → Open AI studio** to edit a project canvas alongside the chat. For example, copy a link to a text layer in Gigma and ask the assistant to move the title to the studio canvas and give it a fade-in animation. You can then edit the text and position by hand.
 
+Drop a photo into the chat. Next to its thumbnail, choose **To canvas… → Insert with bounce** to add an animated layer offline. You can also ask the model to place it. Select **Send only the filenames to the model** to let it use the attachment by reference while keeping its pixels on your computer. Unsent photos and text are retained when closing the app normally.
+
 The studio and sidebar share one conversation per project. Each turn records the project, the surface that sent it, the open view and the available selection. Ask about a selected line in the sidebar, then continue designing in the studio. One undo reverses the edits from a turn.
 
 **Autonomous mode** continues work on the canvas between your messages and uses provider tokens while active. Stop it from the studio. For generated images, open **Connection settings → Image generation** and enter an Images API base URL, model and key. The chat model can use that service to place images in the project.

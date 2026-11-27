@@ -73,7 +73,7 @@ export async function draftTogether({ team, settings, project, message, history,
   await Promise.all(team.map(async (member, index) => {
     const s = {...settings, model:member.model};
     try {
-      if (message.images?.length && visionUnavailable(s)) throw Error(t('У модели нет поддержки фото.', 'This model does not accept photos.'));
+      if (message.images?.length && !message.localAttachments && visionUnavailable(s)) throw Error(t('У модели нет поддержки фото.', 'This model does not accept photos.'));
       const defaultRoles = [t('Драматургия и сцены','Scene writing and structure'), t('Голоса персонажей и диалоги','Dialogue and character voice'), t('Ветвления и непрерывность истории','Branching and continuity')];
       const role = member.role || defaultRoles[index % defaultRoles.length];
       const directions = t('Ты соавтор интерактивного сценария. Подготовь конкретный материал для запроса автора: реплики, правки или структуру веток, со ссылками на существующие сцены. Пиши на языке автора. Другой редактор внесёт итоговые изменения в проект.',

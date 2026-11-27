@@ -1037,6 +1037,7 @@ async function requestWindowClose() {
       flushEdits();
       if (generation !== store.generation || revision !== store.revision) return;
     }
+    await ui.ai?.flushDraft?.();
     await window.sf.app.quit();
   } catch (error) {
     toast(String(error.message || error), 'bad', 6000);
