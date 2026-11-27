@@ -607,6 +607,11 @@ async function applyLoaded(res, documentKey) {
 }
 
 let saving = Promise.resolve();
+async function flushDesigns() {
+  if (!ui.workbench || await ui.workbench.flushDesigns()) return true;
+  toast(uiText("Gigma Studio не подтвердила изменения. Повторите действие.", "Gigma Studio could not confirm the latest edits. Try again."), 'bad');
+  return false;
+}
 function saveProject(saveAs = false) {
   flushEdits();
   const generation = store.generation;
@@ -615,6 +620,8 @@ function saveProject(saveAs = false) {
   return run;
 }
 async function writeCurrentProject(saveAs) {
+  const originalGeneration = store.generation;
+  if (!await flushDesigns() || originalGeneration !== store.generation) return false;
   flushEdits();
   const generation = store.generation;
   const revision = store.revision;
@@ -654,6 +661,8 @@ async function writeCurrentProject(saveAs) {
 
 let askingToReplace = false;
 async function canReplaceProject() {
+  const originalGeneration = store.generation;
+  if (!await flushDesigns() || originalGeneration !== store.generation) return false;
   flushEdits();
   if (!store.dirty) return true;
   const generation = store.generation, revision = store.revision;
@@ -915,6 +924,7 @@ async function requestWindowClose() {
   closeRequested = true;
   try {
     await saving;
+    if (!await flushDesigns()) return;
     flushEdits();
     if (store.dirty) {
       const generation = store.generation, revision = store.revision;
@@ -1092,6 +1102,7 @@ async function deleteSelected() {
 function togglePanel(side) {
   const panel = $(side === 'left' ? 'leftPanel' : 'rightPanel');
   const visible = panel.classList.toggle('collapsed') === false;
+  if (ui.workbench?.current() === 'gigma') return;
   ui.saveSettings({ [side === 'left' ? 'leftVisible' : 'rightVisible']: visible });
 }
 
@@ -1353,7 +1364,7 @@ async function boot() {
       state.issues = validateProject(store.project);
       scheduleRefresh();
       window.sf.app.setDirty(store.dirty);
-    } else if (evt.scope === 'screenplay') {
+    } else if (evt.scope === 'screenplay' || evt.scope === 'gigma') {
       window.sf.app.setDirty(store.dirty);
       scheduleRefresh({ status: true });
       scheduleAutosave();

@@ -3,13 +3,18 @@
 // Вся работа с файлами, настройками, сетью и диалогами живёт здесь.
 // Рендерер общается только через preload.js -> window.sf.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, net, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, clipboard, net, nativeTheme, protocol } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const { createHash, randomUUID } = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { startAliceEndpoint } = require('./src/native/alice-dictation.cjs');
+const { registerGigma } = require('./src/native/gigma-host.cjs');
+
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'sf-gigma', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+}]);
 
 const DEV = process.argv.includes('--dev');
 const ROOT = __dirname;
@@ -1127,6 +1132,7 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     logLine('app ready');
+    registerGigma(protocol, ipcMain, dialog, () => win);
     await fsp.mkdir(userDir(), { recursive: true });
     registerFileIpc();
     registerSettingsIpc();

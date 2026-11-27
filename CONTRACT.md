@@ -40,6 +40,7 @@ storyforge/
   "schemaVersion": 1,
   "meta": { "title": "", "author": "", "description": "", "createdAt": "ISO", "updatedAt": "ISO" },
   "screenplay": "",
+  "gigmaWorkspaces": [],
   "startNodeId": "n_start",
   "characters": [{ "id": "c_x", "name": "", "color": "#7c9cff", "role": "", "age": "", "description": "", "appearance": "", "personality": "", "speech": "", "notes": "", "tags": [] }],
   "locations": [{ "id": "l_x", "name": "", "description": "", "atmosphere": "", "timeOfDay": "", "notes": "", "tags": [] }],
@@ -52,6 +53,7 @@ storyforge/
 - `choices[]`: `{ "id": "o_x", "text": "", "next": "", "condition": "", "effects": [], "hint": "" }`
 - `branches[]`: `{ "id": "b_x", "condition": "", "next": "" }`
 - `effects[]`: `{ "varId": "v_x", "op": "set|+=|-=|toggle", "value": 0 }`
+- Каждый элемент `gigmaWorkspaces` хранит `id`, `name` и полный JSON-документ Gigma Studio в `document`. Значение `null` обозначает новое пространство. В старых проектах список по умолчанию пуст.
 - Связи живут только в `next` / `choices[].next` / `branches[].next`. Битые ссылки **не** чинятся автоматически — их ловит валидатор.
 - Поля, которых нет в схеме, не выдумывать. Недостающие поля при загрузке заполнять дефолтами (`migrateProject`).
 
@@ -106,6 +108,9 @@ export const store = new Store();
 | `createChapter` / `updateChapter` / `deleteChapter` | `chapter` / `id, patch` / `id, moveNodesTo?` | главы |
 | `setStart` | `id` | стартовый узел |
 | `setMeta` | `patch` | meta проекта |
+| `createGigmaWorkspace` | `id?`, `name?`, `document?` | Создать пространство и вернуть его ID в `created` |
+| `updateGigmaWorkspace` | `id`, `name?`, `document?` | Переименовать пространство или сохранить макет |
+| `deleteGigmaWorkspace` | `id` | Удалить пространство из проекта с возможностью отмены |
 
 ### 3.2 Валидация — ровно 13 классов (код → серьёзность)
 

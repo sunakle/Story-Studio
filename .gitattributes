@@ -15,3 +15,7 @@
 *.ico binary
 # Unified diffs include single-space context lines and original indentation.
 integrations/alice/**/*.patch text eol=lf -whitespace
+# The generated Illustrator converter includes literal spaces in PDF records.
+src/native/gigma/illustrator.cjs text eol=lf -whitespace linguist-generated=true
+src/gigma/editor.js text eol=lf linguist-generated=true
+src/gigma/editor.css text eol=lf linguist-generated=true

@@ -6,6 +6,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {atomicWrite, recoveryFiles} from '../project-files.cjs';
 import {Store, createEmptyProject, migrateProject} from '../src/js/model.js';
+import {planProjectEdits} from '../src/js/ai-transaction.js';
 
 async function fixture(t) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(),'sf-file-check-'));
@@ -81,4 +82,89 @@ test('saved projects retain IDs, geometry, transitions, embedded images and voic
     assert.deepEqual(reopened.media, original.media);
     assert.deepEqual(reopened.startNodeId, original.startNodeId);
   }
+});
+
+function designDocument() {
+  const pageId = '2bb28984-1493-43da-b280-3e854a26ab6d';
+  return {
+    schemaVersion: 1, id: '8ed58d80-f619-4336-a8cb-bdd07e76a67a', name: 'Титры',
+    mode: 'design', revision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-02', activePageId: pageId,
+    cover: 'data:image/png;base64,iVBORw0KGgo=',
+    pages: [{ id: pageId, name: 'Фон', view: { x: -30, y: 70, zoom: 1.3 }, nodes: [{
+      id:'2dc993bd-a8cc-401a-bd96-72bc52d5b78d', kind:'text', name:'Заголовок', parentId:null,
+      x:4, y:24, width:220, height:40, rotation:0, fill:'#ffffff', stroke:'none', strokeWidth:1,
+      opacity:1, radius:0, hidden:false, locked:false, text:'Глава первая', fontSize:24, fontFamily:'Inter',
+      fontWeight:'400', textAlign:'left', points:[], image:'', clip:false, linkTo:null, layout:'free', gap:16, padding:24,
+    }] }],
+  };
+}
+
+test('Gigma workspaces round-trip in project and recovery, independently of their open tabs', async t => {
+  const store = new Store();
+  const legacy = createEmptyProject({screenplay:'Сцена'});
+  delete legacy.gigmaWorkspaces;
+  const migrated = migrateProject(legacy);
+  assert.deepEqual(migrated.warnings, []);
+  assert.deepEqual(migrated.project.gigmaWorkspaces, []);
+  store.setProject(migrated.project);
+  const first = store.apply({op:'createGigmaWorkspace', document:designDocument()}).created[0];
+  const second = store.apply({op:'createGigmaWorkspace', name:'Раскадровка'}).created[0];
+  assert.notEqual(first, second);
+  const doc = designDocument();
+  doc.pages[0].nodes[0].text = 'После антракта';
+  assert.ok(store.apply({op:'updateGigmaWorkspace', id:first, name:'Новые титры', document:doc}).ok);
+  doc.pages[0].nodes[0].text = 'external mutation';
+  const expected = store.snapshot().gigmaWorkspaces;
+  assert.equal(expected[0].document.pages[0].nodes[0].text, 'После антракта');
+  assert.deepEqual(expected[1], {id:second, name:'Раскадровка', document:null});
+  const dir = await fixture(t);
+  const pathName = path.join(dir, 'story.sfproj');
+  const content = JSON.stringify(store.project, null, 2);
+  await atomicWrite(pathName, content);
+  await recoveryFiles(dir).write({key:pathName, filePath:pathName, content});
+  for (const saved of [await fs.readFile(pathName, 'utf8'), (await recoveryFiles(dir).read(pathName)).content]) {
+    store.setProject(migrateProject(JSON.parse(saved)).project, {filePath:pathName});
+    assert.deepEqual(store.project.gigmaWorkspaces, expected);
+    assert.equal(store.project.screenplay, 'Сцена');
+  }
+  assert.ok(store.apply({op:'deleteGigmaWorkspace', id:first}).ok);
+  assert.deepEqual(store.project.gigmaWorkspaces, [expected[1]]);
+  store.undo();
+  assert.deepEqual(store.project.gigmaWorkspaces, expected);
+  store.setProject(legacy);
+  assert.deepEqual(store.project.gigmaWorkspaces, []);
+  assert.equal(store.canUndo(), false);
+});
+
+test('canvas snapshots are atomic, share unchanged layers and survive concurrent story edits', () => {
+  const store = new Store();
+  const id = store.apply({op:'createGigmaWorkspace', document:designDocument()}).created[0];
+  const original = store.project.gigmaWorkspaces[0].document;
+  const incoming = structuredClone(original);
+  const before = store.revision;
+  assert.deepEqual(store.apply({op:'updateGigmaWorkspace', id, document:incoming}).changed, []);
+  assert.equal(store.revision, before);
+  const plan = planProjectEdits(store);
+  assert.ok(plan.apply([{op:'setMeta', patch:{author:'Нина'}}]).ok);
+  incoming.pages[0].view.zoom = 2;
+  assert.equal(store.apply([{op:'updateGigmaWorkspace', id, document:incoming},
+    {op:'deleteGigmaWorkspace', id:'missing'}]).ok, false);
+  assert.equal(original, store.project.gigmaWorkspaces[0].document);
+  assert.ok(store.apply({op:'updateGigmaWorkspace', id, document:incoming}).ok);
+  const revised = store.project.gigmaWorkspaces[0].document;
+  assert.equal(revised.pages[0].nodes, original.pages[0].nodes);
+  assert.equal(revised.pages[0].view.zoom, 2);
+  assert.equal(original.pages[0].view.zoom, 1.3);
+  plan.commit('Author');
+  assert.equal(store.project.gigmaWorkspaces[0].document, revised);
+  store.undo();
+  assert.equal(store.project.gigmaWorkspaces[0].document, revised);
+  store.undo();
+  assert.equal(store.project.gigmaWorkspaces[0].document, original);
+  store.redo();
+  assert.equal(store.project.gigmaWorkspaces[0].document, revised);
+  const cyclic = designDocument();
+  cyclic.invalid = cyclic;
+  assert.equal(store.apply({op:'updateGigmaWorkspace', id, document:cyclic}).ok, false);
+  assert.equal(store.project.gigmaWorkspaces[0].document, revised);
 });

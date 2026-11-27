@@ -9,6 +9,7 @@ const createKeys = {
 
 // Replaying a planned batch must create the same IDs that earlier tools returned.
 function identify(op) {
+  if (op.op === 'createGigmaWorkspace' && !op.id) return { ...op, id: uid('gg_') };
   const target = createKeys[op.op];
   if (!target) return op;
   const [key, prefix] = target;

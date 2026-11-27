@@ -2,7 +2,7 @@
 
 **A desktop editor for branching dialogue and game scripts.** Write a scene, connect its choices, and play a branch with live story variables. Your script, embedded images and character voice settings live in a local `.sfproj` file.
 
-[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.3.0/StoryForge-Setup-1.3.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
+[**Download for Windows x64**](https://github.com/sunakle/Story-Studio/releases/download/v1.4.0/StoryForge-Setup-1.4.0-x64.exe) · [Русский](README.md) · [Releases](https://github.com/sunakle/Story-Studio/releases)
 
 [Story flow](docs/gallery/flow.png)
 
@@ -11,6 +11,16 @@
 1. Run the Windows installer and open **StoryForge** from the desktop. The installer includes the application runtime.
 2. Open **Настройки → Оформление** and select **English**. The choice persists across launches and applies to interface labels. Story text and character names stay in their original language.
 3. Start a new story or press **Ctrl+O** to open your own `.sfproj`. Add a scene and a line, then start a playthrough from that scene.
+
+## Gigma Studio designs
+
+Choose **+ → Create a Gigma Studio design**. The canvas opens between the page and layer tree and the properties inspector. Press **R** to draw a rectangle, **T** to add text, or **F** to create a frame. Edit the design name above the canvas.
+
+Each design has its own tab. **Ctrl+S** saves the entire project, including design pages, layers, images and prototype links, in the `.sfproj` file. Reopen a closed design under **+ → Project designs**. Import a `.gigma` file from the editor menu or use **Export** to save a standalone design, SVG or PNG.
+
+![Gigma Studio design workspace](docs/gallery/gigma-workspace.png)
+
+[View the light theme](docs/gallery/gigma-workspace-light.png)
 
 ## From a screenplay to a playable graph
 

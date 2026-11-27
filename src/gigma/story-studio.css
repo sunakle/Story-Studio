@@ -1,0 +1,127 @@
+@import url('../theme-palette.css');
+
+/* The drawing itself owns its colors and typography. Style editor chrome only. */
+:root[data-theme] {
+  --base: var(--obs-bg);
+  --panel: var(--obs-panel);
+  --control: var(--obs-bg);
+  --strong: var(--obs-text);
+  --hint: var(--obs-muted);
+  --border: var(--obs-border);
+  --field: var(--obs-bg);
+  font: 13px/1.4 'Segoe UI', system-ui, sans-serif;
+  color: var(--obs-text);
+  background: var(--obs-bg);
+  accent-color: var(--obs-action);
+  scrollbar-color: var(--obs-active) transparent;
+  scrollbar-width: thin;
+}
+:root[data-theme] .editor {
+  height: 100dvh;
+  min-height: 0;
+  grid-template-rows: 40px minmax(0, 1fr) 27px;
+  background: var(--base);
+}
+:root[data-theme] .toolbar {
+  display: flex; gap: 4px; padding: 0 10px;
+  color: var(--obs-secondary); background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.toolbar .menu-anchor, .toolbar .doc-title, .toolbar .toolbar-end { flex-shrink: 0; }
+.toolbar .menu-anchor { order: 0; }
+:root[data-theme] .toolbar .doc-title {
+  order: 1; flex: 0 1 145px; width: 135px; min-width: 55px; margin: 0 8px 0 0;
+  text-align: left; color: var(--strong); font-size: 12px; font-weight: 600;
+  background: transparent; border: 1px solid transparent;
+}
+:root[data-theme] .doc-title:is(:hover, :focus) { background: var(--field); border-color: var(--border); }
+:root[data-theme] .toolbar .toolstrip {
+  order: 2; position: static; inset: auto; flex: 0 1 auto; min-width: 35px; width: auto;
+  flex-direction: row; align-items: center; gap: 2px;
+  padding: 0 7px; margin: 0 auto 0 0; height: 32px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  border: 0; border-inline: 1px solid var(--border); background: transparent;
+}
+.toolbar > button { order: 3; }
+.toolbar .toolbar-end { order: 4; margin-left: 0; }
+:root[data-theme] .toolstrip button,
+:root[data-theme] .toolbar-end button:not(.primary),
+:root[data-theme] .toolbar > button {
+  display: inline-flex; width: 28px; height: 27px; margin: 0; padding: 4px; flex: none;
+}
+:root[data-theme] .toolstrip button:is(:nth-child(3), :nth-child(9), :nth-child(10), :nth-child(13)) { margin-top: 0; }
+:root[data-theme] button { border-radius: 4px; }
+:root[data-theme] button:focus-visible,
+:root[data-theme] :is(input, select, textarea):focus-visible { outline: 2px solid var(--obs-accent); outline-offset: -1px; }
+:root[data-theme] button:not(.primary, .menu-back, .context-back):hover:not(:disabled),
+:root[data-theme] .toolbar .dropdown button:hover { color: var(--strong); background-color: var(--obs-hover); }
+:root[data-theme] .toolstrip button.active-tool,
+:root[data-theme] .toolstrip button.active-tool:hover {
+  background-color: var(--obs-accent-soft); color: var(--obs-accent);
+}
+:root[data-theme] .toolbar .app-menu { height: 27px; padding: 2px 4px; }
+:root[data-theme] .app-menu .g-logo { width: 20px; height: 20px; }
+:root[data-theme] button.primary { color: var(--obs-action-text); background: var(--obs-action); padding: 4px 12px; height: 27px; }
+:root[data-theme] button.primary:hover { background: color-mix(in srgb, var(--obs-action) 86%, var(--strong)); }
+:root[data-theme] .divider { height: 17px; background: var(--border); }
+:root[data-theme] .workspace {
+  margin-left: 0; min-width: 0;
+  grid-template-columns: clamp(160px, 19vw, 280px) minmax(0, 1fr) clamp(210px, 21vw, 302px);
+}
+:root[data-theme] :is(.sidebar, .side-title, .tabs) { color: var(--strong); background: var(--panel); border-color: var(--border); }
+:root[data-theme] .side-title, :root[data-theme] .tabs { min-height: 36px; font-size: 12px; }
+:root[data-theme] .side-title { padding-inline: 13px; color: var(--obs-secondary); font-weight: 600; }
+:root[data-theme] .layer-row { height: 26px; margin-inline: 6px; border-radius: 4px; }
+:root[data-theme] :is(.pages .active-page, .layer-row.chosen) { background: var(--obs-active); color: var(--strong); }
+:root[data-theme] .layer-name { color: inherit; font-weight: 400; }
+:root[data-theme] .pages { padding: 0 8px 8px; }
+:root[data-theme] .pages button { min-height: 26px; padding: 3px 8px; font-size: 12px; }
+:root[data-theme] .tabs button { height: 34px; font-weight: 500; color: var(--hint); }
+:root[data-theme] .tabs .selected { color: var(--strong); border-bottom-color: var(--obs-accent); }
+:root[data-theme] :is(.right section, .art-section) { padding: 12px 14px; border-color: var(--border); }
+:root[data-theme] :is(.right h3, .art-section summary) { font-weight: 600; color: var(--obs-secondary); }
+:root[data-theme] :is(.field, .paint, .secondary, select, .inspector-text) {
+  border: 1px solid var(--border); background: var(--field); color: var(--strong); border-radius: 4px;
+}
+:root[data-theme] :is(.field, .paint):focus-within { border-color: var(--obs-accent); }
+:root[data-theme] :is(.field, .paint) input:not([type='color']) { background: transparent; color: var(--strong); }
+:root[data-theme] :is(.muted, .field span, .empty-inspector, .canvas-hint, .stack) { color: var(--hint); }
+:root[data-theme] .stage { background: var(--base); }
+.surface #dots circle { fill: var(--obs-border); }
+.surface text[data-frame-label] { fill: var(--obs-muted); }
+.surface .selection > rect { stroke: var(--obs-accent); }
+.surface .selection > [data-handle] { fill: var(--obs-panel); }
+:root[data-theme] .canvas-hint strong { font-size: 14px; font-weight: 600; color: var(--obs-secondary); }
+:root[data-theme] .editor footer {
+  padding-inline: 9px; gap: 6px; font-size: 11px;
+  border-top: 1px solid var(--border); background: var(--panel); color: var(--hint);
+}
+.editor footer .save-state i.ok { background: var(--good); }
+:root[data-theme] :is(.dropdown, .dialog, .selection-context, .toast, .present-bar) {
+  color: var(--strong); background: var(--panel); border: 1px solid var(--border);
+  border-radius: 7px; box-shadow: var(--obs-shadow);
+}
+:root[data-theme] .menu-back, :root[data-theme] .context-back { background: transparent; }
+:root[data-theme] .veil { background: #0006; }
+:root[data-theme] .dialog h2 { font-size: 16px; font-weight: 600; }
+:root[data-theme] :is(.dialog, .dropdown) kbd { background: var(--obs-raised); color: var(--hint); font-family: inherit; }
+:root[data-theme] :is(.selection-context-title, .save-state, .dropdown kbd) { color: var(--hint); }
+:root[data-theme] .settings-nav button[aria-pressed='true'] { color: var(--obs-accent); box-shadow: inset 0 -2px var(--obs-accent); }
+:root[data-theme] .range-row input { accent-color: var(--obs-action); }
+:root[data-theme] :is(.layer-row.drop-target, .side-title.drop-target) { background: var(--obs-accent-soft); outline-color: var(--obs-accent); }
+:root[data-theme] .layer-row.drop-before { box-shadow: inset 0 2px var(--obs-accent); }
+:root[data-theme] .layer-row.drop-after { box-shadow: inset 0 -2px var(--obs-accent); }
+:root[data-theme] .presentation { background: var(--base); }
+:root[data-theme] .present-bar { height: 40px; border-radius: 0; }
+:root[data-theme] .save-error { color: var(--strong); background: var(--panel); border: 1px solid var(--bad); }
+@media (max-width: 950px) {
+  :root[data-theme] .toolbar .doc-title { flex-basis: 90px; width: 90px; margin-right: 0; }
+  :root[data-theme] .workspace { grid-template-columns: 158px minmax(0, 1fr) 210px; }
+  :root[data-theme] .toolbar { padding-inline: 6px; }
+}
+@media (max-width: 700px) {
+  :root[data-theme] .workspace { grid-template-columns: minmax(95px, 19%) minmax(0, 1fr) minmax(135px, 29%); }
+  :root[data-theme] .toolbar .doc-title { flex-basis: 64px; width: 64px; }
+  :root[data-theme] .toolbar-end .divider { margin: 0; }
+  :root[data-theme] .editor footer { gap: 2px; }
+}

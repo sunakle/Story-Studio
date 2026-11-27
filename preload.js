@@ -27,7 +27,7 @@ ipcRenderer.on('sf:menu', (_e, data) => {
   }
 });
 
-contextBridge.exposeInMainWorld('sf', {
+if (process.isMainFrame) contextBridge.exposeInMainWorld('sf', {
   platform: process.platform,
   versions: {
     electron: process.versions.electron,
@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld('sf', {
     recent: () => invoke('sf:file:recent'),
     recentAdd: (p) => invoke('sf:file:recentAdd', p),
     recentClear: () => invoke('sf:file:recentClear'),
+  },
+
+  gigma: {
+    openIllustrator: () => invoke('sf:gigma:openIllustrator'),
+    exportIllustrator: job => invoke('sf:gigma:exportIllustrator', job),
   },
 
   settings: {

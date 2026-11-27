@@ -108,6 +108,11 @@ export function jumpCandidates(project) {
       rows.push({ kind, id: obj.id, title, context, hay: lower(hay), name: lower(title) });
     }
   }
+  for (const design of project.gigmaWorkspaces || []) {
+    const context = t('Макет Gigma Studio', 'Gigma Studio design');
+    rows.push({kind:'gigma', id:design.id, title:design.name, context,
+      name:lower(design.name), hay:lower([design.name, design.id, context].join('\n'))});
+  }
   return rows;
 }
 export function rankCandidates(candidates, query, recents = []) {

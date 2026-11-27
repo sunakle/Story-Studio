@@ -277,6 +277,56 @@ function defaultChapter(raw = {}) {
   };
 }
 
+const gigmaOps = new Set(['createGigmaWorkspace', 'updateGigmaWorkspace', 'deleteGigmaWorkspace']);
+
+function nextGigmaName(workspaces) {
+  const names = new Set(workspaces.map(workspace => workspace.name));
+  let name = 'Gigma Studio';
+  for (let i = 2; names.has(name); i++) name = 'Gigma Studio ' + i;
+  return name;
+}
+
+// Canvas snapshots can contain large inline images and thousands of shapes.
+// Keep unchanged subtrees in history and detach new input from its caller.
+function copyDesignJSON(value, previous, ancestors = new Set()) {
+  if (value === null || typeof value === 'boolean' || typeof value === 'string' || Number.isFinite(value)) {
+    return value === previous ? previous : value;
+  }
+  if (!value || typeof value !== 'object' || ancestors.has(value) ||
+      !(Array.isArray(value) || Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) {
+    throw new Error(uiText('Ожидался JSON-документ Gigma.', 'Expected a Gigma JSON document.'));
+  }
+  ancestors.add(value);
+  const array = Array.isArray(value);
+  const keys = Object.keys(value);
+  if (array && keys.length !== value.length) throw new Error(uiText('Повреждён массив Gigma.', 'Invalid Gigma array.'));
+  const comparable = previous != null && typeof previous === 'object' && Array.isArray(previous) === array;
+  const sameKeys = comparable && (array ? previous.length === value.length :
+    keys.length === Object.keys(previous).length && keys.every(key => Object.hasOwn(previous, key)));
+  let copy = sameKeys ? null : array ? [] : {};
+  for (const key of keys) {
+    const had = comparable && Object.hasOwn(previous, key);
+    const part = copyDesignJSON(value[key], had ? previous[key] : undefined, ancestors);
+    if (!copy && part !== previous[key]) copy = array ? previous.slice() : { ...previous };
+    if (copy) {
+      if (key === '__proto__') Object.defineProperty(copy, key, { value: part, writable: true, enumerable: true, configurable: true });
+      else copy[key] = part;
+    }
+  }
+  ancestors.delete(value);
+  return copy || previous;
+}
+
+function copyGigmaDocument(value, previous) {
+  if (value === null) return null;
+  // Gigma owns the schema for pages, artwork and layers. Keep the complete
+  // document, including fields added by newer versions of the editor.
+  if (!isObj(value) || typeof value.id !== 'string' || !value.id || !Array.isArray(value.pages)) {
+    throw new Error(uiText('Повреждён документ Gigma Studio.', 'Invalid Gigma Studio document.'));
+  }
+  return copyDesignJSON(value, previous);
+}
+
 // Пустой, но полностью валидный проект: одна глава, ни одного узла.
 // overrides — глубокое наложение значений сверху (используется тестами и app.js).
 export function createEmptyProject(overrides) {
@@ -285,6 +335,7 @@ export function createEmptyProject(overrides) {
     schemaVersion: SCHEMA_VERSION,
     meta: { title: uiText('Новый проект', 'New project'), author: '', description: '', createdAt: now, updatedAt: now },
     screenplay: '',
+    gigmaWorkspaces: [],
     startNodeId: '',
     characters: [],
     locations: [],
@@ -323,6 +374,7 @@ export function migrateProject(raw) {
       updatedAt: asString(meta.updatedAt) || nowISO(),
     },
     screenplay: asString(raw.screenplay),
+    gigmaWorkspaces: [],
     startNodeId: asString(raw.startNodeId),
     characters: [],
     locations: [],
@@ -338,6 +390,21 @@ export function migrateProject(raw) {
     if (v > SCHEMA_VERSION) {
       warnings.push(`${uiText("Версия схемы", "Schema version")} ${v} ${uiText("новее поддерживаемой", "is newer than the supported version")} (${SCHEMA_VERSION}) — ${uiText("файл создан в более новой версии", "file created by a newer version")} StoryForge.`);
     }
+  }
+
+  if (raw.gigmaWorkspaces !== undefined && !Array.isArray(raw.gigmaWorkspaces)) {
+    throw new Error(uiText('Повреждён список пространств Gigma.', 'Invalid Gigma workspace list.'));
+  }
+  for (const entry of asArray(raw.gigmaWorkspaces)) {
+    if (!isObj(entry)) throw new Error(uiText('Повреждено пространство Gigma.', 'Invalid Gigma workspace.'));
+    const document = copyGigmaDocument(entry.document ?? null);
+    const name = asString(entry.name).trim() || asString(document?.name).trim() || nextGigmaName(project.gigmaWorkspaces);
+    let id = asString(entry.id).trim();
+    if (!id || findEntity(project.gigmaWorkspaces, id)) {
+      id = uniqueId(project, 'gg_');
+      warnings.push(uiText('Пространству Gigma присвоен новый идентификатор.', 'A Gigma workspace was assigned a new ID.'));
+    }
+    project.gigmaWorkspaces.push({ id, name, document });
   }
 
   for (const item of asArray(raw.characters)) {
@@ -446,7 +513,7 @@ function collectIds(project) {
     for (const c of asArray(n.choices)) if (c && c.id) ids.add(c.id);
     for (const b of asArray(n.branches)) if (b && b.id) ids.add(b.id);
   }
-  for (const key of ['characters', 'locations', 'variables', 'chapters']) {
+  for (const key of ['characters', 'locations', 'variables', 'chapters', 'gigmaWorkspaces']) {
     for (const e of asArray(project[key])) if (e && e.id) ids.add(e.id);
   }
   if (isObj(project.media)) {
@@ -1658,6 +1725,33 @@ function applyOneOp(project, op, ctx) {
       break;
     }
 
+    case 'createGigmaWorkspace': {
+      const workspaces = asArray(project.gigmaWorkspaces);
+      const id = resolveNewId(project, op.id, 'gg_', workspaces, 'Gigma Studio', ctx);
+      const document = copyGigmaDocument(op.document === undefined ? null : op.document);
+      const name = asString(op.name).trim() || asString(document?.name).trim() || nextGigmaName(workspaces);
+      project.gigmaWorkspaces = [...workspaces, { id, name, document }];
+      mark(id);
+      break;
+    }
+    case 'updateGigmaWorkspace': {
+      const workspace = requireEntity(project.gigmaWorkspaces, op.id, 'Gigma Studio');
+      const name = op.name === undefined ? workspace.name : asString(op.name).trim();
+      if (!name) throw new Error(uiText('Введите название пространства.', 'Enter a workspace name.'));
+      const document = op.document === undefined ? workspace.document : copyGigmaDocument(op.document, workspace.document);
+      if (name === workspace.name && document === workspace.document) break;
+      project.gigmaWorkspaces = project.gigmaWorkspaces.map(item =>
+        item === workspace ? { id: workspace.id, name, document } : item);
+      mark(workspace.id);
+      break;
+    }
+    case 'deleteGigmaWorkspace': {
+      const workspace = requireEntity(project.gigmaWorkspaces, op.id, 'Gigma Studio');
+      project.gigmaWorkspaces = project.gigmaWorkspaces.filter(item => item !== workspace);
+      mark(workspace.id);
+      break;
+    }
+
     case 'setMeta': {
       if (!isObj(op.patch)) throw new Error(uiText("setMeta: patch должен быть объектом.", "setMeta: patch must be an object."));
       for (const key of META_FIELDS) {
@@ -1720,7 +1814,7 @@ export function applyOps(project, ops) {
   // Text edits only touch the addressed records. Store history keeps the old
   // root fields, so every mutating branch operates on its own draft.
   let work;
-  if (list.every(op => op.op === 'setScreenplay')) {
+  if (list.every(op => op.op === 'setScreenplay' || gigmaOps.has(op.op))) {
     work = { ...project };
   } else if (list.every(op => op.op === 'updateNode' || op.op === 'setNodeTexts')) {
     const ids = new Set(list.flatMap(op => op.op === 'updateNode' ? [op.id] : asArray(op.items).map(item => item?.id)));
@@ -1728,11 +1822,12 @@ export function applyOps(project, ops) {
   } else {
     // Media operations add/remove complete entries. Their data URLs and
     // metadata are immutable; only the dictionary itself needs a fresh copy.
-    const {media, voice, characters, nodes, ...content} = project;
+    const {media, voice, characters, nodes, gigmaWorkspaces, ...content} = project;
     work = deepClone(content);
     work.nodes = cloneRecordsForEdit(nodes);
     work.characters = cloneRecordsForEdit(characters);
     work.voice = voice;
+    if (gigmaWorkspaces) work.gigmaWorkspaces = gigmaWorkspaces;
     if (media) work.media = { ...media };
   }
   // created — карта tmp_→реальный id для разрешения ссылок внутри батча,
@@ -1745,7 +1840,7 @@ export function applyOps(project, ops) {
   }
 
   // Второй проход: ссылки на tmp_-id, объявленные ПОЗЖЕ в батче (forward references).
-  if (Object.keys(ctx.created).length) {
+  if (work.nodes !== project.nodes && Object.keys(ctx.created).length) {
     const fix = (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(ctx.created, v) ? ctx.created[v] : v);
     for (const n of work.nodes || []) {
       if (!n || typeof n !== 'object') continue;
@@ -1798,6 +1893,7 @@ export class Store {
     const before = { ...this.project };
     const result = applyOps(this.project, list);
     if (!result.ok) return result;
+    if (!result.changed.length && list.every(op => gigmaOps.has(op.op))) return result;
 
     const label = asString(opts.label) || describeOps(list);
     const now = Date.now();
@@ -1831,7 +1927,9 @@ export class Store {
     this.revision++;
     this.dirty = true;
     this._validateSelection();
-    this._notify({ type: 'change', label, scope: list.every(op => op.op === 'setScreenplay') ? 'screenplay' : 'project' });
+    const scope = list.every(op => gigmaOps.has(op.op)) ? 'gigma' :
+      list.every(op => op.op === 'setScreenplay') ? 'screenplay' : 'project';
+    this._notify({ type: 'change', label, scope });
     return { ok: true, changed: result.changed, created: result.created };
   }
 
@@ -1966,7 +2064,7 @@ export class Store {
       open: false,
     });
     this._redo = [];
-    this.project = deepClone(snap);
+    this.project = this._clone(snap);
     this.revision++;
     this.dirty = true;
     this._validateSelection();
@@ -1983,7 +2081,11 @@ export class Store {
     if (this._undo.length > HISTORY_LIMIT) this._undo.shift();
   }
 
-  _clone(project) { return deepClone(project); }
+  _clone(project) {
+    const copy = deepClone(project);
+    copy.gigmaWorkspaces ??= [];
+    return copy;
+  }
 
   // Выбор мог «повиснуть» на удалённом объекте — молча сбрасываем; событие
   // 'change'/'project' само заставит интерфейс перечитать selection.

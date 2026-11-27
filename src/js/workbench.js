@@ -5,6 +5,7 @@ import { entityLists, nodeTitle, jumpCandidates, rankCandidates } from './story-
 import { createScenarioTable } from './scenario-table.js';
 import { renderDocument } from './scene-document.js';
 import { createScreenplayEditor } from './screenplay.js';
+import { createGigmaHost } from './gigma-workspace.js';
 
 export function createWorkbench(store, ui) {
   const esc = ui.escapeHTML;
@@ -20,9 +21,20 @@ export function createWorkbench(store, ui) {
     columns: ['type', 'chapter', 'speaker', 'location', 'issues'],
     offset: 0,
   });
-  const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
+  const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', gigma:'layers', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
   const renderScreenplay = createScreenplayEditor(store, ui);
-  let trail = [], cursor = -1, lastLocation = '';
+  const gigma = createGigmaHost(store, ui, page, createDesign);
+  const sidebars = [$('leftPanel'), $('rightPanel')];
+  let storyLayout = null, designLayout = [true, true];
+  function designPanels(show) {
+    if (show === Boolean(storyLayout)) return;
+    const current = sidebars.map(panel => panel.classList.contains('collapsed'));
+    const layout = show ? designLayout : storyLayout;
+    if (show) storyLayout = current;
+    else { designLayout = current; storyLayout = null; }
+    sidebars.forEach((panel, i) => panel.classList.toggle('collapsed', layout[i]));
+  }
+  let trail = [], cursor = -1, lastLocation = '', lastTabs = '';
   let overviewTab = null, overviewOrigin = null;
   let tabs = [],
     active,
@@ -49,6 +61,8 @@ export function createWorkbench(store, ui) {
   }
   function reset() {
     if (jump) jump.close();
+    gigma.reset();
+    designPanels(false);
     key = storageKey();
     try {
       settings = JSON.parse(localStorage.getItem(key)) || {};
@@ -72,6 +86,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'overview') return uiText("Обзор сюжета", "Story overview");
     if (t.kind === 'table') return uiText("Таблица", "Table");
     if (t.kind === 'screenplay') return uiText("Сценарий", "Screenplay");
+    if (t.kind === 'gigma') return store.project.gigmaWorkspaces.find(item => item.id === t.id)?.name || 'Gigma Studio';
     if (t.kind === 'empty') return uiText("Новая вкладка", "New tab");
     const obj = store.project[entityLists[t.kind]]?.find((x) => x.id === t.id);
     return obj ? (t.kind === 'node' ? nodeTitle(obj) : obj.name) : uiText("Удалено", "Deleted");
@@ -97,7 +112,11 @@ export function createWorkbench(store, ui) {
     const next = cursor + delta;
     if (next < 0 || next >= trail.length) return false;
     cursor = next;
-    const destination = trail[cursor];
+    let destination = trail[cursor];
+    if (destination.kind === 'gigma') {
+      const existing = tabs.find(tab => tab.kind === 'gigma' && tab.id === destination.id);
+      if (existing) destination = trail[cursor] = existing;
+    }
     if (!tabs.includes(destination)) {
       const slot = tabs.findIndex(t => t.slot && t.slot === destination.slot);
       if (slot >= 0) tabs[slot] = destination;
@@ -108,10 +127,14 @@ export function createWorkbench(store, ui) {
   }
   function drawTabs() {
     const location = currentLocation();
-    tabsHost.innerHTML = tabs.map((t, i) => {
-      const label = esc(title(t));
-      return `<span class="wb-tab${active === t ? ' active' : ''}"><button type="button" data-tab-index="${i}" data-tab-kind="${t.kind}" ${active === t ? 'aria-current="page"' : ''} title="${label}">${icon(tabIcons[t.kind], 14)}<span class="wb-tab-label">${label}</span></button>${i >= 3 ? `<button type="button" data-close-tab="${i}" class="wb-tab-x" aria-label="${uiText("Закрыть вкладку", "Close tab")} ${label}">${icon('close', 12)}</button>` : ''}</span>`;
-    }).join('');
+    const signatureTabs = JSON.stringify([tabs.map(tab => [tab.kind, title(tab)]), tabs.indexOf(active), uiText('Закрыть', 'Close')]);
+    if (signatureTabs !== lastTabs) {
+      lastTabs = signatureTabs;
+      tabsHost.innerHTML = tabs.map((t, i) => {
+        const label = esc(title(t));
+        return `<span class="wb-tab${active === t ? ' active' : ''}"><button type="button" data-tab-index="${i}" data-tab-kind="${t.kind}" ${active === t ? 'aria-current="page"' : ''} title="${label}">${icon(tabIcons[t.kind], 14)}<span class="wb-tab-label">${label}</span></button>${i >= 3 ? `<button type="button" data-close-tab="${i}" class="wb-tab-x" aria-label="${uiText("Закрыть вкладку", "Close tab")} ${label}">${icon('close', 12)}</button>` : ''}</span>`;
+      }).join('');
+    }
     const detail = { ...location, ...historyState() };
     const signature = JSON.stringify(detail);
     if (lastLocation !== signature) {
@@ -130,9 +153,11 @@ export function createWorkbench(store, ui) {
     if (!graph) ui.panels?.hideValidation?.();
     $('graphHost').classList.toggle('hidden', !graph);
     $('graphFilters').classList.toggle('hidden', !graph);
-    page.classList.toggle('hidden', canvas);
+    const design = active.kind === 'gigma';
+    page.classList.toggle('hidden', canvas || design);
     page.onclick = null;
-    if (canvas) {
+    gigma.show(design ? active.id : null);
+    if (canvas || design) {
       page.replaceChildren();
       return;
     }
@@ -156,9 +181,16 @@ export function createWorkbench(store, ui) {
         <button type="button" data-start="find">${icon('search', 17)}<span>${uiText("Открыть сцену", "Open scene")}</span><kbd>Ctrl K</kbd></button>
         <button type="button" data-start="table">${icon('table', 17)}<span>${uiText("Открыть таблицу", "Open table")}</span></button>
         <button type="button" data-start="screenplay">${icon('edit', 17)}<span>${uiText("Открыть сценарий", "Open screenplay")}</span></button>
+        <button type="button" data-start="gigma">${icon('layers', 17)}<span>${uiText("Создать макет в Gigma Studio", "Create a Gigma Studio design")}</span></button>
+        ${store.project.gigmaWorkspaces.length ? `<details class="wb-designs"><summary>${icon('folder', 16)}${uiText("Макеты проекта", "Project designs")}<span>${store.project.gigmaWorkspaces.length}</span></summary><div>${store.project.gigmaWorkspaces.map(item => `<button type="button" data-design-id="${esc(item.id)}" title="${esc(item.name)}">${icon('layers', 15)}<span>${esc(item.name)}</span></button>`).join('')}</div></details>` : ''}
       </nav>`;
       page.onclick = (e) => {
+        const saved = e.target.closest('[data-design-id]');
+        if (saved) return openDesign(saved.dataset.designId);
         switch (e.target.closest('[data-start]')?.dataset.start) {
+          case 'gigma':
+            createDesign();
+            break;
           case 'find':
             quickJump();
             break;
@@ -208,15 +240,16 @@ export function createWorkbench(store, ui) {
     }
     // Mark the destination first so closing the previous canvas cannot navigate back recursively.
     active = t;
+    designPanels(t.kind === 'gigma');
     if (t.kind !== 'overview') ui.visualizer?.close();
     if (recordVisit) visit(t);
-    const select = t.id ? { kind: t.kind, id: t.id } : t.selection;
+    const select = t.kind === 'gigma' ? null : (t.id ? { kind: t.kind, id: t.id } : t.selection);
     if (select) {
       const exists = !select.id || store.project[entityLists[select.kind]]?.some((o) => o.id === select.id);
       store.setSelection(exists ? select : {kind:null, id:null});
     }
-    if (t.id) {
-      record(t);
+    if (t.id) record(t);
+    if (t.id && t.kind !== 'gigma') {
       ui.setRightTab('inspector');
       ui.inspector?.render();
     }
@@ -225,6 +258,7 @@ export function createWorkbench(store, ui) {
     tabsHost.querySelector('.wb-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (t.kind === 'overview') ui.visualizer.open();
     else if (t.kind === 'screenplay') $('screenplayText').focus({ preventScroll: true });
+    else if (t.kind === 'gigma') gigma.focus(t.id);
     else if (t.kind !== 'graph') page.focus({ preventScroll: true });
   }
   function openEntity(kind, id, forceNew = false) {
@@ -285,6 +319,31 @@ export function createWorkbench(store, ui) {
   }
   function openScreenplay() {
     activate(tabs[2]);
+  }
+  function openDesign(id) {
+    if (!store.project.gigmaWorkspaces.some(item => item.id === id)) return;
+    let tab = tabs.find(item => item.kind === 'gigma' && item.id === id);
+    if (!tab) {
+      tab = {kind:'gigma', id};
+      if (active.kind === 'empty') {
+        active.slot ||= Symbol('document');
+        tab.slot = active.slot;
+        tabs[tabs.indexOf(active)] = tab;
+      } else tabs.push(tab);
+    } else if (active.kind === 'empty') {
+      tabs.splice(tabs.indexOf(active), 1);
+    }
+    activate(tab);
+  }
+  function createDesign(document) {
+    const op = {op:'createGigmaWorkspace'};
+    if (document) {
+      op.document = document;
+      op.name = document.name;
+    }
+    const result = store.apply(op, {label:uiText("Создать макет Gigma", "Create Gigma design")});
+    if (result.ok) openDesign(result.created[0]);
+    else ui.toast(result.error, 'bad');
   }
   function openPlayer(id) {
     ui.flushEdits?.();
@@ -455,7 +514,8 @@ export function createWorkbench(store, ui) {
       const r = rows[index];
       if (r) {
         m.close();
-        openEntity(r.kind, r.id, force);
+        if (r.kind === 'gigma') openDesign(r.id);
+        else openEntity(r.kind, r.id, force);
       }
       return true;
     }
@@ -498,12 +558,19 @@ export function createWorkbench(store, ui) {
       else quickJump();
     };
   }
-  tabsHost.onclick = (e) => {
+  tabsHost.onclick = async (e) => {
     const b = e.target.closest('button');
     if (!b) return;
     if (b.hasAttribute('data-close-tab')) {
-      const i = Number(b.dataset.closeTab),
-        was = active === tabs[i];
+      const tab = tabs[Number(b.dataset.closeTab)];
+      if (!tab) return;
+      if (tab.kind === 'gigma' && !await gigma.close(tab.id)) {
+        ui.toast(uiText("Не удалось завершить редактирование макета.", "Could not finish editing this design."), 'bad');
+        return;
+      }
+      const i = tabs.indexOf(tab);
+      if (i === -1) return;
+      const was = active === tab;
       if (was && tabs[i] === overviewTab) {
         ui.visualizer?.close();
         returnFromOverview();
@@ -532,6 +599,21 @@ export function createWorkbench(store, ui) {
     if (evt.type === 'project' && !evt.label) {
       reset();
       return;
+    }
+    if (evt.scope === 'gigma' || evt.type === 'project') {
+      gigma.sync();
+      const exists = tab => tab.kind !== 'gigma' || store.project.gigmaWorkspaces.some(item => item.id === tab.id);
+      tabs = tabs.filter(exists);
+      if (trail.some(tab => !exists(tab))) {
+        cursor = Math.max(0, trail.slice(0, cursor + 1).filter(exists).length - 1);
+        trail = trail.filter(exists);
+      }
+      if (!exists(active)) activate(tabs[0]);
+      if (evt.scope === 'gigma') {
+        if (active.kind === 'empty') render();
+        else drawTabs();
+        return;
+      }
     }
     if (storageKey() !== key) persist();
     if (evt.type === 'selection') {
@@ -615,7 +697,8 @@ export function createWorkbench(store, ui) {
     back: () => navigate(-1),
     forward: () => navigate(1),
     currentLocation,
-    refreshLanguage() { issues = null; render(); },
+    refreshLanguage() { issues = null; gigma.appearance(); render(); },
+    flushDesigns: gigma.flushAll,
     historyState,
     openNode,
     openEntity,
@@ -624,6 +707,7 @@ export function createWorkbench(store, ui) {
     toggleOverview,
     openTable,
     openScreenplay,
+    openDesign,
     openPlayer,
     quickJump,
     persist,
