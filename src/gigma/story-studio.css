@@ -40,6 +40,8 @@
   max-height: calc(100dvh - 55px);
   overflow-y: auto;
 }
+:root[data-theme] .toolbar .dropdown button { padding: 5px; gap: 5px; text-align: start; }
+.toolbar .dropdown kbd:empty { display: none; }
 :root[data-theme] .toolbar .toolstrip {
   order: 2; position: static; inset: auto; flex: 0 1 auto; min-width: 35px; width: auto;
   flex-direction: row; align-items: center; gap: 2px;
