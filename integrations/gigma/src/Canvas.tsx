@@ -88,10 +88,10 @@ export function zoomAt(page: DesignPage, value: number, at?: Point) {
     };
   });
 }
-export function fitPage(page: DesignPage) {
+export function fitPage(page: DesignPage, ids?: string[]) {
   const host = document.querySelector("[data-stage]")?.getBoundingClientRect();
   if (!host) return;
-  const b = exportBounds(page),
+  const b = exportBounds(page, ids),
     zoom = Math.max(
       0.02,
       Math.min(2, (host.width - 96) / b.width, (host.height - 96) / b.height),
@@ -111,6 +111,7 @@ export const Scene = memo(function Scene({
   editingId = null,
   onCommitText,
   selection,
+  animate = false,
 }: {
   nodes: DesignNode[];
   artworkVersion?: number;
@@ -119,6 +120,7 @@ export const Scene = memo(function Scene({
   editingId?: string | null;
   onCommitText?: (n: DesignNode, value: string) => void;
   selection?: string[];
+  animate?: boolean;
 }) {
   const selected = new Set(selection);
   const children = new Map<string | null, DesignNode[]>();
@@ -129,6 +131,7 @@ export const Scene = memo(function Scene({
   function draw(n: DesignNode): React.ReactNode {
     if (n.hidden) return null;
     const clip = prefix + "-" + n.id;
+    const motion = animate && n.animation;
     return (
       <g
         key={n.id}
@@ -144,6 +147,16 @@ export const Scene = memo(function Scene({
         style={{
           mixBlendMode: n.blend ?? "normal",
           cursor: activate && n.linkTo ? "pointer" : undefined,
+          ...(motion && {
+            animationName: "gigma-" + motion.type,
+            animationDuration: (motion.durationMs ?? 1000) + "ms",
+            animationDelay: (motion.delayMs ?? 0) + "ms",
+            animationIterationCount: motion.loop ? "infinite" : 1,
+            animationTimingFunction: motion.type === "rotate" ? "linear" : "ease-in-out",
+            animationFillMode: "backwards",
+            transformBox: "fill-box",
+            transformOrigin: "center",
+          }),
         }}
         filter={n.adjustments?.length ? "url(#fx-" + clip + ")" : undefined}
         opacity={container(n) ? n.opacity : undefined}
@@ -247,6 +260,7 @@ export function Canvas({
   setTool,
   space,
   grid,
+  animate = false,
   onContextSelection,
 }: {
   page: DesignPage;
@@ -254,6 +268,7 @@ export function Canvas({
   setTool: (t: Tool) => void;
   space: boolean;
   grid: boolean;
+  animate?: boolean;
   onContextSelection: (x: number, y: number, ids: string[]) => void;
 }) {
   const prefs = usePrefs();
@@ -812,6 +827,7 @@ export function Canvas({
             ))}
           <Scene
             nodes={page.nodes}
+            animate={animate}
             editingId={editing}
             selection={selected}
             artworkVersion={studio.artworkVersion}

@@ -107,6 +107,8 @@ if (process.isMainFrame) contextBridge.exposeInMainWorld('sf', {
 
   ai: {
     chat: (payload) => invoke('sf:ai:chat', payload),
+    readLink: (url) => invoke('sf:ai:read-link', url),
+    generateImage: (args) => invoke('sf:ai:generate-image', args),
     abort: (requestId) => invoke('sf:ai:abort', requestId),
     test: (payload) => invoke('sf:ai:test', payload),
     onChunk: (cb) => {

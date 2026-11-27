@@ -30,6 +30,14 @@ await esbuild.build({
   target: "chrome130",
   outfile: join(editor, "editor.js"),
 });
+await esbuild.build({
+  ...common,
+  entryPoints: ["shared/assistant.ts"],
+  platform: "browser",
+  format: "esm",
+  target: "chrome130",
+  outfile: join(editor, "artwork-model.js"),
+});
 if (!process.argv.includes("--editor-only")) {
   await mkdir(native, { recursive: true });
   await esbuild.build({

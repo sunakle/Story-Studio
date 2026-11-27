@@ -19,7 +19,7 @@ export function renderDocument({
     esc = ui.escapeHTML;
   const collection = p[entityLists[tab.kind]] || [];
   const obj = collection.find((o) => o.id === tab.id);
-  const actionIcons = {graph:'graph',listen:'volume',play:'play',bookmark:'bookmark',around:'link',insert:'plus',chapter:'folder',overview:'graph'};
+  const actionIcons = {graph:'graph',listen:'volume',play:'play',bookmark:'bookmark',around:'link',insert:'plus',chapter:'folder',overview:'graph',copy:'copy'};
   const button = (act, label, pressed = null) =>
     `<button type="button" class="wb-doc-action" data-doc-act="${act}"${pressed === null ? '' : ` aria-pressed="${pressed}"`}>${icon(actionIcons[act],15)}<span>${esc(label)}</span></button>`;
   const nodeMap = new Map(p.nodes.map((n) => [n.id, n]));
@@ -106,7 +106,7 @@ export function renderDocument({
       ${properties ? `<dl class="wb-properties" aria-label="${uiText("Свойства сцены", "Scene properties")}">${properties}</dl>` : ''}
       <label class="wb-field wb-editor"><span class="wb-sr">${n.type === 'note' ? uiText("Текст заметки", "Note text") : uiText("Текст узла", "Node text")}</span><textarea id="documentText" spellcheck="true" placeholder="${n.type === 'note' ? uiText("Напишите заметку…", "Write a note…") : uiText("Введите текст сцены…", "Enter scene text…")}" rows="3">${esc(n.text)}</textarea></label>
       <div class="wb-tools wb-doc-actions" aria-label="${uiText("Действия сцены", "Scene actions")}">${button('graph',uiText("На схеме", "Show on canvas"))}${n.type === 'line' ? button('listen',uiText("Прослушать", "Listen")) : ''}
-        ${n.type !== 'note' ? button('play',uiText("Пройти отсюда", "Play from here")) : ''}${button('bookmark',isMarked(n.id) ? uiText("Убрать закладку", "Remove bookmark") : uiText("В закладки", "Bookmark"),isMarked(n.id))}${button('around',uiText("Связи в обзоре", "View connections"))}</div>
+        ${n.type !== 'note' ? button('play',uiText("Пройти отсюда", "Play from here")) : ''}${button('bookmark',isMarked(n.id) ? uiText("Убрать закладку", "Remove bookmark") : uiText("В закладки", "Bookmark"),isMarked(n.id))}${button('around',uiText("Связи в обзоре", "View connections"))}${button('copy',uiText('Скопировать ссылку', 'Copy link'))}</div>
       ${section('incoming',uiText("Входящие переходы", "Incoming transitions"),incoming.length,incoming.map(e => openLink(e.from,edgeLabel(e))).join('') || uiText("<p class=\"hint-text\">Входящих переходов нет.</p>", "<p class=\"hint-text\">No incoming transitions.</p>"))}
       ${section('outgoing',uiText("Продолжение", "Continuation"),outgoing.length,outgoing.map(e => openLink(e.to,edgeLabel(e))).join('') || uiText("<p class=\"hint-text\">Исходящих переходов нет.</p>", "<p class=\"hint-text\">No outgoing transitions.</p>"),n.type === 'note' ? '' : button('insert',uiText("Вставить реплику…", "Insert line…")))}
       </article>`;
@@ -148,6 +148,9 @@ export function renderDocument({
     }
     if (b.dataset.entityId) return openEntity(b.dataset.kind, b.dataset.entityId);
     switch (b.dataset.docAct) {
+      case 'copy':
+        void ui.workbench.copyReferences([{kind:'node', id:obj.id}]);
+        break;
       case 'graph':
         openGraph(obj.id);
         break;

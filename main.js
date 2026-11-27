@@ -10,6 +10,9 @@ const fsp = require('node:fs/promises');
 const { createHash, randomUUID } = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { startAliceEndpoint } = require('./src/native/alice-dictation.cjs');
+const { useClaude, claudeHeaders, claudeRequest, claudeResponse } = require('./src/native/claude.cjs');
+const { readLink } = require('./src/native/public-reference.cjs');
+const { generateImage } = require('./src/native/image-generation.cjs');
 const { registerGigma } = require('./src/native/gigma-host.cjs');
 
 protocol.registerSchemesAsPrivileged([{
@@ -991,13 +994,26 @@ function buildHeaders(apiKey, extraHeaders) {
 }
 
 function registerAiIpc() {
-  ipcMain.handle('sf:ai:test', async (_e, { baseUrl, apiKey, extraHeaders } = {}) => {
+  async function projectTool(event, run) {
+    if (!win || event.senderFrame !== win.webContents.mainFrame) return { ok: false, error: 'Invalid window.' };
+    try { return await run(); } catch (err) { return { ok: false, error: err.english ? uiText(err.message, err.english) : String(err.message || err) }; }
+  }
+  ipcMain.handle('sf:ai:read-link', (event, url) => projectTool(event, () => readLink(url)));
+  ipcMain.handle('sf:ai:generate-image', (event, args) => projectTool(event, async () => {
+    const controller = new AbortController();
+    const id = args?.requestId;
+    if (id) aborters.set(id, controller);
+    const timer = setTimeout(() => controller.abort(), 180000);
+    try { return await generateImage(args, getSettings().ai, net.fetch, controller.signal); }
+    finally { clearTimeout(timer); if (id) aborters.delete(id); }
+  }));
+  ipcMain.handle('sf:ai:test', async (_e, { baseUrl, preset, apiKey, extraHeaders } = {}) => {
     const base = normalizeBase(baseUrl);
     const url = `${base}/models`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);
     try {
-      const res = await net.fetch(url, { method: 'GET', headers: buildHeaders(apiKey, extraHeaders), signal: controller.signal });
+      const res = await net.fetch(url, { method: 'GET', redirect: 'error', headers: useClaude(base, preset) ? claudeHeaders(apiKey, extraHeaders) : buildHeaders(apiKey, extraHeaders), signal: controller.signal });
       const text = await res.text();
       if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${text.slice(0, 600)}`, url };
       let models = [];
@@ -1029,7 +1045,8 @@ function registerAiIpc() {
   ipcMain.handle('sf:ai:chat', async (event, payload = {}) => {
     const { requestId = `r${Date.now()}`, baseUrl, apiKey, extraHeaders, body, timeoutMs = 120000 } = payload;
     const base = normalizeBase(baseUrl);
-    const url = `${base}/chat/completions`;
+    const anthropic = useClaude(base, payload.preset);
+    const url = base + (anthropic ? '/messages' : '/chat/completions');
     const controller = new AbortController();
     aborters.set(requestId, controller);
     const timer = setTimeout(() => controller.abort(), Math.max(5000, timeoutMs));
@@ -1040,8 +1057,9 @@ function registerAiIpc() {
     try {
       const res = await net.fetch(url, {
         method: 'POST',
-        headers: buildHeaders(apiKey, extraHeaders),
-        body: JSON.stringify(body),
+        redirect: 'error',
+        headers: anthropic ? claudeHeaders(apiKey, extraHeaders) : buildHeaders(apiKey, extraHeaders),
+        body: JSON.stringify(anthropic ? claudeRequest(body) : body),
         signal: controller.signal,
       });
 
@@ -1057,6 +1075,7 @@ function registerAiIpc() {
         return { ok: false, error: `HTTP ${res.status} ${res.statusText}: ${detail}`, status: res.status };
       }
 
+      if (anthropic) return await claudeResponse(res, send);
       const ctype = res.headers.get('content-type') || '';
       if (!body || !body.stream || !ctype.includes('event-stream')) {
         const json = await res.json();

@@ -529,6 +529,7 @@ const ui = {
     ui.panels?.setTab(name);
   },
   setRightTab(name) {
+    if (name === 'ai' && ui.workbench?.current() === 'assistant') ui.workbench.leaveAssistant();
     if ((name === 'ai' || name === 'voice') && $('rightPanel').classList.contains('collapsed')) togglePanel('right');
     const tabs = $('rightTabs').querySelectorAll('.tab');
     tabs.forEach((t) => {
@@ -538,8 +539,8 @@ const ui = {
     });
     $('inspectorBody').classList.toggle('hidden', name !== 'inspector');
     $('voiceBody').classList.toggle('hidden', name !== 'voice');
-    $('aiBody').classList.toggle('hidden', name !== 'ai');
-    if (name === 'ai') ui.ai?.render();
+    if ($('aiBody').parentElement === $('rightPanel')) $('aiBody').classList.toggle('hidden', name !== 'ai');
+    if (name === 'ai' && !$('aiBody').firstElementChild) ui.ai?.render();
     if (name === 'voice') ui.voice?.render();
   },
   attachImages(nodeId, files) {
@@ -1304,8 +1305,7 @@ function initHotkeys() {
     }
     if (mod && e.shiftKey && e.key.toLowerCase() === 'a') {
       e.preventDefault();
-      ui.setRightTab('ai');
-      ui.ai?.focusInput();
+      ui.workbench?.openAssistant();
       return;
     }
     if (mod && e.shiftKey && e.key.toLowerCase() === 'v') {

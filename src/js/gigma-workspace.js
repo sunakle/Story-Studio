@@ -10,11 +10,11 @@ function preferences() {
 }
 
 /** Keep each open document's canvas, selection and undo history alive while switching tabs. */
-export function createGigmaHost(store, ui, page) {
+export function createGigmaHost(store, ui, stage) {
   const surface = document.createElement('div');
   surface.className = 'gigma-surface';
   surface.hidden = true;
-  page.after(surface);
+  stage.append(surface);
   const frames = new Map();
   let visible = null;
   const workspace = id => projectDesigns(store.project).find(item => item.id === id);
@@ -146,7 +146,22 @@ export function createGigmaHost(store, ui, page) {
         entry.feedback.hidden = true;
         entry.loaded = true;
         if (entry.model === null && data.document) entry.pristine = JSON.stringify(data.document);
+        if (entry.reveal) {
+          post(entry, 'reveal', entry.reveal);
+          entry.reveal = null;
+        }
         break;
+      case 'selection':
+      case 'copy-reference': {
+        if (!active(entry) || typeof data.pageId !== 'string' || !Array.isArray(data.objectIds)) break;
+        entry.pageId = data.pageId;
+        entry.references = data.objectIds.filter(id => typeof id === 'string' && id.length > 0)
+          .map(objectId => ({kind:'gigma', workspaceId:entry.id, pageId:data.pageId, objectId}));
+        if (action === 'copy-reference' && entry.references.length && document.activeElement === entry.frame) {
+          void ui.workbench?.copyReferences(entry.references);
+        }
+        break;
+      }
       case 'change':
         capture(entry, data.document);
         break;
@@ -231,6 +246,17 @@ export function createGigmaHost(store, ui, page) {
 
   return {
     show, sync, syncName, appearance,
+    references(id) { return frames.get(id)?.references || []; },
+    pageId(id) {
+      const document = workspace(id)?.document, selected = frames.get(id)?.pageId;
+      return document?.pages.some(page => page.id === selected) ? selected : document?.activePageId;
+    },
+    reveal({workspaceId, pageId, objectId}) {
+      const entry = frames.get(workspaceId);
+      if (!entry) return;
+      if (entry.loaded) post(entry, 'reveal', {pageId, objectId});
+      else entry.reveal = {pageId, objectId};
+    },
     focus(id) { frames.get(id)?.frame.focus({preventScroll:true}); },
     async flushAll() { return (await Promise.all([...frames.values()].map(flush))).every(Boolean); },
     async close(id) {

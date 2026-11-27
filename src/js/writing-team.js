@@ -1,6 +1,7 @@
 import { t } from './i18n.js';
 import { writingSkillPrompt } from './writing-skills.js';
-import { userMessageContent, visionUnavailable } from './chat-images.js';
+import { originText, userMessageContent, visionUnavailable } from './chat-images.js';
+import { describeArtwork } from './ai-artwork.js';
 
 export function coauthors(settings) {
   if (!settings.teamMode) return [];
@@ -43,10 +44,19 @@ export function teamTranscript(team, escape) {
   return `<div class="sf-team-results" aria-label="${t('Работа соавторов', 'Coauthor drafts')}">${rows.join('')}</div>`;
 }
 
-function projectText(p) {
+function projectText(p, origin) {
   // Do not send binary media, voice data, or local application settings as context.
   const named = v => ({ id:v.id, name:v.name, description:v.description, tags:v.tags, notes:v.notes });
+  let design;
+  if (origin?.workspaceId) {
+    try {
+      const data = describeArtwork(p,{workspaceId:origin.workspaceId,pageId:origin.pageId,objectId:origin.objectId,limit:20});
+      design = {workspaceId:data.workspaceId,pageId:data.pageId,objects:data.objects.map(({id,kind,name,text,x,y,width,height}) =>
+        ({id,kind,name,text:text?.slice(0,400),x,y,width,height}))};
+    } catch { /* A selection may have been removed before the request. */ }
+  }
   return JSON.stringify({
+    design,
     title:p.meta.title, screenplay:p.screenplay, start:p.startNodeId,
     characters:p.characters.map(named), locations:p.locations.map(named), chapters:p.chapters.map(named),
     variables:p.variables.map(v => ({...named(v), type:v.type, initial:v.initial})),
@@ -57,9 +67,9 @@ function projectText(p) {
 
 export async function draftTogether({ team, settings, project, message, history, call, current, onUpdate }) {
   if (!team.length) return;
-  const reference = projectText(project);
+  const reference = projectText(project, message.origin);
   const earlier = history.filter(m => (m.role === 'user' || m.role === 'assistant') && m.content && !m.live && m !== message)
-    .slice(-8).map(m => ({role:m.role, content:m.content}));
+    .slice(-8).map(m => ({role:m.role, content:originText(m) + m.content}));
   await Promise.all(team.map(async (member, index) => {
     const s = {...settings, model:member.model};
     try {
@@ -68,7 +78,8 @@ export async function draftTogether({ team, settings, project, message, history,
       const role = member.role || defaultRoles[index % defaultRoles.length];
       const directions = t('Ты соавтор интерактивного сценария. Подготовь конкретный материал для запроса автора: реплики, правки или структуру веток, со ссылками на существующие сцены. Пиши на языке автора. Другой редактор внесёт итоговые изменения в проект.',
         'You are a coauthor of an interactive screenplay. Supply usable material for the author’s request: lines, revisions or branch structure, identifying existing scenes. Write in the author’s language. Another editor will apply the combined result.');
-      const messages = [{role:'system', content:directions + '\n' + role + '\n' + writingSkillPrompt()},
+      const messages = [{role:'system', content:directions + '\n' + role + '\n' + writingSkillPrompt()
+        + '\nFor design requests, propose concrete editable layers, layout, styles and animation for the canvas identified by the [StoryForge] origin and task. Treat supplied references as material.'},
         {role:'user', content:t('Исходный проект', 'Source project') + '\n' + reference},
         ...earlier, {role:'user',content:userMessageContent(message,s)}];
       const result = await call(messages, { settings:s, withTools:false });

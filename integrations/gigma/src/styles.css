@@ -1043,3 +1043,18 @@ select,
     font-size: 32px;
   }
 }
+@keyframes gigma-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes gigma-slide {
+  from { transform: translateX(-48px); }
+  to { transform: translateX(0); }
+}
+@keyframes gigma-fade {
+  from { opacity: 0; }
+}
+@keyframes gigma-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

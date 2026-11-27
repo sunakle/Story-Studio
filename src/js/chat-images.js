@@ -33,14 +33,19 @@ export function imagesForProvider(message, settings) {
   return (Array.isArray(message.images) ? message.images : []).filter(validChatImage).slice(0, CHAT_IMAGE_LIMIT);
 }
 
+export function originText(message) {
+  return message.origin ? '[StoryForge] ' + JSON.stringify(message.origin) + '\n' : '';
+}
+
 export function userMessageContent(message, settings) {
+  const content = originText(message) + (message.content || '');
   const images = imagesForProvider(message, settings);
   if (!images.length) {
-    if (!message.images?.length) return message.content || '';
+    if (!message.images?.length) return content;
     const note = t('[Фото из истории недоступно текущему подключению.]', '[Photo in chat history is unavailable to this connection.]');
-    return [message.content, note].filter(Boolean).join('\n');
+    return [content, note].filter(Boolean).join('\n');
   }
-  const parts = message.content ? [{ type: 'text', text: message.content }] : [];
+  const parts = content ? [{ type: 'text', text: content }] : [];
   for (const image of images) parts.push({ type: 'image_url', image_url: { url: image.data } });
   return parts;
 }

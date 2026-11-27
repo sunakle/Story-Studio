@@ -34,6 +34,18 @@ Choose **+ → Open Gigma Studio** to go straight to the canvas for your current
 
 Press **Ctrl+S** on the canvas to save the script, graph, pages, images and prototype links in one `.sfproj` file. Choose **+ → Open Gigma Studio** again to return to the same canvas. Importing a `.gigma` file adds its pages to the current project. Designs from earlier versions remain accessible by name. [Dark theme](docs/gallery/gigma-workspace.png) · [Light theme](docs/gallery/gigma-workspace-light.png)
 
+## AI studio
+
+Choose **+ → Open AI studio** to edit a project canvas alongside the chat. For example, copy a link to a text layer in Gigma and ask the assistant to move the title to the studio canvas and give it a fade-in animation. You can then edit the text and position by hand.
+
+The studio and sidebar share one conversation per project. Each turn records the project, the surface that sent it, the open view and the available selection. Ask about a selected line in the sidebar, then continue designing in the studio. One undo reverses the edits from a turn.
+
+**Autonomous mode** continues work on the canvas between your messages and uses provider tokens while active. Stop it from the studio. For generated images, open **Connection settings → Image generation** and enter an Images API base URL, model and key. The chat model can use that service to place images in the project.
+
+Enable image generation in the studio controls to allow it during autonomous work. Autonomous mode must be started again after switching projects or restarting the app.
+
+![AI studio with an editable poster and the shared screenplay and canvas conversation](docs/gallery/ai-studio.png)
+
 ## Write, voice and play a branch
 
 | Workspace | What you can do |
@@ -46,7 +58,7 @@ Press **Ctrl+S** on the canvas to save the script, graph, pages, images and prot
 <details>
 <summary>Model setup, image attachments and dictation</summary>
 
-Enter your OpenAI-compatible service URL, key and model ID in AI settings. A single DeepSeek model is selected by default. In **Agent mode**, coauthors draft in parallel and the primary model combines their edits. You can paste, drop or attach photos when the selected model supports images. Three built-in writing skills cover dialogue, scene sequencing and revision. [Writing skill sources](https://github.com/jwynia/agent-skills)
+Select DeepSeek, Anthropic (Claude) or another compatible provider in AI settings and enter its API URL, key and model ID. A single DeepSeek model is selected by default. In **Agent mode**, coauthors draft in parallel and the primary model combines their edits. You can paste, drop or attach photos when the selected model supports images. Three built-in writing skills cover dialogue, scene sequencing and revision. [Writing skill sources](https://github.com/jwynia/agent-skills)
 
 With a configured Yandex Station Lite 2 and the Windows command bridge, say **«Алиса, открой StoryForge»** to dictate into the screenplay. Stop with the speaker’s top button, the stop button in the editor or **«Стоп, диктовка»**. [Alice integration (Russian)](integrations/alice/README.md)
 

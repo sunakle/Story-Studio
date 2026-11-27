@@ -27,6 +27,8 @@ import {
   MoveUpRight,
   Pencil,
   Play,
+  Clapperboard,
+  Link2,
   Plus,
   Redo2,
   Save,
@@ -62,6 +64,7 @@ import {
   bindWorkspace,
   requestProjectCommand,
   requestSave,
+  shareSelection,
   illustrator,
 } from "./core/workspace";
 import { studio } from "./core/studio";
@@ -114,6 +117,7 @@ export default function App() {
   const [menu, setMenu] = useState(false),
     [modal, setModal] = useState<"" | "export" | "keys">(""),
     [preview, setPreview] = useState<string | null>(null);
+  const [motionPage, setMotionPage] = useState<string | null>(null);
   const [format, setFormat] = useState("svg"),
     [scope, setScope] = useState("page"),
     [scale, setScale] = useState(1),
@@ -134,6 +138,9 @@ export default function App() {
   const doc = studio.document,
     page = studio.page,
     sel = studio.selection;
+  useEffect(() => {
+    if (page) shareSelection(page.id, sel);
+  }, [page?.id, sel]);
   const contextNodes =
     contextSelection?.ids
       .map((id) => page?.nodes.find((n) => n.id === id))
@@ -151,7 +158,7 @@ export default function App() {
     setMenu(false);
     setContextSelection({
       x: Math.min(Math.max(8, x), Math.max(8, window.innerWidth - 240)),
-      y: Math.min(Math.max(8, y), Math.max(8, window.innerHeight - 116)),
+      y: Math.min(Math.max(8, y), Math.max(8, window.innerHeight - 150)),
       ids,
     });
   }
@@ -196,6 +203,16 @@ export default function App() {
         },
         report,
         setProjectName,
+        (pageId, objectId) => {
+          const target = studio.document?.pages.find((p) => p.id === pageId);
+          if (!target || (objectId && !target.nodes.some((n) => n.id === objectId))) return;
+          studio.activatePage(pageId);
+          studio.select(objectId ? [objectId] : []);
+          setTool("select");
+          requestAnimationFrame(() => {
+            if (studio.page === target) fitPage(target, objectId ? [objectId] : undefined);
+          });
+        },
       ),
     [report],
   );
@@ -801,6 +818,16 @@ export default function App() {
                 <Redo2 />
               </button>
               <span className="divider" />
+              {page.nodes.some((n) => n.animation) && (
+                <button
+                  title={ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
+                  aria-label={ui("Воспроизвести анимацию на холсте", "Play animations on canvas")}
+                  aria-pressed={motionPage === page.id}
+                  onClick={() => setMotionPage(motionPage === page.id ? null : page.id)}
+                >
+                  <Clapperboard />
+                </button>
+              )}
               <button
                 title={ui("Просмотр прототипа", "Preview prototype")}
                 aria-label={ui("Просмотр прототипа", "Preview prototype")}
@@ -834,6 +861,7 @@ export default function App() {
             />
             <Canvas
               page={page}
+              animate={motionPage === page.id}
               tool={tool}
               setTool={setTool}
               space={space}
@@ -904,6 +932,18 @@ export default function App() {
               {ui("Выбрано: ", "Selected: ")}
               {contextSelection.ids.length}
             </div>
+            {contextSelection.ids.length === 1 && page && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  shareSelection(page.id, contextSelection.ids, true);
+                  setContextSelection(null);
+                }}
+              >
+                <Link2 />
+                {ui(" Копировать ссылку на объект", " Copy object link")}
+              </button>
+            )}
             <button
               role="menuitem"
               autoFocus
@@ -1130,6 +1170,8 @@ export default function App() {
             style={{ aspectRatio: slide.n.width / slide.n.height }}
           >
             <Scene
+              key={slide.n.id}
+              animate
               prefix="slide"
               nodes={slide.p.nodes
                 .filter((n) => slideIds!.has(n.id))

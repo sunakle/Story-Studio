@@ -61,6 +61,12 @@ export const nodeSchema = z.object({
     .optional(),
   textLayout: z.enum(["auto", "wrap"]).optional(),
   rotation: z.number().min(-360).max(360),
+  animation: z.object({
+    type: z.enum(["fade", "pulse", "slide", "rotate"]),
+    durationMs: z.number().int().min(100).max(60000).optional(),
+    delayMs: z.number().int().min(0).max(60000).optional(),
+    loop: z.boolean().optional(),
+  }).strict().optional(),
   fill: color,
   stroke: color,
   strokeWidth: z.number().min(0).max(200),

@@ -17,7 +17,7 @@ function identify(op) {
   return { ...op, [key]: { ...op[key], id: uid(prefix) } };
 }
 
-function same(a, b) {
+export function same(a, b) {
   if (a === b) return true;
   if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
@@ -52,13 +52,19 @@ export function planProjectEdits(store) {
   const draft = { ...base };
   const batch = [];
   const readFields = new Set();
+  const readRecords = new Map();
   function checkProject() {
     if (store.generation !== generation) throw new Error(uiText("Активный проект сменился. Правки AI отменены.", "The active project changed. AI edits were cancelled."));
   }
   return {
     project: draft,
     generation,
+    get changed() { return batch.length > 0; },
     observe(field) { readFields.add(field); },
+    observeRecord(field, id) {
+      if (!readRecords.has(field)) readRecords.set(field, new Set());
+      readRecords.get(field).add(id);
+    },
     apply(ops) {
       checkProject();
       const identified = ops.map(identify);
@@ -72,7 +78,15 @@ export function planProjectEdits(store) {
       if (store.revision !== revision) {
         for (const field of readFields) {
           if (!same(base[field], store.project[field])) {
-            throw new Error(uiText("Исходный сценарий изменён вручную. Повторите запрос с актуальным текстом.", "The source screenplay was edited manually. Retry with its current text."));
+            throw new Error(uiText("Исходные данные изменены вручную. Повторите запрос с текущей версией.", "Source data was edited manually. Retry with the current version."));
+          }
+        }
+        for (const [field, ids] of readRecords) {
+          const record = (root, id) => Array.isArray(root[field]) ? root[field].find(item => item.id === id) : root[field]?.[id];
+          for (const id of ids) {
+            if (!same(record(base,id),record(store.project,id))) {
+              throw new Error(uiText("Исходный объект изменился во время работы ИИ. Правки отменены.", "The source object changed during this turn. Edits were discarded."));
+            }
           }
         }
         const merged = { ...store.project };

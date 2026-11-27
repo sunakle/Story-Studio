@@ -6,6 +6,10 @@ import { createScenarioTable } from './scenario-table.js';
 import { renderDocument } from './scene-document.js';
 import { createScreenplayEditor } from './screenplay.js';
 import { createGigmaHost } from './gigma-workspace.js';
+import { makeProjectReference, parseProjectReference } from './project-references.js';
+import { exportSVG } from '../gigma/artwork-model.js';
+
+const assistantId = 'gg_assistant';
 
 export function createWorkbench(store, ui) {
   const esc = ui.escapeHTML;
@@ -21,9 +25,101 @@ export function createWorkbench(store, ui) {
     columns: ['type', 'chapter', 'speaker', 'location', 'issues'],
     offset: 0,
   });
-  const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', gigma:'layers', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
+  const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', assistant:'wand', gigma:'layers', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
   const renderScreenplay = createScreenplayEditor(store, ui);
-  const gigma = createGigmaHost(store, ui, page);
+  const stage = document.createElement('div');
+  stage.className = 'design-stage';
+  stage.hidden = true;
+  page.after(stage);
+  const paneTabs = document.createElement('nav');
+  paneTabs.className = 'assistant-pane-tabs';
+  stage.append(paneTabs);
+  const gigma = createGigmaHost(store, ui, stage);
+  const chatPane = document.createElement('section');
+  chatPane.className = 'assistant-chat-pane';
+  stage.append(chatPane);
+  const preview = document.createElement('figure');
+  preview.className = 'assistant-draft-preview';
+  preview.hidden = true;
+  const previewImage = document.createElement('img');
+  const previewCaption = document.createElement('figcaption');
+  preview.append(previewImage, previewCaption);
+  chatPane.append(preview);
+  let previewFrame = 0, previewUrl = '', previewBase;
+  function clearAssistantPreview() {
+    cancelAnimationFrame(previewFrame);
+    previewFrame = 0;
+    preview.hidden = true;
+    previewImage.removeAttribute('src');
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+    previewBase = undefined;
+  }
+  function previewAssistantDesign(document, {workspaceId, generation}) {
+    clearAssistantPreview();
+    if (active?.kind !== 'assistant' || generation !== store.generation || workspaceId !== assistantId) return;
+    const design = document?.pages.find(page => page.id === document.activePageId);
+    if (!design?.nodes.length || design.nodes.length > 1200) return;
+    // Avoid a second large vector/raster allocation for an optional thumbnail.
+    let bytes = 0;
+    for (const node of design.nodes) {
+      bytes += (node.image?.length || 0) + (node.text?.length || 0) + (node.points?.length || 0) * 48;
+      if (bytes > 3 * 1024 * 1024) return;
+    }
+    previewBase = projectDesigns(store.project).find(item => item.id === assistantId)?.document;
+    previewFrame = requestAnimationFrame(() => {
+      previewFrame = 0;
+      if (active.kind !== 'assistant' || generation !== store.generation) return;
+      const caption = uiText('Предпросмотр правки', 'Edit preview') + ' · ' + design.name;
+      try {
+        const svg = exportSVG(design);
+        previewUrl = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
+        previewCaption.textContent = caption;
+        previewImage.alt = caption;
+        previewImage.src = previewUrl;
+        preview.hidden = false;
+      } catch { clearAssistantPreview(); }
+    });
+  }
+  const chat = $('aiBody'), sidebar = chat.parentElement;
+  let lastReferences = [], assistantOrigin = null, previousRightTab = '';
+  let assistantPane = 'chat';
+
+  function showPane(name) {
+    assistantPane = name;
+    stage.dataset.pane = name;
+    paneTabs.querySelectorAll('button').forEach(button =>
+      button.setAttribute('aria-pressed', String(button.dataset.pane === name)));
+  }
+  paneTabs.onclick = event => {
+    const button = event.target.closest('[data-pane]');
+    if (button) showPane(button.dataset.pane);
+  };
+
+  function mountStudio(studio, design) {
+    stage.hidden = !design && !studio;
+    stage.classList.toggle('is-assistant', studio);
+    if (studio) {
+      if (chat.parentElement !== chatPane) {
+        previousRightTab = $('rightTabs').querySelector('.active')?.dataset.tab || '';
+        if (previousRightTab === 'ai') ui.setRightTab('inspector');
+        chatPane.append(chat);
+        chat.classList.remove('hidden');
+      }
+      const label = uiText('Чат', 'Chat');
+      if (paneTabs.dataset.language !== label) {
+        paneTabs.dataset.language = label;
+        paneTabs.innerHTML = '<button type="button" data-pane="canvas">' + icon('layers', 15) + uiText('Холст', 'Canvas') + '</button><button type="button" data-pane="chat">' + icon('spark', 15) + label + '</button>';
+      }
+      showPane(assistantPane);
+    } else if (chat.parentElement === chatPane) {
+      sidebar.append(chat);
+      chat.classList.add('hidden');
+      if (previousRightTab === 'ai' && !$('rightPanel').classList.contains('collapsed')
+          && $('rightTabs').querySelector('.active')?.dataset.tab === 'inspector') ui.setRightTab('ai');
+      previousRightTab = '';
+    }
+  }
   const sidebars = [$('leftPanel'), $('rightPanel')];
   let storyLayout = null, designLayout = [true, true];
   function designPanels(show) {
@@ -61,7 +157,11 @@ export function createWorkbench(store, ui) {
   }
   function reset() {
     if (jump) jump.close();
+    clearAssistantPreview();
     gigma.reset();
+    lastReferences = [];
+    assistantOrigin = null;
+    assistantPane = 'chat';
     designPanels(false);
     key = storageKey();
     try {
@@ -86,6 +186,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'overview') return uiText("Обзор сюжета", "Story overview");
     if (t.kind === 'table') return uiText("Таблица", "Table");
     if (t.kind === 'screenplay') return uiText("Сценарий", "Screenplay");
+    if (t.kind === 'assistant') return uiText("ИИ-мастерская", "AI studio");
     if (t.kind === 'gigma') {
       const designs = projectDesigns(store.project);
       return t.id === designs[0].id ? 'Gigma Studio' : designs.find(item => item.id === t.id)?.name || 'Gigma Studio';
@@ -116,8 +217,8 @@ export function createWorkbench(store, ui) {
     if (next < 0 || next >= trail.length) return false;
     cursor = next;
     let destination = trail[cursor];
-    if (destination.kind === 'gigma') {
-      const existing = tabs.find(tab => tab.kind === 'gigma' && tab.id === destination.id);
+    if (destination.kind === 'gigma' || destination.kind === 'assistant') {
+      const existing = tabs.find(tab => tab.kind === destination.kind && tab.id === destination.id);
       if (existing) destination = trail[cursor] = existing;
     }
     if (!tabs.includes(destination)) {
@@ -157,10 +258,12 @@ export function createWorkbench(store, ui) {
     $('graphHost').classList.toggle('hidden', !graph);
     $('graphFilters').classList.toggle('hidden', !graph);
     const design = active.kind === 'gigma';
-    page.classList.toggle('hidden', canvas || design);
+    const studio = active.kind === 'assistant';
+    page.classList.toggle('hidden', canvas || design || studio);
     page.onclick = null;
-    gigma.show(design ? active.id : null);
-    if (canvas || design) {
+    mountStudio(studio, design);
+    gigma.show(studio ? assistantId : design ? active.id : null);
+    if (canvas || design || studio) {
       page.replaceChildren();
       return;
     }
@@ -185,12 +288,16 @@ export function createWorkbench(store, ui) {
         <button type="button" data-start="table">${icon('table', 17)}<span>${uiText("Открыть таблицу", "Open table")}</span></button>
         <button type="button" data-start="screenplay">${icon('edit', 17)}<span>${uiText("Открыть сценарий", "Open screenplay")}</span></button>
         <button type="button" data-start="gigma">${icon('layers', 17)}<span>${uiText("Открыть Gigma Studio", "Open Gigma Studio")}</span></button>
+        <button type="button" data-start="assistant">${icon('wand', 17)}<span>${uiText("Открыть ИИ-мастерскую", "Open AI studio")}</span></button>
         ${store.project.gigmaWorkspaces.length > 1 ? `<details class="wb-designs"><summary>${icon('folder', 16)}${uiText("Макеты проекта", "Project designs")}<span>${store.project.gigmaWorkspaces.length}</span></summary><div>${store.project.gigmaWorkspaces.map(item => `<button type="button" data-design-id="${esc(item.id)}" title="${esc(item.name)}">${icon('layers', 15)}<span>${esc(item.name)}</span></button>`).join('')}</div></details>` : ''}
       </nav>`;
       page.onclick = (e) => {
         const saved = e.target.closest('[data-design-id]');
         if (saved) return openDesign(saved.dataset.designId);
         switch (e.target.closest('[data-start]')?.dataset.start) {
+          case 'assistant':
+            openAssistant();
+            break;
           case 'gigma':
             openDesign();
             break;
@@ -236,6 +343,9 @@ export function createWorkbench(store, ui) {
     ui.flushEdits?.();
     ui.voice?.stop?.();
     if (active && active !== t) {
+      if (active.kind === 'assistant') clearAssistantPreview();
+      if (!['empty', 'assistant'].includes(active.kind)) lastReferences = referencesForView();
+      if (t.kind === 'assistant' && active.kind !== 'empty') assistantOrigin = active;
       active.selection = { ...store.selection };
       active.scroll = page.scrollTop;
       if (active.kind === 'graph') active.camera = ui.graph?.getView?.();
@@ -243,7 +353,7 @@ export function createWorkbench(store, ui) {
     }
     // Mark the destination first so closing the previous canvas cannot navigate back recursively.
     active = t;
-    designPanels(t.kind === 'gigma');
+    designPanels(t.kind === 'gigma' || t.kind === 'assistant');
     if (t.kind !== 'overview') ui.visualizer?.close();
     if (recordVisit) visit(t);
     const select = t.kind === 'gigma' ? null : (t.id ? { kind: t.kind, id: t.id } : t.selection);
@@ -262,6 +372,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'overview') ui.visualizer.open();
     else if (t.kind === 'screenplay') $('screenplayText').focus({ preventScroll: true });
     else if (t.kind === 'gigma') gigma.focus(t.id);
+    else if (t.kind === 'assistant') chat.querySelector('#aiInput')?.focus({preventScroll:true});
     else if (t.kind !== 'graph') page.focus({ preventScroll: true });
   }
   function openEntity(kind, id, forceNew = false) {
@@ -322,6 +433,106 @@ export function createWorkbench(store, ui) {
   }
   function openScreenplay() {
     activate(tabs[2]);
+  }
+  function openAssistant() {
+    const designs = store.project.gigmaWorkspaces;
+    if (!designs.some(item => item.id === assistantId)) {
+      const ops = designs.length ? [] : [{op:'createGigmaWorkspace', id:'gg_project', name:'Gigma Studio', document:null}];
+      ops.push({op:'createGigmaWorkspace', id:assistantId, name:uiText('Холст ИИ', 'AI canvas'), document:null});
+      const result = store.apply(ops, {label:uiText('Создать холст ИИ', 'Create AI canvas')});
+      if (!result.ok) { ui.toast(result.error, 'bad'); return; }
+    }
+    let tab = tabs.find(item => item.kind === 'assistant');
+    if (!tab) {
+      tab = {kind:'assistant'};
+      if (active.kind === 'empty') {
+        active.slot ||= Symbol('document');
+        tab.slot = active.slot;
+        tabs[tabs.indexOf(active)] = tab;
+      } else tabs.push(tab);
+    } else if (active.kind === 'empty') tabs.splice(tabs.indexOf(active), 1);
+    activate(tab);
+  }
+
+  function referencesForView() {
+    if (active.kind === 'gigma') return gigma.references(active.id);
+    if (active.kind === 'assistant') {
+      const selected = gigma.references(assistantId);
+      return selected.length ? selected : lastReferences;
+    }
+    if (active.kind === 'empty') return lastReferences;
+    if (active.kind === 'screenplay') {
+      const input = $('screenplayText');
+      return [{kind:'screenplay', start:input?.selectionStart, end:input?.selectionEnd}];
+    }
+    const id = active.kind === 'node' ? active.id
+      : ['graph','overview','table'].includes(active.kind) && store.selection.kind === 'node' ? store.selection.id : '';
+    return id && store.project.nodes.some(node => node.id === id) ? [{kind:'node', id}] : [];
+  }
+  function currentReferences() {
+    ui.flushEdits?.();
+    return referencesForView().map(ref => makeProjectReference(store.project, ref)).filter(Boolean);
+  }
+  function assistantContext() {
+    const studio = chat.parentElement === chatPane;
+    const workspaceId = studio ? assistantId : active.kind === 'gigma' ? active.id : null;
+    const references = currentReferences();
+    const first = parseProjectReference(references[0], store.project);
+    const previous = active.kind === 'empty' || (studio && !gigma.references(assistantId).length);
+    return {surface:studio ? 'workshop' : 'sidebar', view:active.kind, title:title(active),
+      project:store.project.meta.title, ...(workspaceId && {workspaceId, pageId:gigma.pageId(workspaceId)}),
+      ...(first?.kind === 'gigma' && first.workspaceId === workspaceId && {objectId:first.objectId}),
+      reference:references[0] || '', referenceSource:references.length ? previous ? 'previous-view' : 'selection' : '', references};
+  }
+  async function copyReferences(refs = null) {
+    const links = refs ? refs.map(ref => makeProjectReference(store.project, ref)).filter(Boolean) : currentReferences();
+    if (!links.length) return;
+    return copyLink(links.join('\n'));
+  }
+  async function copyLink(value) {
+    try {
+      await window.sf.clipboard.write(value);
+      ui.toast(uiText('Ссылка скопирована', 'Link copied'), 'good');
+    } catch { ui.toast(uiText('Не удалось скопировать ссылку', 'Could not copy link'), 'bad'); }
+  }
+  function referenceInfo(value) {
+    const ref = parseProjectReference(value, store.project);
+    if (!ref) return '';
+    if (ref.kind === 'node') {
+      const node = store.project.nodes.find(item => item.id === ref.id);
+      return node ? nodeTitle(node) : ref.id;
+    }
+    if (ref.kind === 'gigma') {
+      const board = projectDesigns(store.project).find(item => item.id === ref.workspaceId);
+      const canvas = board?.document?.pages?.find(item => item.id === ref.pageId);
+      return canvas?.nodes?.find(item => item.id === ref.objectId)?.name || ref.objectId;
+    }
+    return ref.end != null ? uiText('Фрагмент сценария', 'Screenplay excerpt') : uiText('Сценарий', 'Screenplay');
+  }
+  function openReference(value) {
+    const ref = parseProjectReference(value, store.project);
+    if (ref?.kind === 'node' && store.project.nodes.some(node => node.id === ref.id)) {
+      openNode(ref.id);
+      return true;
+    }
+    if (ref?.kind === 'screenplay') {
+      openScreenplay();
+      const input = $('screenplayText');
+      if (ref.end != null) input.setSelectionRange(ref.start, ref.end);
+      return true;
+    }
+    if (ref?.kind === 'gigma') {
+      const workspace = projectDesigns(store.project).find(item => item.id === ref.workspaceId);
+      const canvas = workspace?.document?.pages?.find(item => item.id === ref.pageId);
+      if (canvas?.nodes?.some(node => node.id === ref.objectId)) {
+        if (active.kind === 'assistant' && ref.workspaceId === assistantId) showPane('canvas');
+        else openDesign(ref.workspaceId);
+        gigma.reveal(ref);
+        return true;
+      }
+    }
+    ui.toast(uiText('Объект по ссылке недоступен в этом проекте.', 'The linked item is unavailable in this project.'), 'warn');
+    return false;
   }
   function openDesign(id = projectDesigns(store.project)[0].id) {
     if (!projectDesigns(store.project).some(item => item.id === id)) return;
@@ -539,6 +750,10 @@ export function createWorkbench(store, ui) {
     const body = ui.el(
       uiText("<div class=\"wb-action-list\"><button data-go=\"play\">Пройти от начала</button><button data-go=\"screenplay\">Открыть сценарий</button><button data-go=\"gigma\">Открыть Gigma Studio</button><button data-go=\"daily\">Заметка за сегодня</button><button data-go=\"overview\">Обзор сюжета</button><button data-go=\"find\">Быстрый переход</button></div>", "<div class=\"wb-action-list\"><button data-go=\"play\">Play from the start</button><button data-go=\"screenplay\">Open screenplay</button><button data-go=\"gigma\">Open Gigma Studio</button><button data-go=\"daily\">Today's note</button><button data-go=\"overview\">Story overview</button><button data-go=\"find\">Quick switcher</button></div>"),
     );
+    const studioAction = document.createElement('button');
+    studioAction.dataset.go = 'assistant';
+    studioAction.textContent = uiText('Открыть ИИ-мастерскую', 'Open AI studio');
+    body.querySelector('[data-go="gigma"]').after(studioAction);
     const m = ui.modal({ title: uiText("Действия проекта", "Project actions"), body, onClose: () => $('workspaceActions').focus() });
     body.onclick = (e) => {
       const act = e.target.closest('button')?.dataset.go;
@@ -547,6 +762,7 @@ export function createWorkbench(store, ui) {
       if (act === 'play') openPlayer();
       else if (act === 'screenplay') openScreenplay();
       else if (act === 'gigma') openDesign();
+      else if (act === 'assistant') openAssistant();
       else if (act === 'daily') daily();
       else if (act === 'overview') openOverview();
       else quickJump();
@@ -558,7 +774,10 @@ export function createWorkbench(store, ui) {
     if (b.hasAttribute('data-close-tab')) {
       const tab = tabs[Number(b.dataset.closeTab)];
       if (!tab) return;
-      if (tab.kind === 'gigma' && !await gigma.close(tab.id)) {
+      const canvasId = tab.kind === 'assistant' ? assistantId : tab.kind === 'gigma' ? tab.id : null;
+      const shared = canvasId && tabs.some(other => other !== tab && (other.kind === 'gigma' && other.id === canvasId
+        || other.kind === 'assistant' && canvasId === assistantId));
+      if (canvasId && !shared && !await gigma.close(canvasId)) {
         ui.toast(uiText("Не удалось завершить редактирование макета.", "Could not finish editing this design."), 'bad');
         return;
       }
@@ -596,8 +815,12 @@ export function createWorkbench(store, ui) {
       return;
     }
     if (evt.scope === 'gigma' || evt.type === 'project') {
+      if ((previewFrame || previewUrl) && projectDesigns(store.project).find(item => item.id === assistantId)?.document !== previewBase) {
+        clearAssistantPreview();
+      }
       gigma.sync();
-      const exists = tab => tab.kind !== 'gigma' || projectDesigns(store.project).some(item => item.id === tab.id);
+      const exists = tab => tab.kind === 'assistant' ? projectDesigns(store.project).some(item => item.id === assistantId)
+        : tab.kind !== 'gigma' || projectDesigns(store.project).some(item => item.id === tab.id);
       tabs = tabs.filter(exists);
       if (trail.some(tab => !exists(tab))) {
         cursor = Math.max(0, trail.slice(0, cursor + 1).filter(exists).length - 1);
@@ -694,6 +917,13 @@ export function createWorkbench(store, ui) {
     currentLocation,
     refreshLanguage() { issues = null; gigma.appearance(); render(); },
     flushDesigns: gigma.flushAll,
+    assistantWorkspaceId: () => assistantId,
+    previewAssistantDesign, clearAssistantPreview,
+    openAssistant, copyReferences, copyLink, openReference, referenceInfo, currentReferences, assistantContext,
+    currentReference: () => currentReferences()[0] || '',
+    leaveAssistant() {
+      activate(assistantOrigin && tabs.includes(assistantOrigin) ? assistantOrigin : tabs[0]);
+    },
     historyState,
     openNode,
     openEntity,
