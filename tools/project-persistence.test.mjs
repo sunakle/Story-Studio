@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {atomicWrite, recoveryFiles} from '../project-files.cjs';
+import {atomicWrite, recoveryFiles, saveLocalProject} from '../project-files.cjs';
 import {Store, createEmptyProject, migrateProject} from '../src/js/model.js';
 import {planProjectEdits} from '../src/js/ai-transaction.js';
 
@@ -13,6 +13,26 @@ async function fixture(t) {
   t.after(() => fs.rm(dir,{recursive:true,force:true}));
   return dir;
 }
+test('Local drafts share neither titles nor paths, and retries after a rename reuse the saved file', async t => {
+  const dir = path.join(await fixture(t), 'Projects');
+  const story = createEmptyProject();
+  const save = (key, title, text, createdAt = story.meta.createdAt) => saveLocalProject(dir, {
+    key, title, content: JSON.stringify({...story, meta:{...story.meta, title, createdAt}, screenplay:text}),
+  });
+  const title = 'CON.txt/../Глава?';
+  const [first, second] = await Promise.all([save('draft_a', title, 'A'), save('draft_b', title, 'B')]);
+  assert.notEqual(first, second);
+  assert.equal(path.dirname(first), dir);
+  assert.match(path.basename(first), /^_CON\.txt-/);
+  assert.equal(path.extname(first), '.sfproj');
+  const retried = await Promise.all([save('draft_a', 'Новое название', 'A2'), save('draft_a', 'Ещё одно имя', 'A3')]);
+  assert.deepEqual(retried, [first, first]);
+  assert.equal(JSON.parse(await fs.readFile(first, 'utf8')).screenplay, 'A3');
+  assert.equal(JSON.parse(await fs.readFile(second, 'utf8')).screenplay, 'B');
+  assert.equal((await fs.readdir(dir)).length, 2);
+  const separate = await save('draft_a', title, 'C', '2024-01-01T00:00:00.000Z');
+  assert.notEqual(separate, first);
+});
 test('A failed write keeps the previous file and cleans its temporary file',async t=>{
   const dir=await fixture(t), file=path.join(dir,'test.sfproj');
   await atomicWrite(file,'original');

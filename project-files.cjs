@@ -29,6 +29,32 @@ function scopedFile(dir, kind, key) {
   return path.join(dir, kind, hash + '.json');
 }
 
+// A draft has no chosen path yet. Keep a readable filename and a stable suffix
+// so a retry can find it even after a restart or a change of the story's title.
+function saveLocalProject(dir, { key, title, content }) {
+  if (typeof key !== 'string' || !key || typeof content !== 'string') throw new Error('Missing project data');
+  const project = JSON.parse(content);
+  if (!Array.isArray(project?.nodes)) throw new Error('Invalid StoryForge project');
+  const id = createHash('sha256').update(JSON.stringify([key, project.meta?.createdAt])).digest('hex').slice(0, 20);
+  const suffix = ' — ' + id + '.sfproj';
+  return inOrder(path.join(dir, '.draft-' + id), async () => {
+    await fs.mkdir(dir, {recursive:true});
+    const names = await fs.readdir(dir);
+    const matches = names.filter(name => name.endsWith(suffix));
+    if (matches.length > 1) throw new Error('Multiple local files match this draft');
+    let name = matches[0];
+    if (!name) {
+      let base = String(title || '').replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '-').trim()
+        .slice(0, 64).replace(/[. ]+$/u, '') || 'StoryForge';
+      if (/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(base)) base = '_' + base;
+      name = base + suffix;
+    }
+    const file = path.join(dir, name);
+    await atomicWrite(file, content);
+    return file;
+  });
+}
+
 function recoveryFiles(userDir, skipDraft = () => false) {
   const legacy = path.join(userDir, 'autosave.sfproj');
   const pathFor = key => key ? scopedFile(userDir,'recovery',key) : legacy;
@@ -65,4 +91,4 @@ function recoveryFiles(userDir, skipDraft = () => false) {
     }
   };
 }
-module.exports = {atomicWrite, scopedFile, recoveryFiles};
+module.exports = {atomicWrite, scopedFile, recoveryFiles, saveLocalProject};

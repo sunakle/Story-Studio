@@ -179,6 +179,8 @@ store.newId(prefix)                       // уникальный id
 sf.file.openDialog() -> {ok, path, content, project} | {ok:false, canceled}
 sf.file.openPath(p) -> {ok, path, content, project} | {ok:false, error}
 sf.file.save(path, content) -> {ok, path} | {ok:false, error}
+sf.file.saveLocal({key, title, content}) -> {ok, path} | {ok:false, error}
+sf.file.openLocalFolder() -> {ok} | {ok:false, error}
 sf.file.saveAs(suggestedName, content) -> {ok, path} | {ok:false, canceled}
 sf.file.recent() -> string[];  sf.file.recentAdd(p);  sf.file.recentClear()
 sf.settings.get() -> settings;  sf.settings.set(patch) -> settings

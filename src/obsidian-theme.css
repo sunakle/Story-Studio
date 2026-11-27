@@ -75,6 +75,7 @@ input, textarea { caret-color: var(--fg); }
 .sf-preferences-main .modal-section { border:0; margin:0; padding:0; background:transparent; }
 .sf-preferences-main .modal-section[hidden] { display:none; }
 .sf-preferences-main .modal-section h4 { margin:0 0 17px; color:var(--fg); font-size:18px; font-weight:600; }
+.sf-preferences-main .sf-recovery-setting { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
 .sf-preferences-main .kbd-list { max-height:min(44vh, 322px); overflow:auto; align-items:baseline; }
 .sf-preferences-main .kbd-list > span { min-width:0; }
 #aiBody .chat, #aiBody .chat-log { background:var(--obs-panel); }

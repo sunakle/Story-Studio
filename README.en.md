@@ -12,6 +12,8 @@
 2. Choose **+ → Open screenplay**. Write where the scene takes place and what the characters say. To open an existing project, press **Ctrl+O**.
 3. Choose **+ → Create line** to add your first line of dialogue. Connect it to the player’s choices in the flow editor, then start a playthrough from the selected node. **Ctrl+S** saves the whole project.
 
+StoryForge saves your work on this computer when you close the app and reopens your last project on launch. Change this under **Settings → Saving → Continue with the last project**. Choose **Open projects folder** there to find your locally created `.sfproj` files.
+
 <details>
 <summary>Windows setup and interface language</summary>
 

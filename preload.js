@@ -39,6 +39,8 @@ if (process.isMainFrame) contextBridge.exposeInMainWorld('sf', {
     openDialog: () => invoke('sf:file:openDialog'),
     openPath: (p) => invoke('sf:file:openPath', p),
     save: (path, content) => invoke('sf:file:save', { path, content }),
+    saveLocal: (payload) => invoke('sf:file:saveLocal', payload),
+    openLocalFolder: () => invoke('sf:file:openLocalFolder'),
     saveAs: (suggestedName, content) => invoke('sf:file:saveAs', { suggestedName, content }),
     recent: () => invoke('sf:file:recent'),
     recentAdd: (p) => invoke('sf:file:recentAdd', p),

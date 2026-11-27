@@ -18,12 +18,15 @@ protocol.registerSchemesAsPrivileged([{
 
 const DEV = process.argv.includes('--dev');
 const ROOT = __dirname;
-const packagedProfile = app.isPackaged && path.join(
+const persistentProfile = path.join(
   process.platform === 'win32' && process.env.LOCALAPPDATA || app.getPath('appData'),
   'StoryForge', 'User Data'
 );
+const packagedProfile = app.isPackaged && persistentProfile;
+const cliProfileArg = process.argv.find(arg => /^--user-data-dir=.+/.test(arg));
+const cliProfile = cliProfileArg && path.resolve(ROOT, cliProfileArg.slice('--user-data-dir='.length));
 if (process.platform === 'win32') app.setAppUserModelId('sunakle.StoryForge');
-const {atomicWrite, scopedFile, recoveryFiles} = require('./project-files.cjs');
+const {atomicWrite, scopedFile, recoveryFiles, saveLocalProject} = require('./project-files.cjs');
 const { createVoiceLibrary } = require('./src/native/voice-library.cjs');
 
 // ---------------------------------------------------------------- журнал
@@ -65,11 +68,10 @@ function resolveUserData() {
   // Порядок важен: сначала явные/локальные каталоги. Системный профиль
   // (%APPDATA%\StoryForge) на некоторых сборках Windows валит Chromium при старте,
   // поэтому он идёт последним — только если локальный каталог недоступен.
-  if (process.env.SF_USERDATA) candidates.push(process.env.SF_USERDATA);
   // Явный ключ --user-data-dir=... уважаем: он же задаёт каталог блокировки
   // единственного экземпляра, поэтому тестовый профиль не конфликтует с рабочим окном.
-  const argvDir = process.argv.map((a) => /^--user-data-dir=(.+)$/.exec(a)).find(Boolean);
-  if (argvDir) candidates.push(path.resolve(ROOT, argvDir[1]));
+  if (process.env.SF_USERDATA) candidates.push(process.env.SF_USERDATA);
+  if (cliProfile) candidates.push(cliProfile);
   candidates.push(packagedProfile || path.join(ROOT, '.userdata'));
   try {
     candidates.push(app.getPath('userData'));
@@ -113,6 +115,8 @@ const aborters = new Map();
 // ---------------------------------------------------------------- настройки
 
 const userDir = () => app.getPath('userData');
+// Chromium can fall back to a temporary cache. Author projects always belong to the persistent profile.
+const projectsDir = () => path.resolve(process.env.SF_USERDATA || cliProfile || persistentProfile, 'Projects');
 const settingsPath = () => path.join(userDir(), 'settings.json');
 
 const historyPath = key => key ? scopedFile(userDir(), 'history', key) : path.join(userDir(), 'ai-history.json');
@@ -125,6 +129,7 @@ const DEFAULT_SETTINGS = {
   leftVisible: true,
   rightVisible: true,
   autosave: true,
+  resumeLastProject: true,
   recent: [],
   lastPath: null,
   voiceDir: null,
@@ -214,6 +219,7 @@ let settingsCache = null;
 function getSettings() {
   if (!settingsCache) {
     settingsCache = deepMerge(DEFAULT_SETTINGS, readJsonSync(settingsPath(), {}));
+    settingsCache.resumeLastProject = settingsCache.resumeLastProject !== false;
     const ai = settingsCache.ai;
     if (ai?.preset === 'openai' && ai.model === 'gpt-4o-mini' && ai.baseUrl === 'https://api.openai.com/v1' && !ai.apiKey && !ai.extraHeaders) {
       Object.assign(ai, { preset: 'deepseek', model: DEFAULT_SETTINGS.ai.model, baseUrl: DEFAULT_SETTINGS.ai.baseUrl });
@@ -225,17 +231,25 @@ function getSettings() {
   return settingsCache;
 }
 
-async function writeSettings(patch) {
-  if (patch && 'language' in patch) patch = { ...patch, language: patch.language === 'en' ? 'en' : 'ru' };
-  const previousLanguage = getSettings().language;
-  settingsCache = deepMerge(getSettings(), patch || {});
-  if (settingsCache.language !== previousLanguage) buildMenu();
-  if (patch?.theme && process.platform === 'win32' && win && !win.isDestroyed()) {
-    win.setTitleBarOverlay(windowControls(settingsCache.theme));
-  }
-  await fsp.mkdir(userDir(), { recursive: true });
-  await atomicWrite(settingsPath(), JSON.stringify(settingsCache, null, 2));
-  return settingsCache;
+let settingsWrites = Promise.resolve();
+function writeSettings(change) {
+  const task = settingsWrites.then(async () => {
+    const previous = getSettings();
+    let patch = typeof change === 'function' ? change(previous) : change;
+    if (!patch) return previous;
+    if ('language' in patch) patch = { ...patch, language: patch.language === 'en' ? 'en' : 'ru' };
+    if ('resumeLastProject' in patch) patch = { ...patch, resumeLastProject: patch.resumeLastProject !== false };
+    const next = deepMerge(previous, patch);
+    await atomicWrite(settingsPath(), JSON.stringify(next, null, 2));
+    settingsCache = next;
+    if (next.language !== previous.language) buildMenu();
+    if (patch.theme && process.platform === 'win32' && win && !win.isDestroyed()) {
+      win.setTitleBarOverlay(windowControls(next.theme));
+    }
+    return next;
+  });
+  settingsWrites = task.catch(() => {});
+  return task;
 }
 
 // ---------------------------------------------------------------- окно
@@ -618,6 +632,23 @@ function registerFileIpc() {
   });
 
   ipcMain.handle('sf:file:recent', () => getSettings().recent || []);
+  ipcMain.handle('sf:file:saveLocal', async (_e, payload) => {
+    try {
+      const filePath = await saveLocalProject(projectsDir(), payload);
+      await pushRecent(filePath);
+      return {ok:true, path:filePath};
+    } catch (err) {
+      return {ok:false, error: `${uiText('Не удалось сохранить проект на компьютере', 'Could not save the project locally')}: ${err.message}`};
+    }
+  });
+  ipcMain.handle('sf:file:openLocalFolder', async () => {
+    try {
+      const dir = projectsDir();
+      await fsp.mkdir(dir, {recursive:true});
+      const error = await shell.openPath(dir);
+      return error ? {ok:false, error} : {ok:true};
+    } catch (err) { return {ok:false, error:err.message}; }
+  });
   ipcMain.handle('sf:file:recentAdd', async (_e, p) => {
     await pushRecent(p);
     return getSettings().recent;
@@ -631,9 +662,11 @@ function registerFileIpc() {
 
 async function pushRecent(filePath) {
   if (!filePath) return;
-  const list = (getSettings().recent || []).filter((p) => p !== filePath);
-  list.unshift(filePath);
-  await writeSettings({ recent: list.slice(0, 8), lastPath: filePath });
+  await writeSettings(settings => {
+    if (settings.lastPath === filePath && settings.recent[0] === filePath) return null;
+    const recent = [filePath, ...settings.recent.filter(p => p !== filePath)].slice(0, 8);
+    return {recent, lastPath:filePath};
+  });
 }
 
 function registerSettingsIpc() {

@@ -304,26 +304,38 @@ function scheduleValidate(delay = 350) {
 
 // ------------------------------------------------------------------ автосохранение
 
+let persistenceSettings = Promise.resolve();
+
+function resumeLastProject() {
+  return state.settings?.resumeLastProject === true;
+}
+
+function showAutosaveTime() {
+  state.lastAutosave = new Date().toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit' });
+  updateStatus();
+}
+
+async function writeRecoveryCopy() {
+  const generation = store.generation, revision = store.revision;
+  try {
+    const content = JSON.stringify(store.project, null, 2);
+    const res = await window.sf.autosave.write({content, key:store.documentKey, filePath:store.filePath});
+    if (generation !== store.generation || revision !== store.revision) return;
+    if (!res?.ok) throw new Error(res?.error || uiText("Запись автосохранения не удалась", "Autosave failed"));
+    if (!resumeLastProject()) showAutosaveTime();
+  } catch (err) {
+    toast(uiText("Не удалось записать автосохранение: ", "Could not write autosave: ") + err.message, 'warn');
+  }
+}
+
 function scheduleAutosave() {
-  if (!state.settings?.autosave) return;
   clearTimeout(state.autosaveTimer);
+  if (!store.dirty || (!resumeLastProject() && !state.settings?.autosave)) return;
   const generation = store.generation;
   state.autosaveTimer = setTimeout(async () => {
     if (generation !== store.generation || !store.dirty) return;
-    try {
-      const content = JSON.stringify(store.project, null, 2);
-      const revision = store.revision;
-      const res = await window.sf.autosave.write({content,key:store.documentKey,filePath:store.filePath});
-      if (generation !== store.generation || revision !== store.revision) return;
-      if (!res?.ok) throw new Error(res?.error || uiText("Запись автосохранения не удалась", "Autosave failed"));
-      if (res.ok) {
-        const d = new Date();
-        state.lastAutosave = d.toLocaleTimeString(getLanguage(), { hour: '2-digit', minute: '2-digit' });
-        updateStatus();
-      }
-    } catch (err) {
-      toast(uiText("Не удалось записать автосохранение: ", "Could not write autosave: ") + err.message, 'warn');
-    }
+    if (resumeLastProject() && await saveProject(false, 'background')) return;
+    if (generation === store.generation && store.dirty && state.settings?.autosave) await writeRecoveryCopy();
   }, 800);
 }
 
@@ -549,7 +561,17 @@ const ui = {
   chapterOptions() {
     return (store.project.chapters || []).map((c) => ({ id: c.id, name: c.name }));
   },
-  saveSettings(patch) {
+  async saveSettings(patch) {
+    if ('resumeLastProject' in patch || 'autosave' in patch) {
+      const write = persistenceSettings.then(async () => {
+        const saved = await window.sf.settings.set(patch);
+        state.settings = { ...state.settings, ...patch };
+        scheduleAutosave();
+        return saved;
+      });
+      persistenceSettings = write.catch(() => {});
+      return write;
+    }
     state.settings = { ...state.settings, ...patch };
     return window.sf.settings.set(patch);
   },
@@ -571,9 +593,15 @@ const ui = {
 
 // ------------------------------------------------------------------ файлы
 
-function setProject(project, { filePath = null, dirty = false, documentKey } = {}) {
+let explicitDraft = false;
+function needsLocalFile() {
+  return explicitDraft && !store.filePath && resumeLastProject();
+}
+
+function setProject(project, { filePath = null, dirty = false, documentKey, explicit = false } = {}) {
   clearTimeout(state.autosaveTimer);
   clearTimeout(state.validateTimer);
+  explicitDraft = explicit;
   state.lastAutosave = null;
   $('banner').classList.add('hidden');
   store.setProject(project, { filePath, dirty, documentKey });
@@ -594,11 +622,27 @@ async function openProject() {
 
 async function applyLoaded(res, documentKey) {
   try {
-    const raw = res.project || JSON.parse(res.content);
-    const { project, warnings } = migrateProject(raw);
+    let loaded = migrateProject(res.project || JSON.parse(res.content));
     if (!await canReplaceProject()) return false;
+    // Opening the active file can save pending edits after the picker read it.
+    if (res.path && store.filePath && res.path.toLowerCase() === store.filePath.toLowerCase()) {
+      const generation = store.generation, revision = store.revision;
+      const latest = await window.sf.file.openPath(res.path);
+      if (!latest?.ok) throw Error(latest?.error || uiText("Файл недоступен", "File is unavailable"));
+      loaded = migrateProject(latest.project || JSON.parse(latest.content));
+      if (!await flushDesigns()) return false;
+      flushEdits();
+      if (generation !== store.generation || revision !== store.revision) return false;
+    }
+    const {project, warnings} = loaded;
     setProject(project, { filePath: res.path, dirty: false, documentKey });
-    if (res.path) await window.sf.file.recentAdd(res.path);
+    if (res.path) {
+      try {
+        await window.sf.file.recentAdd(res.path);
+      } catch (err) {
+        toast(uiText("Проект открыт, но не удалось запомнить путь: ", "Project opened, but its path could not be remembered: ") + err.message, 'warn', 6000);
+      }
+    }
     if (warnings?.length) toast(`${uiText("Проект загружен с замечаниями", "Project loaded with warnings")}: ${warnings[0]}`, 'warn', 5000);
     else if (state.booted) toast(uiText("Проект открыт", "Project opened"), 'good');
     ui.graph?.showStart();
@@ -614,23 +658,36 @@ async function flushDesigns() {
   toast(uiText("Gigma Studio не подтвердила изменения. Повторите действие.", "Gigma Studio could not confirm the latest edits. Try again."), 'bad');
   return false;
 }
-function saveProject(saveAs = false) {
-  flushEdits();
+function saveProject(saveAs = false, mode = 'manual') {
+  if (mode !== 'background') flushEdits();
   const generation = store.generation;
-  const run = saving.then(() => generation === store.generation && writeCurrentProject(saveAs));
-  saving = run.catch(() => false);
-  return run;
+  saving = saving.then(async () => {
+    await persistenceSettings;
+    if (generation !== store.generation) return false;
+    if (mode === 'background' && (!resumeLastProject() || !store.dirty)) return true;
+    return writeCurrentProject(saveAs, mode);
+  }).catch(err => {
+    toast(uiText("Не удалось сохранить проект: ", "Could not save project: ") + err.message, 'bad', 6000);
+    return false;
+  });
+  return saving;
 }
-async function writeCurrentProject(saveAs) {
+async function writeCurrentProject(saveAs, mode) {
   const originalGeneration = store.generation;
-  if (!await flushDesigns() || originalGeneration !== store.generation) return false;
-  flushEdits();
+  // The background writer snapshots committed model edits. Flushing an active
+  // Gigma field would blur it and interrupt typing on every timer tick.
+  if (mode !== 'background') {
+    if (!await flushDesigns() || originalGeneration !== store.generation) return false;
+    flushEdits();
+  }
   const generation = store.generation;
   const revision = store.revision;
   const recoveryKey = store.documentKey;
   const content = JSON.stringify(store.project, null, 2);
   let res;
-  if (saveAs || !store.filePath) {
+  if (!store.filePath && !saveAs && resumeLastProject()) {
+    res = await window.sf.file.saveLocal({key:recoveryKey, title:store.project.meta.title, content});
+  } else if (saveAs || !store.filePath) {
     const suggested = `${(store.project.meta?.title || 'project').replace(/[\\/:*?"<>|]/g, '-')}.sfproj`;
     res = await window.sf.file.saveAs(suggested, content);
   } else {
@@ -640,7 +697,7 @@ async function writeCurrentProject(saveAs) {
     if (res?.error) toast(res.error, 'bad', 6000);
     return false;
   }
-  flushEdits();
+  if (mode !== 'background') flushEdits();
   if (generation !== store.generation) return false;
   store.markSaved(res.path, revision);
   store.documentKey = res.path;
@@ -648,25 +705,32 @@ async function writeCurrentProject(saveAs) {
   window.sf.app.setDirty(store.dirty);
   if (store.dirty) {
     scheduleAutosave();
-    toast(uiText("Файл записан. Есть более свежие правки.", "File saved. Newer edits are pending."), 'info');
+    if (mode === 'manual') toast(uiText("Файл записан. Есть более свежие правки.", "File saved. Newer edits are pending."), 'info');
     return false;
   }
   clearTimeout(state.autosaveTimer);
   await window.sf.autosave.clear(recoveryKey);
   if (recoveryKey !== res.path) await window.sf.autosave.clear(res.path);
   updateStatus();
-  flushEdits();
+  if (mode !== 'background') flushEdits();
   if (generation !== store.generation || revision !== store.revision) return false;
-  toast(uiText("Сохранено", "Saved"), 'good');
+  if (mode === 'manual') toast(uiText("Сохранено", "Saved"), 'good');
+  else showAutosaveTime();
   return true;
 }
 
 let askingToReplace = false;
 async function canReplaceProject() {
   const originalGeneration = store.generation;
+  await Promise.all([persistenceSettings, saving]);
   if (!await flushDesigns() || originalGeneration !== store.generation) return false;
   flushEdits();
-  if (!store.dirty) return true;
+  if (!store.dirty && !needsLocalFile()) return true;
+  if (resumeLastProject()) {
+    if (!await saveProject(false, 'quiet') || !await flushDesigns()) return false;
+    flushEdits();
+    return originalGeneration === store.generation && !store.dirty;
+  }
   const generation = store.generation, revision = store.revision;
   if (askingToReplace) return false;
   askingToReplace = true;
@@ -696,7 +760,7 @@ async function canReplaceProject() {
 }
 async function newProject() {
   if (!await canReplaceProject()) return;
-  setProject(createEmptyProject(), { filePath: null, dirty: false });
+  setProject(createEmptyProject(), { explicit:true });
   ui.graph?.showStart();
   toast(uiText("Создан новый проект", "New project created"), 'good');
 }
@@ -805,8 +869,13 @@ function openSettings(initialSection = 'appearance') {
       </div>
       <div class="modal-section" id="pref-save">
         <h4>${uiText("Сохранение", "Saving")}</h4>
-        <label class="checkbox"><input type="checkbox" id="setAutosave" /> ${uiText("Автосохранение каждые 800 мс после правки", "Autosave 800 ms after each edit")}</label>
-        <p class="hint-text">${uiText("Копия хранится в служебной папке приложения и предлагается к восстановлению при запуске", "A recovery copy is stored in the app’s data folder and offered when you start the app")}.</p>
+        <label class="checkbox"><input type="checkbox" id="setResumeLastProject" aria-describedby="resumeProjectHint" /> ${uiText("Продолжать с последнего проекта", "Continue with the last project")}</label>
+        <p class="hint-text" id="resumeProjectHint">${uiText("StoryForge сохраняет изменения на этом компьютере и открывает проект при следующем запуске. Новые проекты хранятся в папке Projects, а открытые файлы — там, где вы их выбрали.", "StoryForge saves changes on this computer and reopens your project the next time you start. New projects go in the Projects folder. Files you open are saved in their original location.")}</p>
+        <button type="button" class="btn btn-sm" id="openLocalProjects">${icon('folder', 14)} ${uiText("Открыть папку проектов", "Open projects folder")}</button>
+        <div class="sf-recovery-setting">
+          <label class="checkbox"><input type="checkbox" id="setAutosave" aria-describedby="recoveryCopyHint" /> ${uiText("Хранить копию для восстановления", "Keep a recovery copy")}</label>
+          <p class="hint-text" id="recoveryCopyHint">${uiText("Помогает вернуть последние правки после неожиданного закрытия приложения.", "Helps recover recent edits if the app closes unexpectedly.")}</p>
+        </div>
       </div>
       <div class="modal-section" id="pref-ai">
         <h4>${uiText("AI-ассистент", "AI assistant")}</h4>
@@ -859,13 +928,37 @@ function openSettings(initialSection = 'appearance') {
     saved.catch(() => toast(uiText('Не удалось сохранить язык интерфейса', 'Could not save language preference'), 'warn'));
   });
   body.querySelector('#setTheme').value = s.theme || 'dark';
-  body.querySelector('#setAutosave').checked = !!s.autosave;
   body.querySelector('#setTheme').addEventListener('change', (e) => {
     applyTheme(e.target.value);
     ui.saveSettings({ theme: e.target.value });
   });
-  body.querySelector('#setAutosave').addEventListener('change', (e) => {
-    ui.saveSettings({ autosave: !!e.target.checked });
+  function bindSaveOption(id, key, enabled) {
+    const input = body.querySelector(id);
+    input.checked = enabled;
+    input.addEventListener('change', async () => {
+      const next = input.checked;
+      input.disabled = true;
+      try {
+        await ui.saveSettings({ [key]: next });
+      } catch {
+        input.checked = !next;
+        toast(uiText("Не удалось сохранить настройку.", "Could not save the setting."), 'bad');
+      } finally {
+        input.disabled = false;
+      }
+    });
+  }
+  bindSaveOption('#setResumeLastProject', 'resumeLastProject', s.resumeLastProject !== false);
+  bindSaveOption('#setAutosave', 'autosave', !!s.autosave);
+  const openFolder = body.querySelector('#openLocalProjects');
+  openFolder.hidden = typeof window.sf.file.openLocalFolder !== 'function';
+  openFolder.addEventListener('click', async () => {
+    try {
+      const result = await window.sf.file.openLocalFolder();
+      if (!result?.ok) throw new Error(result?.error);
+    } catch (error) {
+      toast(error.message || uiText("Не удалось открыть папку проектов.", "Could not open the projects folder."), 'bad');
+    }
   });
   body.querySelector('#setAiBtn').addEventListener('click', () => {
     dialog.close();
@@ -925,20 +1018,21 @@ async function requestWindowClose() {
   ui.dictation?.stop();
   closeRequested = true;
   try {
-    await saving;
+    await Promise.all([persistenceSettings, saving]);
     if (!await flushDesigns()) return;
     flushEdits();
-    if (store.dirty) {
+    if (store.dirty || needsLocalFile()) {
       const generation = store.generation, revision = store.revision;
-      const choice = await askBeforeClosing(store.project.meta?.title);
+      const choice = resumeLastProject() ? 'save' : await askBeforeClosing(store.project.meta?.title);
       flushEdits();
       if (generation !== store.generation || revision !== store.revision || choice === 'cancel') return;
       if (choice === 'save') {
-        if (!await saveProject(false)) return;
+        if (!await saveProject(false, 'quiet')) return;
       } else {
         clearTimeout(state.autosaveTimer);
         await window.sf.autosave.clear(store.documentKey);
       }
+      if (!await flushDesigns()) return;
       flushEdits();
       if (generation !== store.generation || revision !== store.revision) return;
     }
@@ -1514,14 +1608,13 @@ async function restoreAutosave() {
 }
 async function loadInitialProject() {
   const auto = await window.sf.autosave.read();
-  const recent = await window.sf.file.recent();
-  const candidates = new Set([state.settings.lastPath, ...recent].filter(Boolean));
   let loaded = false;
-  for (const filePath of candidates) {
-    const res = await window.sf.file.openPath(filePath);
-    if (res?.ok && await applyLoaded(res)) {
-      loaded = true;
-      break;
+  if (resumeLastProject()) {
+    const lastPath = state.settings.lastPath || (await window.sf.file.recent())[0];
+    if (lastPath) {
+      const res = await window.sf.file.openPath(lastPath);
+      if (res?.ok) loaded = await applyLoaded(res);
+      else toast(res?.error || uiText("Последний проект недоступен", "The last project is unavailable"), 'warn', 6000);
     }
   }
   if (!loaded) setProject(createEmptyProject());

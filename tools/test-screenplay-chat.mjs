@@ -80,7 +80,9 @@ const server = http.createServer(async (request, response) => {
 
 // These functions run inside the real StoryForge renderer through its existing self-test hook.
 async function writeInApp({ original, revised, done, internal, capture }) {
-  const { store } = window.__sfTest;
+  const { store, ui } = window.__sfTest;
+  // After resuming the fixture, exercise the recovery-copy and explicit Ctrl+S workflow.
+  await ui.saveSettings({resumeLastProject:false});
   const query = selector => document.querySelector(selector);
   const key = (letter, shiftKey = false) => document.dispatchEvent(new KeyboardEvent('keydown', { key: letter, ctrlKey: true, shiftKey, bubbles: true, cancelable: true }));
   async function waitFor(check, label) {

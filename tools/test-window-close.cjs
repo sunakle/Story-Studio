@@ -16,9 +16,10 @@ if (!process.versions.electron) {
   for (const scenario of ['save', 'discard', 'clean']) {
     const profile = path.join(output, scenario);
     fs.mkdirSync(profile);
-    if (scenario === 'discard') {
-      fs.writeFileSync(path.join(profile, 'settings.json'), JSON.stringify({ language: 'en', theme: 'light' }));
-    }
+    fs.writeFileSync(path.join(profile, 'settings.json'), JSON.stringify({
+      resumeLastProject: false, language: scenario === 'discard' ? 'en' : 'ru',
+      theme: scenario === 'discard' ? 'light' : 'dark',
+    }));
     const env = { ...process.env, SF_USERDATA: profile, SF_TEST_OUTPUT: profile, SF_CLOSE_SCENARIO: scenario };
     delete env.ELECTRON_RUN_AS_NODE;
     const run = spawnSync(electron, ['--no-sandbox', '--user-data-dir=' + profile, __filename, '--selftest', '--selftest-file=' + idleTest],
