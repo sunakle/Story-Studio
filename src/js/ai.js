@@ -27,7 +27,7 @@ import { writingSkillPrompt, writingSkillsSettingsHTML, wireWritingSkillSources 
 import { CHAT_IMAGE_LIMIT, CHAT_IMAGE_CONTEXT_CHARS, prepareChatImage, imageStrip,
   imageEndpoint, imageRejection, turnCost, userMessageContent, validChatImage, visionUnavailable } from './chat-images.js';
 import { coauthors, draftTogether, readTeamFields, teamFields, teamTranscript, withDrafts } from './writing-team.js';
-import { planProjectEdits } from './ai-transaction.js';
+import { planProjectEdits, same } from './ai-transaction.js';
 import { composerPhotos, choosePhotoPlacement, placeComposerPhoto } from './chat-photo-canvas.js';
 import { createComposerDrafts } from './composer-draft.js';
 import { registerProjectTools } from './ai-project-tools.js';
@@ -54,6 +54,14 @@ function selectedWorkshopPhoto(project, origin) {
   const doc = projectDesigns(project).find(w => w.id === origin.workspaceId)?.document;
   const page = doc?.pages?.find(p => p.id === (origin.pageId || doc.activePageId));
   return page?.nodes?.some(n => n.id === origin.objectId && n.kind === 'image') === true;
+}
+
+function workshopView(project, context) {
+  if (context?.surface !== 'workshop') return null;
+  const doc = projectDesigns(project).find(item => item.id === context.workspaceId)?.document;
+  const page = doc?.pages.find(item => item.id === (context.pageId || doc.activePageId));
+  return {pageId:page?.id, view:page?.view && {...page.view},
+    objectId:context.referenceSource === 'previous-view' ? undefined : context.objectId};
 }
 const storyOperations = ['createNode', 'updateNode', 'deleteNode', 'connect', 'disconnect', 'setChoices', 'setBranches', 'setEffects', 'setPositions', 'createCharacter', 'updateCharacter', 'deleteCharacter', 'createLocation', 'updateLocation', 'deleteLocation', 'createVariable', 'updateVariable', 'deleteVariable', 'createChapter', 'updateChapter', 'deleteChapter', 'setStart', 'setMeta'];
 const autoTools = new Set(['get_project_overview','get_screenplay','get_artwork','edit_artwork','resolve_project_reference','place_project_image','generate_project_image','list_project_media','get_node','get_nodes','search_nodes','list_nodes','list_characters','list_locations','get_character','get_location','list_chapters','get_stats']);
@@ -1236,6 +1244,7 @@ export function createAI({ root, store, ui }) {
       return;
     }
     let finish;
+    const initialView = workshopView(store.project, origin);
     const request = { plan: planProjectEdits(store), settings, selection, autonomous:automatic, cancelled:false, saveAfter:false,
       finished:new Promise(resolve => { finish = resolve; }), errors:new Map() };
     active = request;
@@ -1318,10 +1327,13 @@ export function createAI({ root, store, ui }) {
       ui.flushEdits?.();
       if (request.graphError) throw new Error(uiText('Схема не собрана. Пакет отменён. ', 'The graph could not be built. Edits were discarded. ') + request.graphError);
       if (request.errors.size) throw new Error(uiText('Правки отменены. ', 'Changes discarded. ') + [...request.errors.values()].join(' '));
+      // Auto-framing an updated layer should not undo navigation during a slow reply.
+      const revealAnimation = request.animatedLayer && same(initialView,
+        workshopView(store.project, ui.workbench?.assistantContext?.()));
       request.plan.commit('AI: ' + short(content, 40));
       committed = true;
       const animated = request.animatedLayer;
-      if (animated && origin.surface === 'workshop' && current() && ui.workbench?.current?.() === 'assistant'
+      if (animated && revealAnimation && origin.surface === 'workshop' && current() && ui.workbench?.current?.() === 'assistant'
           && ui.workbench.navigationRevision?.() === viewRevision) {
         const design = store.project.gigmaWorkspaces.find(item => item.id === animated.workspaceId)?.document;
         const page = design?.pages.find(p => p.nodes.some(layer => layer.id === animated.objectId && layer.animation));

@@ -24,6 +24,46 @@ function fixture(rounds, overrides = {}) {
   return {store,app,bodies,art,history,revealed};
 }
 
+test('a two-step animation edit keeps concurrent camera, workspace name and unrelated layers through undo', async () => {
+  const workspaceId = 'gg_assistant';
+  let objectId, pageId, secondPageId, otherId, beforeRevision;
+  const {store,app} = fixture(i => {
+    if (!i) return call('get_artwork',{workspaceId,pageId,objectId});
+    if (i === 1) return call('edit_artwork',{action:'animate',workspaceId,pageId,objectId,animation:{type:'bounce',durationMs:800}});
+    if (i === 2) return call('edit_artwork',{action:'update',workspaceId,pageId,objectId,animation:{type:'bounce',squashX:.25}});
+    const added = planArtworkEdit(store.project,{action:'create',workspaceId,pageId,kind:'rect',name:'Manual'});
+    otherId = added.objectIds[0];
+    store.apply(added.ops);
+    const doc = structuredClone(store.project.gigmaWorkspaces.find(w => w.id === workspaceId).document);
+    doc.pages.find(p => p.id === pageId).view = {x:61,y:-27,zoom:.44};
+    doc.activePageId = secondPageId;
+    beforeRevision = ++doc.revision;
+    store.apply({op:'updateGigmaWorkspace',id:workspaceId,name:'Author workspace',document:doc});
+    return {ok:true,content:'Done'};
+  });
+  const photo = planArtworkEdit(store.project,{action:'create',workspaceId,kind:'image',imageData:png,name:'Photo'});
+  store.apply(photo.ops);
+  [objectId] = photo.objectIds; pageId = photo.pageId;
+  const next = planArtworkEdit(store.project,{action:'createPage',workspaceId,name:'Next'});
+  store.apply(next.ops); secondPageId = next.pageId;
+  const initial = structuredClone(store.project.gigmaWorkspaces.find(w => w.id === workspaceId).document);
+  initial.activePageId = pageId;
+  store.apply({op:'updateGigmaWorkspace',id:workspaceId,document:initial});
+  const completed = await app.send('Edit the photo');
+  assert.equal(completed.error,null);
+  for (const afterUndo of [false,true]) {
+    if (afterUndo) assert.equal(store.undo().ok,true);
+    const workspace = store.project.gigmaWorkspaces.find(w => w.id === workspaceId);
+    const page = workspace.document.pages.find(p => p.id === pageId);
+    assert.equal(workspace.name,'Author workspace');
+    assert.equal(workspace.document.activePageId,secondPageId);
+    assert.deepEqual(page.view,{x:61,y:-27,zoom:.44});
+    assert.equal(page.nodes.find(n => n.id === otherId).name,'Manual');
+    assert.deepEqual(page.nodes.find(n => n.id === objectId).animation,afterUndo ? undefined : {type:'bounce',durationMs:800,squashX:.25});
+    if (!afterUndo) assert.ok(workspace.document.revision > beforeRevision);
+  }
+});
+
 test('a follow-up reuses valid history around a malformed legacy tool exchange and a blank reply', async () => {
   const {store,app,history,bodies} = fixture(() => ({ok:true,content:'Updated.'}));
   const original = [

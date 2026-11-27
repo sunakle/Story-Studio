@@ -104,7 +104,7 @@ export function createGigmaHost(store, ui, stage) {
       entry.pending = null;
       finish(ok);
     }};
-    post(entry, 'flush', {requestId});
+    post(entry, 'flush', {requestId, documentId:entry.model?.id, revision:entry.model?.revision});
     return promise;
   }
 
@@ -166,7 +166,10 @@ export function createGigmaHost(store, ui, stage) {
         capture(entry, data.document);
         break;
       case 'flushed':
-        if (entry.pending && entry.pending.requestId === data.requestId) entry.pending.finish(capture(entry, data.document));
+        if (entry.pending && entry.pending.requestId === data.requestId) {
+          const unchanged = entry.model != null && data.documentId === entry.model.id && data.revision === entry.model.revision;
+          entry.pending.finish(data.document ? capture(entry, data.document) : unchanged);
+        }
         break;
       case 'save':
         if (active(entry)) ui.saveProject(data.saveAs === true);

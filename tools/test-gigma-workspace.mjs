@@ -247,6 +247,9 @@ try {
   const primary = structuredClone(workspace);
   primary.name = 'Старый макет';
   primary.document.pages[0].nodes[1].name = 'Луна';
+  // Merely flushing an older document must not write the iframe's normalized
+  // representation back to the project or silently delete an unfamiliar field.
+  primary.document.pages[0].nodes[1].legacyAnnotation = 'keep on an untouched canvas';
   const legacy = createEmptyProject({meta:{title:'Обратный рейс'},screenplay:'Глава о возвращении.',
     gigmaWorkspaces:[primary,{id:'legacy-extra', name:secondTitle, document:{...source,name:secondTitle}}]});
   await fs.writeFile(legacyStory, JSON.stringify(legacy));

@@ -92,7 +92,11 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
   }
   async function edit(args) {
     const input = Object.fromEntries(Object.entries(resolveArt(args)).filter(([,value]) => value !== undefined));
-    observeArtwork(input.workspaceId);
+    const animationEdit = input.objectId && (input.action === 'animate' ||
+      (input.action === 'update' && Object.hasOwn(input,'animation') &&
+        Object.keys(input).every(k => ['workspaceId','pageId','objectId','action','animation'].includes(k))));
+    if (animationEdit) active().plan.observeLayer(input.workspaceId,input.objectId);
+    else observeArtwork(input.workspaceId);
     if (input.targetWorkspaceId) observeArtwork(input.targetWorkspaceId);
     const automatic = active().autonomous;
     const copyingIn = input.action === 'copy' && input.targetWorkspaceId === workshop();
@@ -124,6 +128,9 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
         }
         return old.activePageId !== next.activePageId || !same(old.pages,next.pages);
       });
+    }
+    if (animationEdit) for (const op of changes) {
+      if (op.op === 'updateGigmaWorkspace') active().plan.trackAnimation(op,input.objectId);
     }
     if (changes.length) stageOrFail(changes);
     const changed = project().gigmaWorkspaces?.find(w => w.id === workshop());
@@ -181,7 +188,8 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
     pageOffset:number('Page metadata start'),workspaceOffset:number('Workspace metadata start'),
   }), args => {
     const ids = resolveArt(args);
-    observeArtwork(ids.workspaceId);
+    if (ids.objectId) active().plan.observeLayer(ids.workspaceId,ids.objectId);
+    else observeArtwork(ids.workspaceId);
     return readArt(ids);
   });
   define('edit_artwork','Create, edit, animate, copy or move native Gigma objects. Default output is the AI workshop. Use targetWorkspaceId / targetPageId to transfer between canvases. Set animation to null to remove it. Use place_project_image for real images.', object(drawing,['action']), args => {
@@ -201,7 +209,8 @@ export function registerProjectTools({ tool, project, active, stage, ui, recordF
       return {kind:ref.kind,node:recordForChat(node)};
     }
     if (ref.kind === 'gigma') {
-      observeArtwork(ref.workspaceId);
+      if (ref.objectId) active().plan.observeLayer(ref.workspaceId,ref.objectId);
+      else observeArtwork(ref.workspaceId);
       return readArt({...ref,offset});
     }
     active().plan.observe('screenplay');

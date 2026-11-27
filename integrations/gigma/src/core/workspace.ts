@@ -135,7 +135,13 @@ export function bindWorkspace(
               ),
             );
           sendEdit();
-          post("flushed", { requestId: msg.requestId, document });
+          // open() normalizes the document. Only an actual edit increments its
+          // revision; an untouched canvas must not overwrite the stored source.
+          const unchanged = document.id === msg.documentId && document.revision === msg.revision;
+          post("flushed", {
+            requestId: msg.requestId,
+            ...(unchanged ? { documentId: document.id, revision: document.revision } : { document }),
+          });
         } else if (msg.type === "storyforge:gigma-appearance") {
           appearance(msg);
         } else if (msg.type === "storyforge:gigma-reveal" && typeof msg.pageId === "string") {
