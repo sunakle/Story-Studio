@@ -46,8 +46,14 @@ const MAX_HISTORY_CHARS = 90000;
 const photoTools = new Set(['get_artwork','edit_artwork','place_project_image','resolve_project_reference','list_project_media','expand_project_tools']);
 function simplePhotoTask(content) {
   if (content.length > 220 || /[?;\n]|сценар|реплик|узел|нод[уы]|screenplay|dialogue|\bnode\b/iu.test(content)) return false;
-  return /(?:анимир|подпрыг|прыга|\bbounc(?:e|ing)\b|\banimate\b)/iu.test(content) ||
+  return /(?:анимир|анимаци|подпрыг|прыга|прыж|отскок|\bbounc(?:e|ing)\b|\banimat(?:e|ion)\b|\bsquash\b)/iu.test(content) ||
     /(?:размести|помести|вставь|добавь|\bplace\b|\binsert\b|\badd\b).{0,65}(?:холст|canvas)/iu.test(content);
+}
+function selectedWorkshopPhoto(project, origin) {
+  if (origin.surface !== 'workshop' || !origin.objectId || origin.referenceSource === 'previous-view') return false;
+  const doc = projectDesigns(project).find(w => w.id === origin.workspaceId)?.document;
+  const page = doc?.pages?.find(p => p.id === (origin.pageId || doc.activePageId));
+  return page?.nodes?.some(n => n.id === origin.objectId && n.kind === 'image') === true;
 }
 const storyOperations = ['createNode', 'updateNode', 'deleteNode', 'connect', 'disconnect', 'setChoices', 'setBranches', 'setEffects', 'setPositions', 'createCharacter', 'updateCharacter', 'deleteCharacter', 'createLocation', 'updateLocation', 'deleteLocation', 'createVariable', 'updateVariable', 'deleteVariable', 'createChapter', 'updateChapter', 'deleteChapter', 'setStart', 'setMeta'];
 const autoTools = new Set(['get_project_overview','get_screenplay','get_artwork','edit_artwork','resolve_project_reference','place_project_image','generate_project_image','list_project_media','get_node','get_nodes','search_nodes','list_nodes','list_characters','list_locations','get_character','get_location','list_chapters','get_stats']);
@@ -126,6 +132,45 @@ const short = (s, n = 90) => {
   const flat = String(s ?? '').replace(/\s+/g, ' ').trim();
   return flat.length > n ? `${flat.slice(0, n)}…` : flat;
 };
+
+function validToolBatch(calls) {
+  if (!Array.isArray(calls) || !calls.length) return false;
+  const ids = new Set();
+  for (const call of calls) {
+    if (!call || typeof call.id !== 'string' || !call.id || ids.has(call.id) ||
+        typeof call.name !== 'string' || !call.name || typeof call.arguments !== 'string') return false;
+    try {
+      const input = JSON.parse(call.arguments);
+      if (!input || typeof input !== 'object' || Array.isArray(input)) return false;
+    } catch { return false; }
+    ids.add(call.id);
+  }
+  return true;
+}
+
+// Older histories can contain a complete-looking tool exchange with truncated
+// arguments. Only replay intact exchanges. Keep the author's text and later
+// replies, including layer references that are needed for a follow-up edit.
+function replayTurn(turn) {
+  const messages = [];
+  for (let i = 0; i < turn.length; i++) {
+    const message = turn[i];
+    if (message.role === 'user') messages.push(message);
+    if (message.role !== 'assistant') continue;
+    if (!message.toolCalls?.length) {
+      if (message.content) messages.push(message);
+      continue;
+    }
+    const results = [];
+    while (turn[i + 1]?.role === 'tool') results.push(turn[++i]);
+    if (!validToolBatch(message.toolCalls)) continue;
+    const pending = new Set(message.toolCalls.map(call => call.id));
+    if (results.every(result => pending.delete(result.toolCallId)) && !pending.size) {
+      messages.push(message, ...results);
+    }
+  }
+  return messages;
+}
 
 export function createAI({ root, store, ui }) {
   const esc = (s) => ui.escapeHTML(s);
@@ -1019,7 +1064,7 @@ export function createAI({ root, store, ui }) {
     });
   }
 
-  async function callModel(apiMessages, { onDelta, settings: s = active?.settings || aiSettings(), withTools = true } = {}) {
+  async function callModel(apiMessages, { onDelta, settings: s = active?.settings || aiSettings(), withTools = true, stream = true } = {}) {
     const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     pendingCalls.add(requestId);
     let streamed = '';
@@ -1039,7 +1084,7 @@ export function createAI({ root, store, ui }) {
       messages: apiMessages,
       temperature: s.temperature,
       max_tokens: s.maxTokens,
-      stream: true,
+      stream,
       ...(withTools && {
         tools: TOOLS.filter(t => allowedTool(t.name) && (active?.photoPalette ? photoTools.has(t.name) : t.name !== 'expand_project_tools'))
           .map((t) => ({ type: 'function', function: { name: t.name, description: t.description(), parameters: t.parameters() } })),
@@ -1065,9 +1110,15 @@ export function createAI({ root, store, ui }) {
             : uiText('Сервис модели временно недоступен.', 'The model service is temporarily unavailable.');
           return {ok:false,status,error:`HTTP ${status}. ${reason} ` + uiText('Повторите отправку через минуту.', 'Try sending again in a minute.')};
         }
-        return { ok:false,status,error:msg };
+        return { ok:false,status,code:res?.code,error:msg };
       }
-      return { ok: true, content: res.content || streamed || '', toolCalls: res.toolCalls || [], usage: res.usage || null,
+      const content = res.content || streamed || '';
+      const toolCalls = res.toolCalls || [];
+      if (toolCalls.length && !validToolBatch(toolCalls)) return {ok:false,code:'INVALID_AI_TOOL_ARGUMENTS',
+        error:uiText('Модель вернула неполную команду. Повторите отправку.', 'The model returned an incomplete tool call. Try sending again.')};
+      if (!toolCalls.length && !content.trim()) return {ok:false,code:'EMPTY_AI_RESPONSE',
+        error:uiText('Модель вернула пустой ответ. Повторите отправку.', 'The model returned an empty reply. Try sending again.')};
+      return { ok: true, content, toolCalls, usage: res.usage || null,
         ...(typeof res.reasoningContent === 'string' && { continuation: { provider: providerKey(s), value: res.reasoningContent } }) };
     } catch (e) {
       return { ok: false, error: String(e?.message || e) };
@@ -1095,18 +1146,7 @@ export function createAI({ root, store, ui }) {
       if (m.role === 'user') turns.push([]);
       if (turns.length && !m.live) turns.at(-1).push(m);
     }
-    // Keep complete user turns and tool exchanges. Discard malformed legacy
-    // turns (old versions sometimes overwrote an earlier tool-call list).
-    const valid = turns.filter(turn => {
-      const pending = new Set();
-      for (const m of turn) {
-        if (m.role === 'assistant') {
-          if (pending.size) return false;
-          for (const c of m.toolCalls || []) pending.add(c.id);
-        } else if (m.role === 'tool' && !pending.delete(m.toolCallId)) return false;
-      }
-      return !pending.size;
-    });
+    const valid = turns.map(replayTurn);
     const tail = [];
     let budget = MAX_HISTORY_CHARS;
     let pictureBudget = CHAT_IMAGE_CONTEXT_CHARS;
@@ -1203,7 +1243,7 @@ export function createAI({ root, store, ui }) {
     state.error = null;
     state.lastStep = 0;
     const userMessage = { role: 'user', content, origin };
-    request.photoPalette = !automatic && pictures.length > 0 && simplePhotoTask(content);
+    request.photoPalette = !automatic && simplePhotoTask(content) && (pictures.length > 0 || selectedWorkshopPhoto(store.project, origin));
     if (localAttachments) userMessage.localAttachments = true;
     if (pictures.length) Object.assign(userMessage, { images: pictures, imageEndpoint: imageEndpoint(aiSettings()) });
     if (team.length) userMessage.team = team;
@@ -1213,6 +1253,7 @@ export function createAI({ root, store, ui }) {
     if (fromComposer) { state.inputDraft = ''; state.images = []; }
     state.streaming = true;
     let committed = false;
+    let retried = false;
     let liveMsg;
     try {
       if (team.length) {
@@ -1228,13 +1269,25 @@ export function createAI({ root, store, ui }) {
         state.messages.push(liveMsg);
         render();
         const apiMessages = buildApiMessages();
-        const res = await callModel(apiMessages, {
+        const options = {
           onDelta: (delta, full) => {
             if (!current()) return;
             liveMsg.content = full;
             updateStreamingBubble(full);
           },
-        });
+        };
+        let res = await callModel(apiMessages, options);
+        // Retry the failed model response from the same checkpoint. Earlier
+        // tools already have results in the conversation and stay staged once.
+        if (current() && !automatic && !retried && !res.ok &&
+            ['INCOMPLETE_AI_STREAM','INVALID_AI_TOOL_ARGUMENTS','AI_OUTPUT_LIMIT','EMPTY_AI_RESPONSE'].includes(res.code)) {
+          retried = true;
+          liveMsg.content = '';
+          render();
+          const [system, ...context] = apiMessages;
+          const reminder = '\nThe previous response for this step was incomplete and was discarded. Continue from the tool results already in this conversation. Give a brief answer or one complete tool call with a small JSON object. Split large changes across calls.';
+          res = await callModel([{...system,content:system.content + reminder}, ...context], {...options,stream:false});
+        }
         if (!current()) return;
         if (!res.ok) {
           request.status = res.status;

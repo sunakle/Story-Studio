@@ -87,6 +87,7 @@ function setAppearance(n, args) {
   }
   if (Object.hasOwn(args, 'animation')) {
     if (args.animation === null) delete n.animation;
+    else if (n.animation && n.animation.type === args.animation?.type) n.animation = {...n.animation, ...args.animation};
     else n.animation = args.animation;
   }
 }

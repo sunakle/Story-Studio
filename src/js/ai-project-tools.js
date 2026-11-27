@@ -23,6 +23,7 @@ const destination = {
 };
 const animation = object({
   type:choices('fade','pulse','slide','rotate','bounce'), durationMs:number('100..60000'), delayMs:number('0..60000'), loop:bool,
+  squashX:{type:'number', minimum:0, maximum:0.8, description:'Bounce only. Fraction of the width to squeeze at the top of the jump, e.g. 0.25 for 25%. Zero keeps the original width.'},
 }, ['type']);
 const drawing = {
   ...artIds, action:choices('createPage','renamePage','deletePage','create','update','move','copy','delete','animate'),

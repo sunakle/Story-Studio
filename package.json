@@ -1,7 +1,7 @@
 {
   "name": "storyforge",
   "productName": "StoryForge",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "StoryForge — редактор сценария для игр: ветвящиеся диалоги, персонажи, локации, AI-ассистент, экспорт в Godot",
   "main": "main.js",
   "scripts": {
@@ -22,7 +22,8 @@
     "test:ai-studio": "node tools/test-ai-workspace.mjs",
     "test:ai-providers": "node tools/test-provider-bridge.mjs",
     "test:ai-autonomy": "node tools/test-autonomous-studio.mjs",
-    "test:chat-photo": "node tools/test-chat-photo-canvas.mjs"
+    "test:chat-photo": "node tools/test-chat-photo-canvas.mjs",
+    "test:workshop-followup": "node tools/test-workshop-followup.mjs"
   },
   "author": "",
   "license": "MIT",

@@ -78,6 +78,7 @@ test('bad paint, invalid animations, locked layers and forbidden deletion leave 
   for (const invalid of [
     { action: 'update', fill: 'url(https://example.test)' },
     { action: 'animate', animation: { type: 'slide', durationMs: 1 } },
+    { action: 'animate', animation: { type: 'bounce', squashX: 1.5 } },
     { action: 'animate', animation: { type: 'spin' } },
     { action: 'delete' }, { action: 'deletePage' },
   ]) {
@@ -108,6 +109,8 @@ test('a photo can bounce after reopen, change timing, or return to a still image
   edit(p, { action:'animate', objectId:id, animation:motion });
   const { project } = migrateProject(JSON.parse(JSON.stringify(p)));
   assert.deepEqual(node(project,id).animation,motion);
+  edit(project, { action:'animate', objectId:id, animation:{ type:'bounce', squashX:0.25 } });
+  assert.deepEqual(node(project,id).animation, { ...motion, squashX:0.25 });
   edit(project, { action:'animate', objectId:id, animation:{ ...motion, loop:false, durationMs:450 } });
   assert.equal(node(project,id).animation.durationMs,450);
   edit(project, { action:'animate', objectId:id, animation:null });

@@ -24,6 +24,90 @@ function fixture(rounds, overrides = {}) {
   return {store,app,bodies,art,history,revealed};
 }
 
+test('a follow-up reuses valid history around a malformed legacy tool exchange and a blank reply', async () => {
+  const {store,app,history,bodies} = fixture(() => ({ok:true,content:'Updated.'}));
+  const original = [
+    {role:'user',content:'Add the orange photo'},
+    {role:'assistant',content:'',toolCalls:[{id:'good',name:'get_artwork',arguments:'{}'}]},
+    {role:'tool',toolCallId:'good',content:'{"objectId":"orange"}'},
+    {role:'assistant',content:'',toolCalls:[{id:'bad',name:'edit_artwork',arguments:'{"name":"partial'}]},
+    {role:'tool',toolCallId:'bad',content:'{"error":"bad arguments"}'},
+    {role:'assistant',content:'The photo has ID orange.'},
+    {role:'user',content:'Make it bounce'},
+    {role:'assistant',content:'',tools:[]},
+  ];
+  history.set(store.documentKey,structuredClone(original));
+  const result = await app.send('Continue that edit');
+  assert.equal(result.error,null);
+  const messages = bodies[0].messages;
+  assert.deepEqual(messages.filter(m => m.tool_calls).flatMap(m => m.tool_calls.map(c => c.id)),['good']);
+  assert.deepEqual(messages.filter(m => m.role === 'tool').map(m => m.tool_call_id),['good']);
+  assert.ok(messages.some(m => m.content === 'The photo has ID orange.'));
+  assert.ok(messages.some(m => m.content === 'Make it bounce'));
+  assert.ok(!messages.some(m => m.role === 'assistant' && !m.tool_calls && !m.content));
+  assert.deepEqual(history.get(store.documentKey).slice(0,original.length),original);
+});
+
+test('empty or incomplete responses retry once in non-stream mode from the last completed tool', async () => {
+  for (const failure of [{ok:true,content:'   '},{ok:false,code:'INCOMPLETE_AI_STREAM',error:'Interrupted'}]) {
+    const {store,app,bodies,history} = fixture((i,last,body) => {
+      if (!i) return call('edit_screenplay',{mode:'append',text:'One line.'});
+      if (i === 1) return failure;
+      assert.equal(body.stream,false);
+      assert.ok(last);
+      assert.equal(body.messages.filter(m => m.role === 'tool').length,1);
+      return {ok:true,content:'The line was added.'};
+    });
+    const result = await app.send('Append one line');
+    assert.equal(result.error,null);
+    assert.equal(store.project.screenplay,'One line.');
+    assert.deepEqual(bodies.map(b => b.stream),[true,true,false]);
+    const messages = history.get(store.documentKey);
+    assert.equal(messages.filter(m => m.role === 'tool').length,1);
+    assert.equal(messages.filter(m => m.role === 'assistant').length,2);
+    assert.equal(store.undo().ok,true);
+    assert.equal(store.project.screenplay,'');
+  }
+});
+
+test('repeated truncated tool calls leave no edits or phantom reply, and the next message can succeed', async () => {
+  const {store,app,bodies,history} = fixture((i) => {
+    if (i > 1) return {ok:true,content:'Ready.'};
+    return {ok:true,toolCalls:[
+      {id:'one',name:'edit_screenplay',arguments:'{"mode":"append","text":"Partial edit"}'},
+      {id:'two',name:'edit_artwork',arguments:'{"objectId":"'},
+    ]};
+  });
+  assert.ok((await app.send('Make the edit')).error);
+  assert.deepEqual(bodies.map(b => b.stream),[true,false]);
+  assert.equal(store.project.screenplay,'');
+  assert.deepEqual(history.get(store.documentKey),[]);
+  assert.equal((await app.send('Are you there?')).error,null);
+  assert.deepEqual(history.get(store.documentKey).map(m => m.role),['user','assistant']);
+});
+
+test('a short follow-up about a selected picture can animate its original layer using the compact palette', async () => {
+  let objectId;
+  const {store,app,art,bodies} = fixture((i,last) => {
+    if (i === 0) return call('place_project_image',{target:'canvas',mediaId:'m_source'});
+    if (i === 1) { [objectId] = last.objectIds; return {ok:true,content:'Placed.'}; }
+    if (i === 2) return call('edit_artwork',{action:'animate',objectId,animation:{type:'bounce',loop:true}});
+    return {ok:true,content:'Updated.'};
+  });
+  store.apply({op:'addMedia',media:{id:'m_source',name:'Orange',data:png,mime:'image/png',w:1,h:1}});
+  assert.ok((await app.send('Вставь фото из библиотеки на холст')).changed);
+  Object.assign(art,{objectId,referenceSource:'selection'});
+  const updated = await app.send('Сделай так, чтобы при прыжке оно сжималось по горизонтали');
+  assert.ok(updated.changed,updated.error);
+  const tools = bodies[2].tools.map(t => t.function.name);
+  assert.ok(tools.includes('edit_artwork') && tools.includes('expand_project_tools'));
+  assert.ok(!tools.includes('edit_screenplay'));
+  const artwork = describeArtwork(store.project,{workspaceId:art.workspaceId});
+  assert.equal(artwork.total,1);
+  assert.equal(artwork.objects[0].id,objectId);
+  assert.equal(artwork.objects[0].animation.type,'bounce');
+});
+
 test('chat routes frozen source, explicit links, artwork, animation and project media through one undo', async () => {
   let marker, canvasId, objectRef;
   const fetched = [];

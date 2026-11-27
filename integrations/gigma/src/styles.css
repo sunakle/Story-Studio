@@ -1078,15 +1078,15 @@ select,
     animation-timing-function: cubic-bezier(.2,.67,.45,1);
   }
   24% {
-    transform: translateY(clamp(-48px, -24%, -6px));
+    transform: translateY(clamp(-48px, -24%, -6px)) scaleX(calc(1 - var(--gigma-bounce-squash, 0)));
     animation-timing-function: cubic-bezier(.55,0,.8,.33);
   }
   64% {
-    transform: translateY(clamp(-20px, -10%, -2.5px));
+    transform: translateY(clamp(-20px, -10%, -2.5px)) scaleX(calc(1 - 0.42 * var(--gigma-bounce-squash, 0)));
     animation-timing-function: cubic-bezier(.55,0,.8,.33);
   }
   88% {
-    transform: translateY(clamp(-6px, -3%, -.75px));
+    transform: translateY(clamp(-6px, -3%, -.75px)) scaleX(calc(1 - 0.13 * var(--gigma-bounce-squash, 0)));
     animation-timing-function: cubic-bezier(.55,0,.8,.33);
   }
   96%, 100% { transform: translateY(0); }

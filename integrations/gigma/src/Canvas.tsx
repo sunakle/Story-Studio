@@ -158,6 +158,7 @@ export const Scene = memo(function Scene({
             animationFillMode: "backwards",
             transformBox: "fill-box",
             transformOrigin: "center",
+            ...(motion.type === "bounce" && { "--gigma-bounce-squash": motion.squashX ?? 0 }),
           }),
         }}
         filter={n.adjustments?.length ? "url(#fx-" + clip + ")" : undefined}

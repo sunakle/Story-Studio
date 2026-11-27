@@ -11,6 +11,7 @@ const { createHash, randomUUID } = require('node:crypto');
 const { pathToFileURL } = require('node:url');
 const { startAliceEndpoint } = require('./src/native/alice-dictation.cjs');
 const { useClaude, claudeHeaders, claudeRequest, claudeResponse } = require('./src/native/claude.cjs');
+const { protocolError, providerError, responseJson, jsonEvents, completeToolCalls } = require('./src/native/ai-response.cjs');
 const { readLink } = require('./src/native/public-reference.cjs');
 const { generateImage } = require('./src/native/image-generation.cjs');
 const { registerGigma } = require('./src/native/gigma-host.cjs');
@@ -1078,18 +1079,21 @@ function registerAiIpc() {
       if (anthropic) return await claudeResponse(res, send);
       const ctype = res.headers.get('content-type') || '';
       if (!body || !body.stream || !ctype.includes('event-stream')) {
-        const json = await res.json();
-        const msg = json.choices?.[0]?.message || {};
+        const json = await responseJson(res);
+        if (json?.error) throw providerError(json.error);
+        const choice = json?.choices?.[0];
+        const msg = choice?.message;
+        if (!msg) throw protocolError('INCOMPLETE_AI_STREAM');
         const out = {
           ok: true,
           content: msg.content || '',
           ...(typeof msg.reasoning_content === 'string' && { reasoningContent: msg.reasoning_content }),
-          toolCalls: (msg.tool_calls || []).map((tc) => ({
+          toolCalls: completeToolCalls((msg.tool_calls || []).map((tc) => ({
             id: tc.id,
             name: tc.function?.name,
-            arguments: tc.function?.arguments || '{}',
-          })),
-          finishReason: json.choices?.[0]?.finish_reason || null,
+            arguments: tc.function?.arguments ?? '{}',
+          })), choice.finish_reason, msg.content),
+          finishReason: choice.finish_reason || null,
           usage: json.usage || null,
         };
         if (out.content) send({ delta: out.content });
@@ -1098,61 +1102,44 @@ function registerAiIpc() {
       }
 
       // ---- SSE-стрим
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
+      let completed = false;
       let content = '';
       let reasoningContent;
       const calls = new Map();
       let finishReason = null;
       let usage = null;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = buffer.indexOf('\n')) >= 0) {
-          const rawLine = buffer.slice(0, idx).trim();
-          buffer = buffer.slice(idx + 1);
-          if (!rawLine || rawLine.startsWith(':')) continue;
-          if (!rawLine.startsWith('data:')) continue;
-          const data = rawLine.slice(5).trim();
-          if (data === '[DONE]') continue;
-          let json;
-          try {
-            json = JSON.parse(data);
-          } catch {
-            continue;
-          }
-          if (json.usage) usage = json.usage;
-          const choice = json.choices?.[0];
-          if (!choice) continue;
-          if (choice.finish_reason) finishReason = choice.finish_reason;
-          const delta = choice.delta || {};
-          if (typeof delta.reasoning_content === 'string') {
-            reasoningContent = (reasoningContent || '') + delta.reasoning_content;
-          }
-          if (typeof delta.content === 'string' && delta.content.length) {
-            content += delta.content;
-            send({ delta: delta.content });
-          }
-          if (Array.isArray(delta.tool_calls)) {
-            for (const tc of delta.tool_calls) {
-              const key = tc.index ?? 0;
-              const prev = calls.get(key) || { id: '', name: '', arguments: '' };
-              if (tc.id) prev.id = tc.id;
-              if (tc.function?.name) prev.name += tc.function.name;
-              if (tc.function?.arguments) prev.arguments += tc.function.arguments;
-              calls.set(key, prev);
-            }
+      for await (const json of jsonEvents(res)) {
+        if (json === '[DONE]') { completed = true; break; }
+        if (json.error) throw providerError(json.error);
+        if (json.usage) usage = json.usage;
+        const choice = json.choices?.[0];
+        if (!choice) continue;
+        if (choice.finish_reason) finishReason = choice.finish_reason;
+        const delta = choice.delta || {};
+        if (typeof delta.reasoning_content === 'string') {
+          reasoningContent = (reasoningContent || '') + delta.reasoning_content;
+        }
+        if (typeof delta.content === 'string' && delta.content.length) {
+          content += delta.content;
+          send({ delta: delta.content });
+        }
+        if (Array.isArray(delta.tool_calls)) {
+          for (const tc of delta.tool_calls) {
+            const key = tc.index ?? 0;
+            const prev = calls.get(key) || { id: '', name: '', arguments: '' };
+            if (tc.id) prev.id = tc.id;
+            if (tc.function?.name) prev.name += tc.function.name;
+            if (tc.function?.arguments) prev.arguments += tc.function.arguments;
+            calls.set(key, prev);
           }
         }
       }
 
-      const toolCalls = [...calls.entries()]
+      if (!completed && !finishReason) throw protocolError('INCOMPLETE_AI_STREAM');
+      const toolCalls = completeToolCalls([...calls.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([i, c]) => ({ id: c.id || `call_${i}`, name: c.name, arguments: c.arguments || '{}' }));
+        .map(([i, c]) => ({ id: c.id || `call_${i}`, name: c.name, arguments: c.arguments || '{}' })), finishReason, content);
       send({ done: true });
       return { ok: true, content, toolCalls, finishReason, usage, reasoningContent };
     } catch (err) {
@@ -1162,8 +1149,17 @@ function registerAiIpc() {
       if (err?.code === 'INCOMPLETE_AI_STREAM') {
         message = uiText("Соединение с моделью прервалось до конца ответа. Отправьте сообщение ещё раз.", "The connection ended before the model finished. Send the message again.");
       }
+      if (err?.code === 'INVALID_AI_TOOL_ARGUMENTS') {
+        message = uiText("Модель вернула команду с неполными или неверными параметрами. Повторите запрос.", "The model returned a command with incomplete or invalid arguments. Try sending again.");
+      }
+      if (err?.code === 'AI_OUTPUT_LIMIT') {
+        message = uiText("Модель исчерпала лимит ответа при подготовке команды. Увеличьте лимит токенов в настройках ИИ или сократите задачу.", "The model reached its output limit while preparing a command. Raise the token limit in AI settings or shorten the task.");
+      }
+      if (err?.code === 'EMPTY_AI_RESPONSE') {
+        message = uiText("Модель завершила ответ, но не прислала текст или команды. Повторите запрос.", "The model finished without returning text or commands. Try sending again.");
+      }
       send({ done: true, error: message });
-      return { ok: false, error: message, aborted };
+      return { ok: false, error: message, code: err?.code, aborted };
     } finally {
       clearTimeout(timer);
       aborters.delete(requestId);

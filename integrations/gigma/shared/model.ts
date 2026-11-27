@@ -66,6 +66,7 @@ export const nodeSchema = z.object({
     durationMs: z.number().int().min(100).max(60000).optional(),
     delayMs: z.number().int().min(0).max(60000).optional(),
     loop: z.boolean().optional(),
+    squashX: z.number().min(0).max(0.8).optional(),
   }).strict().optional(),
   fill: color,
   stroke: color,

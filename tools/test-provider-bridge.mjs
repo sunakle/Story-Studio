@@ -27,6 +27,21 @@ const api = http.createServer(async (req, res) => {
       assert.equal(JSON.parse(Buffer.concat(chunks)).model,'test-image');
       return res.end(JSON.stringify({data:[{b64_json:png}]}));
     }
+    if (req.url === '/v1/chat/completions') {
+      const {model} = JSON.parse(Buffer.concat(chunks));
+      const call = {index:0,id:'fix',function:{name:'edit_artwork',arguments:'{"x":'}};
+      res.setHeader('content-type','text/event-stream');
+      if (model === 'gateway-json') return res.end('data: '+JSON.stringify({error:{message:'Unterminated string in JSON at position 200 (line 1 column 201)'}})+'\n\n');
+      const event = (delta, finish_reason = null) => res.write('data: '+JSON.stringify({choices:[{delta,finish_reason}]})+'\r\n\r\n');
+      if (model === 'empty') event({},'stop');
+      else if (model === 'lost') event({content:'Partial answer'});
+      else {
+        event({tool_calls:[call]});
+        if (model === 'valid') event({tool_calls:[{index:0,function:{arguments:'42}'}}]});
+        event({}, model === 'limit' ? 'length' : 'tool_calls');
+      }
+      return res.end(model === 'lost' ? '' : 'data: [DONE]');
+    }
     assert.equal(req.headers['x-api-key'],'claude-test');
     if (req.url === '/v1/models') return res.end(JSON.stringify({data:[{id:'test-claude'}]}));
     assert.equal(req.url,'/v1/messages');
@@ -85,6 +100,20 @@ try {
   assert.deepEqual(data.image,{w:1,h:1,preview:true,bounce:'bounce',undone:true});
   assert.equal(data.local.ok,false);
   assert.deepEqual(seen,['/v1/models','/v1/messages','/v1/images/generations']);
+  const replies=await page.evaluate(async url => {
+    const results=[];
+    for (const model of ['valid','invalid','limit','empty','lost','gateway-json']) {
+      results.push(await window.sf.ai.chat({baseUrl:url,preset:'custom',
+        body:{model,stream:true,messages:[{role:'user',content:'Edit'}]}}));
+    }
+    return results;
+  },baseUrl);
+  if (mockError) throw mockError;
+  assert.equal(replies[0].toolCalls[0].arguments,'{"x":42}');
+  assert.deepEqual(replies.slice(1).map(r => [r.ok,r.code]),[
+    [false,'INVALID_AI_TOOL_ARGUMENTS'],[false,'AI_OUTPUT_LIMIT'],[false,'EMPTY_AI_RESPONSE'],[false,'INCOMPLETE_AI_STREAM'],
+    [false,'INCOMPLETE_AI_STREAM'],
+  ]);
   console.log('Desktop provider bridge passed: Claude, generated image and private link rejection.');
 } finally {
   if (app) await app.close();

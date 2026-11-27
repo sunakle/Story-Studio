@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import claude from '../src/native/claude.cjs';
+import wire from '../src/native/ai-response.cjs';
 import references from '../src/native/public-reference.cjs';
 import images from '../src/native/image-generation.cjs';
 
@@ -35,7 +36,53 @@ test('Claude stream dispatches text and completes a fragmented tool call only on
   assert.equal(result.toolCalls[0].arguments,'{"x":42}');
   assert.deepEqual(chunks,[{delta:'Начинаю'},{done:true}]);
   assert.deepEqual(result.usage,{input_tokens:12,output_tokens:8});
-  await assert.rejects(claude.claudeResponse(stream(events),()=>{}), /before/);
+  await assert.rejects(claude.claudeResponse(stream(events),()=>{}), {code:'INCOMPLETE_AI_STREAM'});
+});
+
+test('SSE joins multiline data, byte-split UTF-8, CRLFs and the final unterminated line', async () => {
+  const bytes = new TextEncoder().encode(': keepalive\r\n\r\nevent: reply\r\ndata: {"text":\r\ndata: "готово"}\r\n\r\ndata: [DONE]');
+  const body = new ReadableStream({start(controller) {
+    for (const byte of bytes) controller.enqueue(Uint8Array.of(byte));
+    controller.close();
+  }});
+  const result = [];
+  for await (const event of wire.jsonEvents(new Response(body))) result.push(event);
+  assert.deepEqual(result,[{text:'готово'},'[DONE]']);
+  const compact = [];
+  for await (const event of wire.jsonEvents(new Response('data: {"text":"ok"}\ndata: [DONE]'))) compact.push(event);
+  assert.deepEqual(compact,[{text:'ok'},'[DONE]']);
+});
+
+test('incomplete or invalid tool batches, silent completions and broken response frames cannot commit', async () => {
+  const start = {type:'content_block_start',index:0,content_block:{type:'tool_use',id:'one',name:'edit_artwork',input:{}}};
+  const partial = {type:'content_block_delta',index:0,delta:{type:'input_json_delta',partial_json:'{"name":"'}};
+  const stop = {type:'message_stop'};
+  const events = list => new Response(list.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''), {headers:{'content-type':'text/event-stream'}});
+  for (const [body,code] of [
+    [events([start,partial,{type:'message_delta',delta:{stop_reason:'tool_use'}},stop]),'INVALID_AI_TOOL_ARGUMENTS'],
+    [events([start,partial,{type:'message_delta',delta:{stop_reason:'max_tokens'}},stop]),'AI_OUTPUT_LIMIT'],
+    [events([stop]),'EMPTY_AI_RESPONSE'],
+    [events([{type:'error',error:{type:'api_error',message:'Unterminated string in JSON at position 200 (line 1 column 201)'}}]),'INCOMPLETE_AI_STREAM'],
+    [new Response('data: {"partial":"',{headers:{'content-type':'text/event-stream'}}),'INCOMPLETE_AI_STREAM'],
+    [new Response('{"broken":"'),'INCOMPLETE_AI_STREAM'],
+    [new Response(new ReadableStream({start(controller){controller.error(new TypeError('Network error'));}}),
+      {headers:{'content-type':'text/event-stream'}}),'INCOMPLETE_AI_STREAM'],
+    [Response.json({content:[{type:'tool_use',id:'one',name:'edit_artwork',input:'[]'}]}),'INVALID_AI_TOOL_ARGUMENTS'],
+    [Response.json({content:[{type:'thinking',thinking:'wait'}],stop_reason:'end_turn'}),'EMPTY_AI_RESPONSE'],
+  ]) {
+    const chunks = [];
+    await assert.rejects(claude.claudeResponse(body, part => chunks.push(part)), {code});
+    assert.ok(!chunks.some(part => part.done), 'No successful completion before validation');
+  }
+  assert.throws(() => wire.completeToolCalls([
+    {id:'one',name:'get_artwork',arguments:'{}'}, {id:'two',name:'edit_artwork',arguments:'{"x":'},
+  ],'tool_calls',''), {code:'INVALID_AI_TOOL_ARGUMENTS'});
+  for (const id of ['same','',undefined]) assert.throws(() => wire.completeToolCalls([
+    {id:'same', name:'read', arguments:'{}'}, {id, name:'read', arguments:'{}'},
+  ],'tool_calls',''), {code:'INVALID_AI_TOOL_ARGUMENTS'});
+  const limited = wire.providerError({type:'rate_limit_error', message:'Limit reached'});
+  assert.equal(limited.code,undefined);
+  assert.equal(limited.message,'Limit reached');
 });
 
 test('external page references exclude credentials, local networks and embedded scripts', async () => {
