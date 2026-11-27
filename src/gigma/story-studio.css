@@ -35,7 +35,11 @@
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   background: transparent; border: 0;
 }
-:root[data-theme] .toolbar .dropdown { width: max-content; max-width: calc(100vw - 20px); }
+:root[data-theme] .toolbar .dropdown {
+  max-width: calc(100vw - 20px);
+  max-height: calc(100dvh - 55px);
+  overflow-y: auto;
+}
 :root[data-theme] .toolbar .toolstrip {
   order: 2; position: static; inset: auto; flex: 0 1 auto; min-width: 35px; width: auto;
   flex-direction: row; align-items: center; gap: 2px;

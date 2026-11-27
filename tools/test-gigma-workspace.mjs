@@ -80,6 +80,16 @@ async function checkProjectMenu(frame, expectedTitle) {
   const menu = frame.getByRole('button', { name:'Главное меню', exact:true });
   await menu.click();
   await frame.getByRole('button', { name:/Импортировать страницы из \.gigma/ }).waitFor();
+  const dropdown = frame.locator('.menu-anchor .dropdown');
+  const trigger = await menu.boundingBox();
+  const popup = await dropdown.boundingBox();
+  assert.ok(popup && trigger && popup.width >= 180 && popup.width <= 360,
+    'The Gigma menu should be a compact desktop popover, got width ' + popup?.width);
+  const gap = popup.y - (trigger.y + trigger.height);
+  assert.ok(Math.abs(popup.x - trigger.x) <= 12 && gap >= -1 && gap <= 20,
+    'The Gigma menu should open directly below its toolbar button');
+  assert.ok(await dropdown.locator('button').evaluateAll(rows => rows.every(row => row.scrollWidth <= row.clientWidth + 1)),
+    'Menu commands and shortcuts should fit inside their rows');
   assert.equal(await frame.getByRole('button', {name:/Новый (дизайн|проект)|Новая доска/}).count(), 0);
   await menu.click();
 }
