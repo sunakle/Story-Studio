@@ -442,9 +442,7 @@ export const LayersPanel = memo(function LayersPanel({
             key={p.id}
             className={p.id === page.id ? "active-page" : ""}
             onClick={() => {
-              studio.view(() => {
-                doc.activePageId = p.id;
-              });
+              studio.activatePage(p.id);
               studio.select([]);
             }}
           >

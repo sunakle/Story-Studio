@@ -279,6 +279,14 @@ function defaultChapter(raw = {}) {
 
 const gigmaOps = new Set(['createGigmaWorkspace', 'updateGigmaWorkspace', 'deleteGigmaWorkspace']);
 
+// Every story has a canvas. Only a drawing needs an entry in the project file.
+const blankGigmaWorkspace = Object.freeze([
+  Object.freeze({ id: 'gg_project', name: 'Gigma Studio', document: null }),
+]);
+export function projectDesigns(project) {
+  return project.gigmaWorkspaces?.length ? project.gigmaWorkspaces : blankGigmaWorkspace;
+}
+
 function nextGigmaName(workspaces) {
   const names = new Set(workspaces.map(workspace => workspace.name));
   let name = 'Gigma Studio';

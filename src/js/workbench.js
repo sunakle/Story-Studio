@@ -1,6 +1,6 @@
 import { t as uiText } from './i18n.js';
 import { icon } from './icons.js';
-import { validateProject } from './model.js';
+import { projectDesigns, validateProject } from './model.js';
 import { entityLists, nodeTitle, jumpCandidates, rankCandidates } from './story-search.js';
 import { createScenarioTable } from './scenario-table.js';
 import { renderDocument } from './scene-document.js';
@@ -23,7 +23,7 @@ export function createWorkbench(store, ui) {
   });
   const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', gigma:'layers', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
   const renderScreenplay = createScreenplayEditor(store, ui);
-  const gigma = createGigmaHost(store, ui, page, createDesign);
+  const gigma = createGigmaHost(store, ui, page);
   const sidebars = [$('leftPanel'), $('rightPanel')];
   let storyLayout = null, designLayout = [true, true];
   function designPanels(show) {
@@ -86,7 +86,10 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'overview') return uiText("Обзор сюжета", "Story overview");
     if (t.kind === 'table') return uiText("Таблица", "Table");
     if (t.kind === 'screenplay') return uiText("Сценарий", "Screenplay");
-    if (t.kind === 'gigma') return store.project.gigmaWorkspaces.find(item => item.id === t.id)?.name || 'Gigma Studio';
+    if (t.kind === 'gigma') {
+      const designs = projectDesigns(store.project);
+      return t.id === designs[0].id ? 'Gigma Studio' : designs.find(item => item.id === t.id)?.name || 'Gigma Studio';
+    }
     if (t.kind === 'empty') return uiText("Новая вкладка", "New tab");
     const obj = store.project[entityLists[t.kind]]?.find((x) => x.id === t.id);
     return obj ? (t.kind === 'node' ? nodeTitle(obj) : obj.name) : uiText("Удалено", "Deleted");
@@ -181,15 +184,15 @@ export function createWorkbench(store, ui) {
         <button type="button" data-start="find">${icon('search', 17)}<span>${uiText("Открыть сцену", "Open scene")}</span><kbd>Ctrl K</kbd></button>
         <button type="button" data-start="table">${icon('table', 17)}<span>${uiText("Открыть таблицу", "Open table")}</span></button>
         <button type="button" data-start="screenplay">${icon('edit', 17)}<span>${uiText("Открыть сценарий", "Open screenplay")}</span></button>
-        <button type="button" data-start="gigma">${icon('layers', 17)}<span>${uiText("Создать макет в Gigma Studio", "Create a Gigma Studio design")}</span></button>
-        ${store.project.gigmaWorkspaces.length ? `<details class="wb-designs"><summary>${icon('folder', 16)}${uiText("Макеты проекта", "Project designs")}<span>${store.project.gigmaWorkspaces.length}</span></summary><div>${store.project.gigmaWorkspaces.map(item => `<button type="button" data-design-id="${esc(item.id)}" title="${esc(item.name)}">${icon('layers', 15)}<span>${esc(item.name)}</span></button>`).join('')}</div></details>` : ''}
+        <button type="button" data-start="gigma">${icon('layers', 17)}<span>${uiText("Открыть Gigma Studio", "Open Gigma Studio")}</span></button>
+        ${store.project.gigmaWorkspaces.length > 1 ? `<details class="wb-designs"><summary>${icon('folder', 16)}${uiText("Макеты проекта", "Project designs")}<span>${store.project.gigmaWorkspaces.length}</span></summary><div>${store.project.gigmaWorkspaces.map(item => `<button type="button" data-design-id="${esc(item.id)}" title="${esc(item.name)}">${icon('layers', 15)}<span>${esc(item.name)}</span></button>`).join('')}</div></details>` : ''}
       </nav>`;
       page.onclick = (e) => {
         const saved = e.target.closest('[data-design-id]');
         if (saved) return openDesign(saved.dataset.designId);
         switch (e.target.closest('[data-start]')?.dataset.start) {
           case 'gigma':
-            createDesign();
+            openDesign();
             break;
           case 'find':
             quickJump();
@@ -320,8 +323,8 @@ export function createWorkbench(store, ui) {
   function openScreenplay() {
     activate(tabs[2]);
   }
-  function openDesign(id) {
-    if (!store.project.gigmaWorkspaces.some(item => item.id === id)) return;
+  function openDesign(id = projectDesigns(store.project)[0].id) {
+    if (!projectDesigns(store.project).some(item => item.id === id)) return;
     let tab = tabs.find(item => item.kind === 'gigma' && item.id === id);
     if (!tab) {
       tab = {kind:'gigma', id};
@@ -334,16 +337,6 @@ export function createWorkbench(store, ui) {
       tabs.splice(tabs.indexOf(active), 1);
     }
     activate(tab);
-  }
-  function createDesign(document) {
-    const op = {op:'createGigmaWorkspace'};
-    if (document) {
-      op.document = document;
-      op.name = document.name;
-    }
-    const result = store.apply(op, {label:uiText("Создать макет Gigma", "Create Gigma design")});
-    if (result.ok) openDesign(result.created[0]);
-    else ui.toast(result.error, 'bad');
   }
   function openPlayer(id) {
     ui.flushEdits?.();
@@ -544,7 +537,7 @@ export function createWorkbench(store, ui) {
   }
   function actions() {
     const body = ui.el(
-      uiText("<div class=\"wb-action-list\"><button data-go=\"play\">Пройти от начала</button><button data-go=\"screenplay\">Открыть сценарий</button><button data-go=\"daily\">Заметка за сегодня</button><button data-go=\"overview\">Обзор сюжета</button><button data-go=\"find\">Быстрый переход</button></div>", "<div class=\"wb-action-list\"><button data-go=\"play\">Play from the start</button><button data-go=\"screenplay\">Open screenplay</button><button data-go=\"daily\">Today's note</button><button data-go=\"overview\">Story overview</button><button data-go=\"find\">Quick switcher</button></div>"),
+      uiText("<div class=\"wb-action-list\"><button data-go=\"play\">Пройти от начала</button><button data-go=\"screenplay\">Открыть сценарий</button><button data-go=\"gigma\">Открыть Gigma Studio</button><button data-go=\"daily\">Заметка за сегодня</button><button data-go=\"overview\">Обзор сюжета</button><button data-go=\"find\">Быстрый переход</button></div>", "<div class=\"wb-action-list\"><button data-go=\"play\">Play from the start</button><button data-go=\"screenplay\">Open screenplay</button><button data-go=\"gigma\">Open Gigma Studio</button><button data-go=\"daily\">Today's note</button><button data-go=\"overview\">Story overview</button><button data-go=\"find\">Quick switcher</button></div>"),
     );
     const m = ui.modal({ title: uiText("Действия проекта", "Project actions"), body, onClose: () => $('workspaceActions').focus() });
     body.onclick = (e) => {
@@ -553,6 +546,7 @@ export function createWorkbench(store, ui) {
       m.close();
       if (act === 'play') openPlayer();
       else if (act === 'screenplay') openScreenplay();
+      else if (act === 'gigma') openDesign();
       else if (act === 'daily') daily();
       else if (act === 'overview') openOverview();
       else quickJump();
@@ -596,13 +590,14 @@ export function createWorkbench(store, ui) {
     else quickJump();
   };
   store.subscribe((evt) => {
+    gigma.syncName();
     if (evt.type === 'project' && !evt.label) {
       reset();
       return;
     }
     if (evt.scope === 'gigma' || evt.type === 'project') {
       gigma.sync();
-      const exists = tab => tab.kind !== 'gigma' || store.project.gigmaWorkspaces.some(item => item.id === tab.id);
+      const exists = tab => tab.kind !== 'gigma' || projectDesigns(store.project).some(item => item.id === tab.id);
       tabs = tabs.filter(exists);
       if (trail.some(tab => !exists(tab))) {
         cursor = Math.max(0, trail.slice(0, cursor + 1).filter(exists).length - 1);

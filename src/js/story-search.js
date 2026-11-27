@@ -1,5 +1,5 @@
 import { t, getLanguage } from './i18n.js';
-import { TYPE_LABELS } from './model.js';
+import { TYPE_LABELS, projectDesigns } from './model.js';
 
 // Saved filters remain valid when the interface language changes.
 const typeAliases = {
@@ -108,10 +108,12 @@ export function jumpCandidates(project) {
       rows.push({ kind, id: obj.id, title, context, hay: lower(hay), name: lower(title) });
     }
   }
-  for (const design of project.gigmaWorkspaces || []) {
-    const context = t('Макет Gigma Studio', 'Gigma Studio design');
-    rows.push({kind:'gigma', id:design.id, title:design.name, context,
-      name:lower(design.name), hay:lower([design.name, design.id, context].join('\n'))});
+  const designs = projectDesigns(project);
+  for (const design of designs) {
+    const title = design === designs[0] ? 'Gigma Studio' : design.name;
+    const context = design.name === title ? t('Дизайн проекта', 'Project design') : design.name;
+    rows.push({kind:'gigma', id:design.id, title, context,
+      name:lower(title), hay:lower([title, design.name, design.id, context, 'Gigma Studio'].join('\n'))});
   }
   return rows;
 }

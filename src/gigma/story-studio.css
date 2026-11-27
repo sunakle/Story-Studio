@@ -32,9 +32,10 @@
 :root[data-theme] .toolbar .doc-title {
   order: 1; flex: 0 1 145px; width: 135px; min-width: 55px; margin: 0 8px 0 0;
   text-align: left; color: var(--strong); font-size: 12px; font-weight: 600;
-  background: transparent; border: 1px solid transparent;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  background: transparent; border: 0;
 }
-:root[data-theme] .doc-title:is(:hover, :focus) { background: var(--field); border-color: var(--border); }
+:root[data-theme] .toolbar .dropdown { width: max-content; max-width: calc(100vw - 20px); }
 :root[data-theme] .toolbar .toolstrip {
   order: 2; position: static; inset: auto; flex: 0 1 auto; min-width: 35px; width: auto;
   flex-direction: row; align-items: center; gap: 2px;

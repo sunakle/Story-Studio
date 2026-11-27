@@ -554,6 +554,8 @@ const ui = {
     return window.sf.settings.set(patch);
   },
   saveProject,
+  openProject,
+  newProject,
   exportFormat,
   openSettings,
   hotkeysHelp,

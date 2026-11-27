@@ -16,7 +16,6 @@ import {
   ChevronDown,
   Circle,
   Copy,
-  File,
   Frame,
   Grid2X2,
   Group,
@@ -38,11 +37,11 @@ import {
   X,
 } from "lucide-react";
 import {
-  newDocument,
   newNode,
   uid,
   validateDocument,
   type DesignNode,
+  type DesignDocument,
 } from "../shared/model";
 import { Canvas, fitPage, Scene, zoomAt, type Tool } from "./Canvas";
 import { Inspector, LayersPanel } from "./Panels";
@@ -61,7 +60,7 @@ import {
 } from "lucide-react";
 import {
   bindWorkspace,
-  importWorkspace,
+  requestProjectCommand,
   requestSave,
   illustrator,
 } from "./core/workspace";
@@ -106,6 +105,8 @@ export default function App() {
   const tools = getTools();
   useSyncExternalStore(studio.subscribe, studio.snapshot);
   const prefs = usePrefs();
+  const [projectName, setProjectName] = useState("");
+  const blankCanvas = useRef("");
   const [settings, setSettings] = useState<null | "settings" | "plugins">(null);
   const [tool, setTool] = useState<Tool>("select"),
     [space, setSpace] = useState(false),
@@ -179,7 +180,8 @@ export default function App() {
   useEffect(
     () =>
       bindWorkspace(
-        (document) => {
+        (document, fresh) => {
+          blankCanvas.current = fresh ? document.id : "";
           studio.open(document);
           setTool("select");
           setMenu(false);
@@ -193,6 +195,7 @@ export default function App() {
           return studio.document;
         },
         report,
+        setProjectName,
       ),
     [report],
   );
@@ -201,14 +204,40 @@ export default function App() {
     const t = setTimeout(() => setNotice(""), 8500);
     return () => clearTimeout(t);
   }, [notice]);
+  function importPages(imported: DesignDocument) {
+    const doc = studio.document;
+    if (!doc) return;
+    const replacePlaceholder = doc.id === blankCanvas.current && doc.revision === 0;
+    const existing = replacePlaceholder ? [] : doc.pages;
+    if (existing.length + imported.pages.length > 32)
+      throw Error(ui("В холсте может быть до 32 страниц.", "A canvas can contain up to 32 pages."));
+    // Repeated imports must keep their own groups and cross-page prototype links.
+    const nodeIds = new Map(imported.pages.flatMap((p) => p.nodes.map((n) => [n.id, uid()] as const)));
+    const pages = imported.pages.map((p) => ({
+      ...p,
+      id: uid(),
+      nodes: p.nodes.map((n) => ({
+        ...n,
+        id: nodeIds.get(n.id)!,
+        parentId: n.parentId ? nodeIds.get(n.parentId)! : null,
+        linkTo: n.linkTo ? nodeIds.get(n.linkTo)! : null,
+      })),
+    }));
+    const activeIndex = imported.pages.findIndex((p) => p.id === imported.activePageId);
+    const combined = [...existing, ...pages];
+    if (new Blob([JSON.stringify({ ...doc, pages: combined, cover: "" })]).size > 32 * 1024 * 1024)
+      throw Error(ui("После импорта размер холста превысит 32 МиБ.", "The combined canvas would exceed 32 MiB."));
+    studio.mutate(ui("Импортировать страницы", "Import pages"), (d) => {
+      d.pages = combined;
+      d.activePageId = pages[activeIndex].id;
+    });
+    studio.select([]);
+  }
   async function importFile(f: File) {
     if (f.size > 32 * 1024 * 1024)
       throw new Error(ui("Файл больше 32 МиБ.", "The file exceeds 32 MiB."));
     const d = validateDocument(JSON.parse(await f.text()));
-    d.id = uid();
-    d.revision = 0;
-    d.createdAt = new Date().toISOString();
-    importWorkspace(d);
+    importPages(d);
   }
   async function importAI(place: boolean) {
     if (busy) return;
@@ -252,8 +281,8 @@ export default function App() {
         if (new Blob([JSON.stringify(combined)]).size > 31 * 1024 * 1024)
           throw Error(
             ui(
-              "После размещения документ превысит 32 МиБ. Откройте AI отдельно.",
-              "Placing this artwork would exceed 32 MiB. Open it in a separate workspace.",
+              "После размещения размер холста превысит 32 МиБ.",
+              "Placing this artwork would exceed the 32 MiB canvas limit.",
             ),
           );
         studio.mutate(
@@ -262,7 +291,7 @@ export default function App() {
         );
         studio.select([wrapper.id]);
         fitPage(targetPage);
-      } else importWorkspace(imported);
+      } else importPages(imported);
       setNotice(
         [
           ui("Открыт AI со слоями.", "Opened layered Illustrator artwork."),
@@ -328,14 +357,6 @@ export default function App() {
   function command(action: string) {
     if (!page || !doc) return;
     setMenu(false);
-    if (action === "design" || action === "board") {
-      const name =
-        action === "board"
-          ? ui("Новая доска", "New board")
-          : ui("Новый дизайн", "New design");
-      importWorkspace(newDocument(name, action));
-      return;
-    }
     if (action === "import") {
       importInput.current?.click();
       return;
@@ -450,6 +471,13 @@ export default function App() {
         command(e.shiftKey ? "saveAs" : "save");
         return;
       }
+      if (ctrl && !e.shiftKey && !e.altKey && (e.code === "KeyO" || e.code === "KeyN")) {
+        e.preventDefault();
+        blurField();
+        studio.finish();
+        requestProjectCommand(e.code === "KeyO" ? "open" : "new");
+        return;
+      }
       if (settings) {
         if (e.key === "Escape") setSettings(null);
         return;
@@ -549,7 +577,7 @@ export default function App() {
     if (!doc || !page) return;
     setBusy(true);
     try {
-      const name = fileName(doc.name);
+      const name = fileName(projectName || doc.name);
       if (format === "ai") {
         const result = await illustrator.export({
           mode: "export",
@@ -630,7 +658,7 @@ export default function App() {
                       onClick={() => void importAI(false)}
                     >
                       <FileInput />
-                      {ui("Открыть AI со слоями", "Open layered AI artwork")}
+                      {ui("Импортировать AI на новую страницу…", "Import AI as a new page…")}
                     </button>
                     <button
                       onClick={() => {
@@ -652,17 +680,15 @@ export default function App() {
                     </button>
                     {(
                       [
-                        ["design", ui("Новый дизайн", "New design"), "", File],
-                        ["board", ui("Новая доска", "New board"), "", Grid2X2],
                         [
                           "import",
-                          ui("Импорт .gigma…", "Import .gigma…"),
+                          ui("Импортировать страницы из .gigma…", "Import pages from .gigma…"),
                           "",
                           FileInput,
                         ],
                         [
                           "save",
-                          ui("Сохранить", "Save project"),
+                          ui("Сохранить проект StoryForge", "Save StoryForge project"),
                           "Ctrl S",
                           Save,
                         ],
@@ -753,27 +779,12 @@ export default function App() {
             >
               <Puzzle size={17} />
             </button>
-            <input
+            <span
               className="doc-title"
-              aria-label={ui("Название документа", "Document name")}
-              key={doc.id + doc.name}
-              defaultValue={doc.name}
-              maxLength={200}
-              onBlur={(e) => {
-                const value = e.currentTarget.value.trim();
-                if (value)
-                  studio.mutate(
-                    ui("Переименовать документ", "Rename document"),
-                    (d) => {
-                      d.name = value;
-                    },
-                  );
-                else e.currentTarget.value = doc.name;
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-              }}
-            />
+              title={projectName || ui("Проект StoryForge", "StoryForge project")}
+            >
+              {projectName || ui("Проект StoryForge", "StoryForge project")}
+            </span>
             <div className="toolbar-end">
               <button
                 title={ui("Отменить (Ctrl Z)", "Undo (Ctrl Z)")}
@@ -814,16 +825,14 @@ export default function App() {
               </button>
             </div>
           </header>
-          <div className="workspace">
+          <div className="workspace" key={page.id}>
             <LayersPanel
-              key={page.id}
               page={page}
               artworkVersion={studio.artworkVersion}
               selection={sel}
               onContextSelection={showContext}
             />
             <Canvas
-              key={page.id}
               page={page}
               tool={tool}
               setTool={setTool}
@@ -1000,7 +1009,7 @@ export default function App() {
                     ui("Группировать / разгруппировать", "Group / ungroup"),
                     "Ctrl G / Ctrl Shift G",
                   ],
-                  [ui("Сохранить на ПК", "Save project"), "Ctrl S"],
+                  [ui("Сохранить проект StoryForge", "Save StoryForge project"), "Ctrl S"],
                 ].map(([l, k]) => (
                   <p key={l}>
                     {l}

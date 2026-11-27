@@ -44,8 +44,9 @@ export function requestSave(saveAs = false) {
   sendEdit();
   post("save", { saveAs });
 }
-export function importWorkspace(value: DesignDocument) {
-  post("import", { document: validateDocument(value) });
+export function requestProjectCommand(command: "open" | "new") {
+  sendEdit();
+  post("project-command", { command });
 }
 
 type IllustratorJob = {
@@ -88,9 +89,10 @@ function appearance(message: { theme?: string; language?: string }) {
   setLanguage(lang);
 }
 export function bindWorkspace(
-  open: (document: DesignDocument) => void,
+  open: (document: DesignDocument, fresh: boolean) => void,
   finish: () => DesignDocument | null,
   report: (reason: Error) => void,
+  showProjectName: (name: string) => void,
 ) {
   let loaded = false;
   const receive = (event: MessageEvent) => {
@@ -110,11 +112,12 @@ export function bindWorkspace(
         session = msg.session;
         appearance(msg);
         loadPreferences(msg.preferences);
+        showProjectName(typeof msg.projectName === "string" ? msg.projectName : "");
         const fresh = msg.document === null;
         const design = fresh
           ? newDocument(String(msg.name || "Gigma").slice(0, 200))
           : validateDocument(msg.document);
-        open(design);
+        open(design, fresh);
         loaded = true;
         post("loaded", fresh ? { document: design } : {});
       } else if (msg.session === session && loaded) {
@@ -131,6 +134,8 @@ export function bindWorkspace(
           post("flushed", { requestId: msg.requestId, document });
         } else if (msg.type === "storyforge:gigma-appearance") {
           appearance(msg);
+        } else if (msg.type === "storyforge:gigma-project-name" && typeof msg.projectName === "string") {
+          showProjectName(msg.projectName);
         } else if (msg.type === "storyforge:gigma-illustrator-result") {
           const job = nativeRequests.get(msg.requestId);
           if (!job) return;

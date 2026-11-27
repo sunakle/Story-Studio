@@ -23,14 +23,14 @@ The installer includes the runtime. If the editor opens in Russian, go to **На
 
 ## Design in Gigma Studio
 
-Choose **+ → Create a Gigma Studio design** to sketch a game screen alongside your script. Pages and layers sit to the left of the canvas. The inspector on the right shows the selected object’s properties. Press **F** for a frame, **R** for a rectangle or **T** for text.
+Choose **+ → Open Gigma Studio** to go straight to the canvas for your current StoryForge project. Add another game screen with **+** in the **Pages** panel. Press **F** for a frame, **R** for a rectangle or **T** for text.
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/gallery/gigma-workspace-light.png">
   <img src="docs/gallery/gigma-workspace.png" alt="The Polar Station chapter artwork on the Gigma canvas with its layer tree and color inspector">
 </picture>
 
-Each design opens in its own tab. Find a closed design under **+ → Project designs**. Pages, images and prototype links are saved with the story. You can also import an existing `.gigma` file or export your design as Gigma, SVG or PNG. [Dark theme](docs/gallery/gigma-workspace.png) · [Light theme](docs/gallery/gigma-workspace-light.png)
+Press **Ctrl+S** on the canvas to save the script, graph, pages, images and prototype links in one `.sfproj` file. Choose **+ → Open Gigma Studio** again to return to the same canvas. Importing a `.gigma` file adds its pages to the current project. Designs from earlier versions remain accessible by name. [Dark theme](docs/gallery/gigma-workspace.png) · [Light theme](docs/gallery/gigma-workspace-light.png)
 
 ## Write, voice and play a branch
 

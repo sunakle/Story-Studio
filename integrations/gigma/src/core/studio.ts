@@ -151,18 +151,20 @@ export class Studio {
     this.document.cover = "";
     publishEdit(this.document, immediate);
   }
-  view(fn: (page: DesignPage) => void) {
-    if (this.page) {
-      fn(this.page);
-      this.changed();
-      this.emit();
-    }
+  activatePage(id: string) {
+    if (!this.document || this.document.activePageId === id) return;
+    this.document.activePageId = id;
+    this.changed();
+    this.emit();
   }
   // Camera events change a few numbers. Batch UI updates and keep full document
   // serialization out of the input handler. Closing the window still flushes the view.
   camera(fn: (page: DesignPage) => void) {
-    if (!this.page) return;
-    fn(this.page);
+    const page = this.page;
+    if (!page) return;
+    const { x, y, zoom } = page.view;
+    fn(page);
+    if (page.view.x === x && page.view.y === y && page.view.zoom === zoom) return;
     this.changed(false);
     if (!this.cameraFrame)
       this.cameraFrame = requestAnimationFrame(() => {

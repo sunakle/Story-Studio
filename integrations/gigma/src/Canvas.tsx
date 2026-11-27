@@ -79,6 +79,7 @@ export function zoomAt(page: DesignPage, value: number, at?: Point) {
   };
   const zoom = Math.min(32, Math.max(0.02, value)),
     ratio = zoom / page.view.zoom;
+  if (zoom === page.view.zoom) return;
   studio.camera((p) => {
     p.view = {
       x: center.x - (center.x - p.view.x) * ratio,

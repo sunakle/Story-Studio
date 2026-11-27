@@ -1,4 +1,5 @@
 import { getLanguage, t } from './i18n.js';
+import { projectDesigns } from './model.js';
 
 const prefix = 'storyforge:gigma-';
 const preferencesKey = 'storyforge/gigma/preferences/1';
@@ -9,15 +10,17 @@ function preferences() {
 }
 
 /** Keep each open document's canvas, selection and undo history alive while switching tabs. */
-export function createGigmaHost(store, ui, page, onImport) {
+export function createGigmaHost(store, ui, page) {
   const surface = document.createElement('div');
   surface.className = 'gigma-surface';
   surface.hidden = true;
   page.after(surface);
   const frames = new Map();
   let visible = null;
-  const workspace = id => store.project.gigmaWorkspaces.find(item => item.id === id);
+  const workspace = id => projectDesigns(store.project).find(item => item.id === id);
   const active = entry => visible === entry.id && !surface.hidden;
+  const projectName = () => store.project.meta.title || t('Новый проект', 'New project');
+  let lastName = projectName();
 
   function post(entry, type, payload = {}) {
     entry.frame.contentWindow?.postMessage({type: prefix + type, session: entry.session, ...payload}, '*');
@@ -36,7 +39,7 @@ export function createGigmaHost(store, ui, page, onImport) {
     panel.className = 'gigma-panel';
     const frame = document.createElement('iframe');
     frame.className = 'gigma-frame';
-    frame.title = 'Gigma Studio — ' + item.name;
+    frame.title = 'Gigma Studio — ' + projectName();
     frame.setAttribute('sandbox', 'allow-scripts allow-downloads');
     frame.src = location.protocol === 'file:' ? 'sf-gigma://studio/index.html'
       : new URL('gigma/index.html', document.baseURI).href;
@@ -79,8 +82,9 @@ export function createGigmaHost(store, ui, page, onImport) {
     if (entry.model === null && entry.pristine && value.revision === 0 && JSON.stringify(value) === entry.pristine) return true;
     entry.applying = true;
     try {
-      const op = {op:'updateGigmaWorkspace', id:entry.id, document:value};
-      if (typeof value.name === 'string' && value.name.trim()) op.name = value.name.trim();
+      const existing = store.project.gigmaWorkspaces.some(item => item.id === entry.id);
+      const op = existing ? {op:'updateGigmaWorkspace', id:entry.id, document:value}
+        : {op:'createGigmaWorkspace', id:entry.id, name:'Gigma Studio', document:value};
       const result = store.apply(op, {label:t('Правка макета Gigma', 'Edit Gigma design')});
       if (!result.ok) ui.toast(result.error, 'bad');
       entry.model = workspace(entry.id)?.document;
@@ -131,7 +135,7 @@ export function createGigmaHost(store, ui, page, onImport) {
     if (action === 'ready') {
       if (!entry.ready) {
         entry.ready = true;
-        post(entry, 'load', {document:item.document, name:item.name, language:getLanguage(), theme:theme(), preferences:preferences()});
+        post(entry, 'load', {document:item.document, name:item.name, projectName:projectName(), language:getLanguage(), theme:theme(), preferences:preferences()});
       }
       return;
     }
@@ -152,8 +156,10 @@ export function createGigmaHost(store, ui, page, onImport) {
       case 'save':
         if (active(entry)) ui.saveProject(data.saveAs === true);
         break;
-      case 'import':
-        if (active(entry) && data.document && typeof data.document === 'object') onImport(data.document);
+      case 'project-command':
+        if (!active(entry) || document.activeElement !== entry.frame) break;
+        if (data.command === 'new') ui.newProject();
+        else if (data.command === 'open') ui.openProject();
         break;
       case 'preferences':
         if (active(entry) && data.preferences && typeof data.preferences === 'object' && !Array.isArray(data.preferences)) {
@@ -202,19 +208,29 @@ export function createGigmaHost(store, ui, page, onImport) {
         // A host undo or redo replaced this document. Discard messages from its old editor.
         dispose(entry);
         if (visible === item.id) mount(item);
-      } else entry.frame.title = 'Gigma Studio — ' + item.name;
+      }
     }
   }
 
   function appearance() {
+    syncName();
     for (const entry of frames.values()) {
       if (entry.ready) post(entry, 'appearance', {theme:theme(), language:getLanguage()});
+    }
+  }
+  function syncName() {
+    const name = projectName();
+    if (lastName === name) return;
+    lastName = name;
+    for (const entry of frames.values()) {
+      entry.frame.title = 'Gigma Studio — ' + name;
+      if (entry.ready) post(entry, 'project-name', {projectName:name});
     }
   }
   new MutationObserver(appearance).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 
   return {
-    show, sync, appearance,
+    show, sync, syncName, appearance,
     focus(id) { frames.get(id)?.frame.focus({preventScroll:true}); },
     async flushAll() { return (await Promise.all([...frames.values()].map(flush))).every(Boolean); },
     async close(id) {
