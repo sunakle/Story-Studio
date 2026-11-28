@@ -5,6 +5,7 @@ import { entityLists, nodeTitle, jumpCandidates, rankCandidates } from './story-
 import { createScenarioTable } from './scenario-table.js';
 import { renderDocument } from './scene-document.js';
 import { createScreenplayEditor } from './screenplay.js';
+import { createRpgEditor } from './rpg-editor.js';
 import { createGigmaHost } from './gigma-workspace.js';
 import { makeProjectReference, parseProjectReference } from './project-references.js';
 import { exportSVG } from '../gigma/artwork-model.js';
@@ -27,6 +28,8 @@ export function createWorkbench(store, ui) {
   });
   const tabIcons = {graph:'layout', overview:'graph', table:'table', screenplay:'edit', assistant:'wand', gigma:'layers', empty:'file', node:'file', chapter:'folder', character:'user', location:'pin', variable:'hash'};
   const renderScreenplay = createScreenplayEditor(store, ui);
+  const rpg = createRpgEditor(store, ui);
+  tabIcons.rpg = 'play';
   const stage = document.createElement('div');
   stage.className = 'design-stage';
   stage.hidden = true;
@@ -187,6 +190,7 @@ export function createWorkbench(store, ui) {
     if (t.kind === 'overview') return uiText("Обзор сюжета", "Story overview");
     if (t.kind === 'table') return uiText("Таблица", "Table");
     if (t.kind === 'screenplay') return uiText("Сценарий", "Screenplay");
+    if (t.kind === 'rpg') return uiText('Игровой движок', 'Game engine');
     if (t.kind === 'assistant') return uiText("ИИ-мастерская", "AI studio");
     if (t.kind === 'gigma') {
       const designs = projectDesigns(store.project);
@@ -218,7 +222,7 @@ export function createWorkbench(store, ui) {
     if (next < 0 || next >= trail.length) return false;
     cursor = next;
     let destination = trail[cursor];
-    if (destination.kind === 'gigma' || destination.kind === 'assistant') {
+    if (['gigma','assistant','rpg'].includes(destination.kind)) {
       const existing = tabs.find(tab => tab.kind === destination.kind && tab.id === destination.id);
       if (existing) destination = trail[cursor] = existing;
     }
@@ -252,6 +256,7 @@ export function createWorkbench(store, ui) {
   }
   function render() {
     page.dataset.view = active.kind;
+    if (active.kind !== 'rpg') rpg.hide();
     drawTabs();
     const graph = active.kind === 'graph';
     const canvas = graph || active.kind === 'overview';
@@ -268,7 +273,8 @@ export function createWorkbench(store, ui) {
       page.replaceChildren();
       return;
     }
-    if (active.kind === 'table')
+    if (active.kind === 'rpg') rpg.show(page);
+    else if (active.kind === 'table')
       createScenarioTable({
         store,
         ui,
@@ -288,6 +294,7 @@ export function createWorkbench(store, ui) {
         <button type="button" data-start="find">${icon('search', 17)}<span>${uiText("Открыть сцену", "Open scene")}</span><kbd>Ctrl K</kbd></button>
         <button type="button" data-start="table">${icon('table', 17)}<span>${uiText("Открыть таблицу", "Open table")}</span></button>
         <button type="button" data-start="screenplay">${icon('edit', 17)}<span>${uiText("Открыть сценарий", "Open screenplay")}</span></button>
+        <button type="button" data-start="rpg">${icon('play', 17)}<span>${uiText('Игровой движок', 'Game engine')}</span></button>
         <button type="button" data-start="gigma">${icon('layers', 17)}<span>${uiText("Открыть Gigma Studio", "Open Gigma Studio")}</span></button>
         <button type="button" data-start="assistant">${icon('wand', 17)}<span>${uiText("Открыть ИИ-мастерскую", "Open AI studio")}</span></button>
         ${store.project.gigmaWorkspaces.length > 1 ? `<details class="wb-designs"><summary>${icon('folder', 16)}${uiText("Макеты проекта", "Project designs")}<span>${store.project.gigmaWorkspaces.length}</span></summary><div>${store.project.gigmaWorkspaces.map(item => `<button type="button" data-design-id="${esc(item.id)}" title="${esc(item.name)}">${icon('layers', 15)}<span>${esc(item.name)}</span></button>`).join('')}</div></details>` : ''}
@@ -301,6 +308,9 @@ export function createWorkbench(store, ui) {
             break;
           case 'gigma':
             openDesign();
+            break;
+          case 'rpg':
+            openRpg();
             break;
           case 'find':
             quickJump();
@@ -344,6 +354,7 @@ export function createWorkbench(store, ui) {
     ui.flushEdits?.();
     ui.voice?.stop?.();
     if (active && active !== t) {
+      if (active.kind === 'rpg') rpg.flush();
       navigationRevision++;
       if (active.kind === 'assistant') clearAssistantPreview();
       if (!['empty', 'assistant'].includes(active.kind)) lastReferences = referencesForView();
@@ -355,7 +366,7 @@ export function createWorkbench(store, ui) {
     }
     // Mark the destination first so closing the previous canvas cannot navigate back recursively.
     active = t;
-    designPanels(t.kind === 'gigma' || t.kind === 'assistant');
+    designPanels(['gigma','assistant','rpg'].includes(t.kind));
     if (t.kind !== 'overview') ui.visualizer?.close();
     if (recordVisit) visit(t);
     const select = t.kind === 'gigma' ? null : (t.id ? { kind: t.kind, id: t.id } : t.selection);
@@ -482,6 +493,7 @@ export function createWorkbench(store, ui) {
     const first = parseProjectReference(references[0], store.project);
     const previous = active.kind === 'empty' || (studio && !gigma.references(assistantId).length);
     return {surface:studio ? 'workshop' : 'sidebar', view:active.kind, title:title(active),
+      ...(active.kind === 'rpg' ? {rpgMapId:rpg.context().mapId, rpgEventId:rpg.context().eventId} : {}),
       project:store.project.meta.title, ...(workspaceId && {workspaceId, pageId:gigma.pageId(workspaceId)}),
       ...(first?.kind === 'gigma' && first.workspaceId === workspaceId && {objectId:first.objectId}),
       reference:references[0] || '', referenceSource:references.length ? previous ? 'previous-view' : 'selection' : '', references};
@@ -538,9 +550,13 @@ export function createWorkbench(store, ui) {
   }
   function openDesign(id = projectDesigns(store.project)[0].id) {
     if (!projectDesigns(store.project).some(item => item.id === id)) return;
-    let tab = tabs.find(item => item.kind === 'gigma' && item.id === id);
+    openWorkspaceTab('gigma', id);
+  }
+  function openRpg() { openWorkspaceTab('rpg'); }
+  function openWorkspaceTab(kind, id) {
+    let tab = tabs.find(item => item.kind === kind && item.id === id);
     if (!tab) {
-      tab = {kind:'gigma', id};
+      tab = {kind, id};
       if (active.kind === 'empty') {
         active.slot ||= Symbol('document');
         tab.slot = active.slot;
@@ -776,6 +792,7 @@ export function createWorkbench(store, ui) {
     if (b.hasAttribute('data-close-tab')) {
       const tab = tabs[Number(b.dataset.closeTab)];
       if (!tab) return;
+      if (tab.kind === 'rpg' && rpg.flush() === false) return;
       const canvasId = tab.kind === 'assistant' ? assistantId : tab.kind === 'gigma' ? tab.id : null;
       const shared = canvasId && tabs.some(other => other !== tab && (other.kind === 'gigma' && other.id === canvasId
         || other.kind === 'assistant' && canvasId === assistantId));
@@ -864,7 +881,13 @@ export function createWorkbench(store, ui) {
       if (active.kind === 'screenplay') renderScreenplay(page, active);
       return;
     }
+    if (evt.scope === 'rpg' && active.kind !== 'rpg') return;
     issues = null;
+    if (active.kind === 'rpg') {
+      rpg.refresh();
+      drawTabs();
+      return;
+    }
     // Retain the last known chapter even when a background tab's scene is moved and then deleted.
     for (const tab of tabs) {
       if (tab.kind !== 'node') continue;
@@ -918,7 +941,7 @@ export function createWorkbench(store, ui) {
     forward: () => navigate(1),
     currentLocation,
     refreshLanguage() { issues = null; gigma.appearance(); render(); },
-    flushDesigns: gigma.flushAll,
+    flushDesigns: async () => rpg.flush() !== false && await gigma.flushAll(),
     assistantWorkspaceId: () => assistantId,
     navigationRevision: () => navigationRevision,
     revealWorkshopLayer(layer) { showPane('canvas'); gigma.reveal(layer); },
@@ -937,6 +960,7 @@ export function createWorkbench(store, ui) {
     openTable,
     openScreenplay,
     openDesign,
+    openRpg,
     openPlayer,
     quickJump,
     persist,

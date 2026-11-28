@@ -23,6 +23,16 @@ The installer includes the runtime. If the editor opens in Russian, go to **На
 
 </details>
 
+## Game engine
+
+Open **+ → Game engine**. Paint the map with tiles, mark walls, set the player spawn, then add characters or doors under **Events**. Use **+** in the map list for another room. Each event has visual blocks and editable source for the same dialogue, variables, branches and transfers.
+
+Choose **Play** to try the map. Use the arrow keys or **WASD** to move and **Space** to talk or advance dialogue. In a new game, try **Door example** to pick up a key from the garden caretaker and enter the workshop. Maps and events live in the same `.sfproj` as the screenplay and work offline. **Assistant** lets your connected model read and edit the selected map and event.
+
+The bundled pixel art includes Kenney’s complete **Tiny Town** and **Tiny Dungeon** packs under CC0, plus water variants. [Tiny Town](https://kenney.nl/assets/tiny-town) · [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) · [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/)
+
+![StoryForge map editor with a playable two-room example](docs/gallery/rpg-engine.png)
+
 ## Design in Gigma Studio
 
 Choose **+ → Open Gigma Studio** to go straight to the canvas for your current StoryForge project. Add another game screen with **+** in the **Pages** panel. Press **F** for a frame, **R** for a rectangle or **T** for text.

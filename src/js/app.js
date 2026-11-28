@@ -656,7 +656,7 @@ async function applyLoaded(res, documentKey) {
 let saving = Promise.resolve();
 async function flushDesigns() {
   if (!ui.workbench || await ui.workbench.flushDesigns()) return true;
-  toast(uiText("Gigma Studio не подтвердила изменения. Повторите действие.", "Gigma Studio could not confirm the latest edits. Try again."), 'bad');
+  toast(uiText("Редактор не смог сохранить последние изменения. Проверьте открытые вкладки.", "The editor could not save the latest changes. Check your open tabs."), 'bad');
   return false;
 }
 function saveProject(saveAs = false, mode = 'manual') {
@@ -1345,7 +1345,7 @@ function initHotkeys() {
       store.setSelection({ kind: null, id: null });
       return;
     }
-    if (inField) return;
+    if (inField || ui.workbench?.current?.() === 'rpg') return;
 
     if (mod && e.key.toLowerCase() === 'd') {
       e.preventDefault();
@@ -1372,7 +1372,7 @@ function initHotkeys() {
 
   // Вставка картинки из буфера обмена (Ctrl+V) — в выбранный узел.
   document.addEventListener('paste', (e) => {
-    if (e.target.closest?.('#screenplayText')) return;
+    if (e.target.closest?.('#screenplayText, .rpg-editor, .rpg-player')) return;
     const files = clipboardImages(e);
     if (!files.length) return;
     const node = selectedNode();
@@ -1461,7 +1461,7 @@ async function boot() {
       state.issues = validateProject(store.project);
       scheduleRefresh();
       window.sf.app.setDirty(store.dirty);
-    } else if (evt.scope === 'screenplay' || evt.scope === 'gigma') {
+    } else if (['screenplay','gigma','rpg'].includes(evt.scope)) {
       window.sf.app.setDirty(store.dirty);
       scheduleRefresh({ status: true });
       scheduleAutosave();

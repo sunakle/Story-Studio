@@ -1,4 +1,5 @@
 import { t as uiText, getLanguage } from './i18n.js';
+import { validateGame } from './rpg-model.js';
 // ============================================================================
 // model.js — ядро модели данных StoryForge.
 //
@@ -343,6 +344,7 @@ export function createEmptyProject(overrides) {
     schemaVersion: SCHEMA_VERSION,
     meta: { title: uiText('Новый проект', 'New project'), author: '', description: '', createdAt: now, updatedAt: now },
     screenplay: '',
+    rpgGame: null,
     gigmaWorkspaces: [],
     startNodeId: '',
     characters: [],
@@ -382,6 +384,7 @@ export function migrateProject(raw) {
       updatedAt: asString(meta.updatedAt) || nowISO(),
     },
     screenplay: asString(raw.screenplay),
+    rpgGame: raw.rpgGame == null ? null : copyDesignJSON(validateGame(raw.rpgGame)),
     gigmaWorkspaces: [],
     startNodeId: asString(raw.startNodeId),
     characters: [],
@@ -1726,6 +1729,15 @@ function applyOneOp(project, op, ctx) {
       break;
     }
 
+    case 'setRpgGame': {
+      const game = op.game === null ? null : copyDesignJSON(validateGame(op.game), project.rpgGame);
+      if (game !== project.rpgGame) {
+        project.rpgGame = game;
+        mark('rpgGame');
+      }
+      break;
+    }
+
     case 'setScreenplay': {
       if (typeof op.text !== 'string') throw new Error(uiText('Ожидался текст сценария.', 'Expected screenplay text.'));
       project.screenplay = op.text;
@@ -1822,7 +1834,7 @@ export function applyOps(project, ops) {
   // Text edits only touch the addressed records. Store history keeps the old
   // root fields, so every mutating branch operates on its own draft.
   let work;
-  if (list.every(op => op.op === 'setScreenplay' || gigmaOps.has(op.op))) {
+  if (list.every(op => op.op === 'setScreenplay' || op.op === 'setRpgGame' || gigmaOps.has(op.op))) {
     work = { ...project };
   } else if (list.every(op => op.op === 'updateNode' || op.op === 'setNodeTexts')) {
     const ids = new Set(list.flatMap(op => op.op === 'updateNode' ? [op.id] : asArray(op.items).map(item => item?.id)));
@@ -1830,11 +1842,12 @@ export function applyOps(project, ops) {
   } else {
     // Media operations add/remove complete entries. Their data URLs and
     // metadata are immutable; only the dictionary itself needs a fresh copy.
-    const {media, voice, characters, nodes, gigmaWorkspaces, ...content} = project;
+    const {media, voice, characters, nodes, gigmaWorkspaces, rpgGame, ...content} = project;
     work = deepClone(content);
     work.nodes = cloneRecordsForEdit(nodes);
     work.characters = cloneRecordsForEdit(characters);
     work.voice = voice;
+    work.rpgGame = rpgGame ?? null;
     if (gigmaWorkspaces) work.gigmaWorkspaces = gigmaWorkspaces;
     if (media) work.media = { ...media };
   }
@@ -1901,7 +1914,7 @@ export class Store {
     const before = { ...this.project };
     const result = applyOps(this.project, list);
     if (!result.ok) return result;
-    if (!result.changed.length && list.every(op => gigmaOps.has(op.op))) return result;
+    if (!result.changed.length && list.every(op => op.op === 'setRpgGame' || gigmaOps.has(op.op))) return result;
 
     const label = asString(opts.label) || describeOps(list);
     const now = Date.now();
@@ -1936,6 +1949,7 @@ export class Store {
     this.dirty = true;
     this._validateSelection();
     const scope = list.every(op => gigmaOps.has(op.op)) ? 'gigma' :
+      list.every(op => op.op === 'setRpgGame') ? 'rpg' :
       list.every(op => op.op === 'setScreenplay') ? 'screenplay' : 'project';
     this._notify({ type: 'change', label, scope });
     return { ok: true, changed: result.changed, created: result.created };
@@ -2101,6 +2115,7 @@ export class Store {
   _clone(project) {
     const copy = deepClone(project);
     copy.gigmaWorkspaces ??= [];
+    copy.rpgGame ??= null;
     return copy;
   }
 
