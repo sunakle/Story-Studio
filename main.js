@@ -681,7 +681,29 @@ async function pushRecent(filePath) {
   });
 }
 
+async function readRpgPng(name, width, height) {
+  const file = path.join(userDir(), 'tilesets', name);
+  try {
+    const stat = await fsp.stat(file);
+    if (!stat.isFile() || stat.size > 512 * 1024) return null;
+    const png = await fsp.readFile(file);
+    if (png.length < 33 || png.readUInt32BE(0) !== 0x89504e47 || png.readUInt32BE(4) !== 0x0d0a1a0a ||
+        png.toString('ascii',12,16) !== 'IHDR' || png.readUInt32BE(16) !== width || png.readUInt32BE(20) !== height) return null;
+    return png;
+  } catch (err) {
+    if (err.code !== 'ENOENT') logLine('Local RPG tileset:', err.message);
+    return null;
+  }
+}
+
 function registerSettingsIpc() {
+  ipcMain.handle('sf:rpg:localTileset', async (event) => {
+    if (!win || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) return null;
+    const characters = await readRpgPng('woods-characters.png',192,384);
+    if (characters) return {atlas:characters,characters:true,walk:await readRpgPng('retro-walk.png',48,2048)};
+    const woods = await readRpgPng('woods-v2.png',192,368);
+    return woods && {atlas:woods,characters:false};
+  });
   ipcMain.handle('sf:settings:get', () => getSettings());
   ipcMain.handle('sf:settings:set', async (_e, patch) => writeSettings(patch));
   ipcMain.handle('sf:app:setDirty', (_e, value) => {

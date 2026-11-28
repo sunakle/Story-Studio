@@ -16,6 +16,7 @@ import { askBeforeClosing } from './close-prompt.js';
 import { createInspector } from './inspector.js';
 import { createPanels } from './panels.js';
 import { createWorkbench } from './workbench.js';
+import { loadLocalRpgTileset } from './rpg-assets.js';
 import { bindAliceDictation } from './alice-dictation.js';
 import { initWorkspaceShell } from './workspace-shell.js';
 import { createAI } from './ai.js';
@@ -1388,6 +1389,7 @@ function initHotkeys() {
 // ------------------------------------------------------------------ старт
 
 async function boot() {
+  const tilesetReady = loadLocalRpgTileset();
   paintShellLanguage = bindShellLanguage(document.body);
   state.settings = await window.sf.settings.get();
   setLanguage(state.settings.language);
@@ -1449,6 +1451,7 @@ async function boot() {
 
   ui.setRightTab('inspector');
 
+  await tilesetReady;
   ui.workbench = createWorkbench(store, ui);
   ui.updateShellLanguage = initWorkspaceShell(store, ui);
 

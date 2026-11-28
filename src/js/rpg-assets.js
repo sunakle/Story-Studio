@@ -1,12 +1,52 @@
 // IDs follow the rows of the bundled atlas and are part of the saved project format.
+const bundledUrl = new URL('../assets/rpg/kenney-tiny-rpg.png', import.meta.url).href;
+let localUrl, characterPack = false, walkingImage;
+const bundledCount = 276;
+const classicActors = [216,217,218,219,220,228,229,230,231,232,240,241,242,243,244,252,253,254,255,256];
+const actors = [...classicActors,...range(276,287)];
+
+async function decodePng(png,width,height) {
+  const url = URL.createObjectURL(new Blob([png],{type:'image/png'}));
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    if (image.naturalWidth !== width || image.naturalHeight !== height) throw Error('Unexpected tileset dimensions');
+    return {image,url};
+  } catch (err) {
+    URL.revokeObjectURL(url);
+    throw err;
+  }
+}
+
+export async function loadLocalRpgTileset() {
+  if (localUrl) return;
+  try {
+    const pack = await window.sf.rpg.localTileset();
+    if (!pack?.atlas?.byteLength) return;
+    const atlas = await decodePng(pack.atlas,192,pack.characters ? 384 : 368);
+    localUrl = atlas.url;
+    characterPack = pack.characters === true;
+    if (pack.walk?.byteLength) walkingImage = (await decodePng(pack.walk,48,2048)).image;
+  } catch (err) {
+    console.warn('Could not load the local RPG tileset.', err);
+  }
+}
+
 export const rpgAtlas = Object.freeze({
-  url: new URL('../assets/rpg/kenney-tiny-rpg.png', import.meta.url).href,
+  get url() { return localUrl ?? bundledUrl; },
+  get credit() {
+    if (characterPack) return 'Pixel 16 Woods · zedpxl / Super Retro World · Gif / Kenney';
+    return localUrl ? 'Pixel 16 Woods · zedpxl / Kenney' : 'Kenney · CC0';
+  },
+  get contributors() { return characterPack ? 'Pixel 16 Woods — zedpxl · Super Retro World — Gif, Noiracide, Romi · Kenney (CC0)' : this.credit; },
   tileSize: 16,
   columns: 12,
-  rows: 23,
+  get rows() { return characterPack ? 24 : 23; },
   margin: 0,
   spacing: 0,
-  count: 276
+  count: 288,
+  get visibleCount() { return this.rows*this.columns; }
 });
 
 export const rpgDefaults = Object.freeze({
@@ -32,7 +72,7 @@ export const tileGroups = [
   {id:'props', ru:'Мебель и предметы', en:'Furniture and props',
     tiles:[93, 94, ...range(103, 107), 130, 131, ...range(192, 215), ...range(221, 227)]},
   {id:'actors', ru:'Персонажи и существа', en:'Characters and creatures',
-    tiles:[...range(216, 220), ...range(228, 232), ...range(240, 244), ...range(252, 256)]},
+    get tiles() { return characterPack ? actors : classicActors; }},
   {id:'items', ru:'Инструменты и снаряжение', en:'Tools and gear',
     tiles:[...range(115, 119), ...range(127, 129), ...range(233, 239), ...range(245, 251), ...range(257, 263)]}
 ];
@@ -41,8 +81,22 @@ function validTile(id) {
   return Number.isInteger(id) && id >= 0 && id < rpgAtlas.count;
 }
 
+// New character IDs remain playable when opening the project on a computer
+// without the local character pack. The saved IDs themselves stay unchanged.
+function displayTile(id) {
+  return !characterPack && id >= bundledCount ? classicActors[id - bundledCount] : id;
+}
+
+export function drawRpgActor(ctx, atlas, id, facing, frame, x, y, size) {
+  const actor = actors.indexOf(id);
+  if (!walkingImage || actor < 0) return drawRpgTile(ctx,atlas,id,x,y,size);
+  const row = facing.dy < 0 ? 3 : facing.dx > 0 ? 2 : facing.dx < 0 ? 1 : 0;
+  ctx.drawImage(walkingImage,frame*16,(actor*4+row)*16,16,16,x,y,size,size);
+}
+
 export function drawRpgTile(ctx, image, id, x, y, size = rpgAtlas.tileSize) {
   if (!validTile(id) || !image || !Number.isFinite(size) || size <= 0) return;
+  id = displayTile(id);
   const {columns, tileSize} = rpgAtlas;
   const sx = (id % columns) * tileSize;
   const sy = Math.floor(id / columns) * tileSize;
@@ -51,6 +105,7 @@ export function drawRpgTile(ctx, image, id, x, y, size = rpgAtlas.tileSize) {
 
 export function rpgTileStyle(id, size = 24) {
   if (!validTile(id) || !Number.isFinite(size) || size <= 0) return '';
+  id = displayTile(id);
   const {url, columns, rows} = rpgAtlas;
   const x = -(id % columns) * size;
   const y = -Math.floor(id / columns) * size;

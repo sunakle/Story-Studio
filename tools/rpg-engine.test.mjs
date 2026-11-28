@@ -119,6 +119,21 @@ test('Legacy courtyard expands in every direction while preserving old indices a
   assert.deepEqual(migrateProject(JSON.parse(JSON.stringify(store.project))).project.rpgGame,extra);
 });
 
+test('all tile IDs from the 1.8.1 tileset survive reopening with their original map and event references', () => {
+  const fixture = createEmptyProject();
+  // Fixed numeric IDs are the file format used by previously saved games.
+  const map = {id:'old_map',name:'Old map',width:12,height:23,
+    tiles:Array.from({length:276},(_,i)=>i),blocked:[126],
+    cells:{'-8,6':{tile:264}},events:[{id:'gate',name:'Door',x:1,y:0,sprite:85,trigger:'action',code:'goto old_map -8 6'}]};
+  fixture.rpgGame = {version:1,maps:[map],start:{mapId:map.id,x:0,y:0,sprite:230}};
+  const {project} = migrateProject(JSON.parse(JSON.stringify(fixture)));
+  assert.deepEqual(project.rpgGame,fixture.rpgGame);
+  const actor = startGame(project.rpgGame);
+  move(project.rpgGame,actor,1,0);
+  interact(project.rpgGame,actor);
+  assert.deepEqual([actor.x,actor.y,actor.sprite],[-8,6,230]);
+});
+
 test('Signed transfers, collisions and events share the same sparse coordinates as the editor', () => {
   const game = createGame(), map = game.maps[0];
   assert.equal(map.tiles.length,1);

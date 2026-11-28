@@ -14,7 +14,11 @@ const { _electron: electron } = require(process.env.STORYFORGE_PLAYWRIGHT || 'pl
 const root = fileURLToPath(new URL('../', import.meta.url));
 const profile = await fs.mkdtemp(path.join(os.tmpdir(), 'StoryForge-RPG-'));
 const story = path.join(profile, 'garden.sfproj');
-const screenshotPath = process.env.STORYFORGE_RPG_SHOT || (process.argv.includes('--screenshot') && path.join(root, 'docs', 'gallery', 'rpg-engine.png'));
+const localTileset = process.env.STORYFORGE_TEST_TILESET;
+const localWalk = process.env.STORYFORGE_TEST_WALK;
+let fullActors = false;
+const defaultShot = localTileset ? '.release-work/woods/installed-woods.png' : 'docs/gallery/rpg-engine.png';
+const screenshotPath = process.env.STORYFORGE_RPG_SHOT || (process.argv.includes('--screenshot') && path.join(root, defaultShot));
 const name = 'Мастерская у пруда';
 const revised = 'Вход заперт. Поговорите со смотрителем.';
 const errors = [];
@@ -73,6 +77,96 @@ async function cell(x, y) {
   await page.mouse.click(v.x + target.x, v.y + target.y);
 }
 
+// Read the middle of every source pixel (away from the grid and selection
+// strokes). This exercises the actual editor and play canvases at different zooms.
+async function sampleTerrain(canvas, x, y, player = false) {
+  return canvas.evaluate((el,{x,y,player}) => {
+    const rect = el.getBoundingClientRect();
+    const size = player ? 16 : Number(el.dataset.cellSize);
+    const left = player ? Number(el.dataset.x)-Math.floor(el.width/32) : Number(el.dataset.worldLeft);
+    const top = player ? Number(el.dataset.y)-Math.floor(el.height/32) : Number(el.dataset.worldTop);
+    const scaleX = player ? 1 : el.width/rect.width, scaleY = player ? 1 : el.height/rect.height;
+    const ctx = el.getContext('2d'), result=[];
+    for (let j=2; j<14; j+=2) for (let i=2; i<14; i+=2) {
+      const xx=Math.floor((x-left+(i+.5)/16)*size*scaleX), yy=Math.floor((y-top+(j+.5)/16)*size*scaleY);
+      result.push(...ctx.getImageData(xx,yy,1,1).data);
+    }
+    return result;
+  },{x,y,player});
+}
+
+async function checkLocalArtwork(tile) {
+  // Test-only reference bytes are supplied explicitly by the pack owner.
+  const reference = await fs.readFile(localTileset);
+  const swatch=editor.locator('[data-tile="'+tile+'"] i');
+  const {expected,paletteMatches} = await swatch.evaluate(async (el,{png,tile,ground}) => {
+    const img=new Image(); img.src='data:image/png;base64,'+png;
+    await img.decode();
+    const canvas=document.createElement('canvas'); canvas.width=canvas.height=16;
+    const ctx=canvas.getContext('2d');
+    function draw(id) { ctx.drawImage(img,id%12*16,Math.floor(id/12)*16,16,16,0,0,16,16); }
+    const css=getComputedStyle(el), palette=new Image();
+    palette.src=css.backgroundImage.match(/^url\("(.*)"\)$/)[1]; await palette.decode();
+    const column=-parseFloat(css.backgroundPositionX)/parseFloat(css.width), row=-parseFloat(css.backgroundPositionY)/parseFloat(css.height);
+    ctx.drawImage(palette,column*16,row*16,16,16,0,0,16,16);
+    const swatchPixels=canvas.toDataURL();
+    ctx.clearRect(0,0,16,16);draw(tile);
+    const paletteMatches=swatchPixels===canvas.toDataURL();
+    ctx.clearRect(0,0,16,16);
+    if (tile!==ground) draw(ground);
+    draw(tile);
+    const samples=[];
+    for (let y=2;y<14;y+=2) for (let x=2;x<14;x+=2) samples.push(...ctx.getImageData(x,y,1,1).data);
+    return {expected:samples,paletteMatches};
+  },{png:reference.toString('base64'),tile,ground:rpgDefaults.ground});
+  assert.ok(paletteMatches,'Paint brush displays the correct pack tile');
+  assert.ok(expected.some((v,i)=>i%4===3 && v>0),'The supplied terrain tile is visible');
+  await page.mouse.move(12,12);
+  const canvas=editor.locator('[data-rpg-canvas]');
+  assert.deepEqual(await sampleTerrain(canvas,6,7),expected,'Editor pixels match the chosen pack');
+  await command('play');
+  const dialog=page.locator('dialog.rpg-player');
+  await page.waitForFunction(() => document.querySelector('dialog.rpg-player canvas')?.width===320);
+  assert.deepEqual(await sampleTerrain(dialog.locator('canvas'),6,7,true),expected,'Player pixels match the chosen pack');
+  if (localWalk) await checkWalking(dialog,reference);
+  await dialog.locator('[data-player="close"]').click();
+}
+
+async function checkWalking(dialog, atlas) {
+  const {rpgGame:game}=JSON.parse(await fs.readFile(story,'utf8'));
+  const {x,y,sprite,mapId}=game.start, map=game.maps.find(m=>m.id===mapId);
+  const actorIds=[216,217,218,219,220,228,229,230,231,232,240,241,242,243,244,252,253,254,255,256,...Array.from({length:12},(_,i)=>276+i)];
+  const actor=actorIds.indexOf(sprite);
+  assert.ok(actor>=0);
+  const result=await dialog.locator('canvas').evaluate(async (canvas,input) => {
+    const load = async data => {const img=new Image();img.src='data:image/png;base64,'+data;await img.decode();return img;};
+    const [terrain,walk]=await Promise.all([load(input.atlas),load(input.walk)]);
+    const tile=document.createElement('canvas');tile.width=tile.height=16;
+    const ctx=tile.getContext('2d');
+    function expected(ground,dir,frame) {
+      ctx.clearRect(0,0,16,16);
+      for(const id of [input.base,ground])ctx.drawImage(terrain,id%12*16,Math.floor(id/12)*16,16,16,0,0,16,16);
+      ctx.drawImage(walk,frame*16,(input.actor*4+dir)*16,16,16,0,0,16,16);
+      return ctx.getImageData(0,0,16,16).data;
+    }
+    const playerCtx=canvas.getContext('2d');
+    function matches(ground,dir,frame) {
+      const pixels=playerCtx.getImageData(Math.floor(canvas.width/32)*16,Math.floor(canvas.height/32)*16,16,16).data;
+      return expected(ground,dir,frame).every((value,i)=>value===pixels[i]);
+    }
+    const front=matches(input.start,0,1);
+    canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',code:'ArrowRight',bubbles:true,cancelable:true}));
+    const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+    await nextFrame();
+    const walking=[0,2].some(frame=>matches(input.next,2,frame));
+    const deadline=performance.now()+1500;
+    while(!matches(input.next,2,1) && performance.now()<deadline)await nextFrame();
+    return {front,walking,standing:matches(input.next,2,1),x:Number(canvas.dataset.x)};
+  },{atlas:atlas.toString('base64'),walk:(await fs.readFile(localWalk)).toString('base64'),actor,
+    base:rpgDefaults.ground,start:getMapTile(map,x,y),next:getMapTile(map,x+1,y)});
+  assert.deepEqual(result,{front:true,walking:true,standing:true,x:x+1},'Walking turns the hero, draws a step, then settles on the matching idle frame');
+}
+
 async function pan(button = 'middle', modifier) {
   const v = await viewport();
   await editor.locator('[data-rpg-canvas]').focus();
@@ -85,8 +179,10 @@ async function pan(button = 'middle', modifier) {
   } finally {
     if (modifier) await page.keyboard.up(modifier);
   }
-  const after = await viewport();
-  assert.ok(after.left < v.left - 2 && after.top < v.top - 2, 'Panning exposes cells to the north-west');
+  await page.waitForFunction(({left,top}) => {
+    const view=document.querySelector('[data-rpg-canvas]').dataset;
+    return Number(view.worldLeft)<left-2 && Number(view.worldTop)<top-2;
+  },v,{timeout:3500});
 }
 
 async function zoomAtCursor() {
@@ -128,6 +224,7 @@ async function captureFreeMap() {
   await command('fit');
   await page.mouse.move(12,12);
   await page.waitForFunction(() => !document.querySelector('#toastRoot .toast'));
+  await fs.mkdir(path.dirname(screenshotPath),{recursive:true});
   await page.screenshot({path:screenshotPath});
 }
 
@@ -173,6 +270,13 @@ async function play() {
 }
 
 try {
+  if (localTileset) {
+    const directory = path.join(profile,'tilesets');
+    await fs.mkdir(directory);
+    fullActors=(await fs.readFile(localTileset)).readUInt32BE(20)===384;
+    await fs.copyFile(localTileset,path.join(directory,fullActors?'woods-characters.png':'woods-v2.png'));
+    if(localWalk)await fs.copyFile(localWalk,path.join(directory,'retro-walk.png'));
+  }
   const oldProject = createEmptyProject({meta:{title:name}, screenplay:'У пруда стоит мастерская.'});
   delete oldProject.rpgGame;
   await fs.writeFile(story, JSON.stringify(oldProject));
@@ -193,6 +297,7 @@ try {
   await saveAndRead(matches(originalTile));
   await page.keyboard.press('Control+y');
   await saveAndRead(matches(tile));
+  if (localTileset) await checkLocalArtwork(tile);
 
   await editor.locator('[data-mode="event"]').click();
   await cell(10, 5);
@@ -284,9 +389,15 @@ try {
   await editor.locator('[data-mode="block"]').click();
   await cell(x-1,y);
   await editor.locator('[data-mode="start"]').click();
+  if (fullActors) {
+    const actors=editor.locator('[data-tile]');
+    assert.equal(await actors.count(),32,'Retro pack offers all 32 characters');
+    await editor.locator('[data-tile="287"]').click();
+  }
   await cell(x,y);
   const expanded = await saveAndRead(p => p.rpgGame.start.x === x && p.rpgGame.start.y === y && isMapBlocked(library(p),x-1,y));
   assert.ok(JSON.stringify(library(expanded)).length<20000,'Distant strokes should allocate only painted cells.');
+  if (fullActors) assert.equal(expanded.rpgGame.start.sprite,287,'An appended character ID is saved');
   await zoomAtCursor();
   await pan();
   const parked = await viewport();

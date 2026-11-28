@@ -33,6 +33,16 @@
 
 Рисование и прохождение работают офлайн. Кнопка **Ассистент** открывает чат подключённой модели с текущей локацией и выбранным событием. В комплект входят полные наборы **Tiny Town** и **Tiny Dungeon** автора Kenney и дополнительные варианты воды. [Tiny Town](https://kenney.nl/assets/tiny-town) · [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) · [Лицензия CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 
+Локальная палитра **Pixel 16 Woods v2 Free** от zedpxl меняет природные тайлы в редакторе и игре. Вместе с ней можно подключить **Super Retro World Character Pack** от Gif, Noiracide и Romi. Появятся 32 персонажа и ходьба в четырёх направлениях. Номера тайлов и роли героя и NPC в старых проектах сохраняются. Архитектура использует спрайты Kenney. [Лесной набор](https://zedpxl.itch.io/pixelart-forest-asset-pack) · [Набор персонажей](https://farm-animal.itch.io/character-pack)
+
+Чтобы подключить свои копии архивов, выполните команды PowerShell из папки исходников с Python 3.10+ и Pillow, затем перезапустите установленный StoryForge. Для запуска через `npm start` укажите `.userdata\tilesets` в качестве каталога.
+
+```powershell
+$tiles = "$env:LOCALAPPDATA\StoryForge\User Data\tilesets"
+python tools/make-woods-pack.py "$env:USERPROFILE\Downloads\pixel_16_woods v2 free.zip" "$tiles\woods-v2.png"
+python tools/make-character-tiles.py "$env:USERPROFILE\Downloads\SuperRetroWorld_CharacterPack_Full.zip" "$tiles\woods-v2.png" "$tiles\woods-characters.png" "$tiles\retro-walk.png"
+```
+
 ![Игровой движок StoryForge с двумя связанными локациями](docs/gallery/rpg-engine.png)
 
 ## Макеты Gigma Studio

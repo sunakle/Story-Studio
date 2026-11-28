@@ -39,7 +39,7 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
   tool('get_rpg_game', () => 'Read top-down map content bounds, start, events, event source, tile rectangles or palette. Tile coordinates can be negative. Null tiles are empty space. Content bounds are not drawing limits. Event source offsets are characters.',
     () => object({view:{type:'string',enum:['maps','events','code','tiles','palette']},mapId:id,eventId:id,offset:int('Pagination offset'),x:coord,y:coord,width:int('Up to 16'),height:int('Up to 16')}), a => {
       active().plan.observe('rpgGame');
-      if (a.view === 'palette') return {count:rpgAtlas.count,defaults:rpgDefaults,groups:tileGroups.map(g => ({name:g.en,tiles:g.tiles}))};
+      if (a.view === 'palette') return {count:rpgAtlas.visibleCount,defaults:rpgDefaults,groups:tileGroups.map(g => ({name:g.en,tiles:g.tiles}))};
       const game = project().rpgGame;
       if (!game) return {initialized:false,initialMapId:'map_1',defaults:rpgDefaults};
       const offset = a.offset ?? 0;

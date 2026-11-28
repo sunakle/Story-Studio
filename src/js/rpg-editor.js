@@ -124,7 +124,7 @@ export function createRpgEditor(store, ui) {
     '<button type="button" data-cmd="'+cmd+'" class="'+cls+'">'+(name ? icon(name,14) : '')+label+'</button>';
   function palette() {
     const g = tileGroups.find(g=>g.id===group);
-    const ids = g?.tiles || Array.from({length:rpgAtlas.count},(_,i)=>i);
+    const ids = g?.tiles || Array.from({length:rpgAtlas.visibleCount},(_,i)=>i);
     const current = mode==='event' ? (activeEvent()?.sprite ?? sprite) : mode==='start' ? game().start.sprite : tile;
     const heading = mode==='event' || mode==='start' ? t('Спрайты','Sprites') : t('Палитра','Tileset');
     return '<section class="rpg-palette"><div class="rpg-section-title">'+heading+'</div>'+
@@ -207,7 +207,8 @@ export function createRpgEditor(store, ui) {
     const del=root.querySelector('[data-cmd="delete-event"]'),close=root.querySelector('[data-cmd="close-event"]');
     if(del)del.title=del.ariaLabel=t('Удалить событие','Delete event');
     if(close)close.title=close.ariaLabel=t('Закрыть событие','Close event');
-    root.querySelector('[data-rpg-credit]').textContent=atlasCredit();
+    const credit = root.querySelector('[data-rpg-credit]');
+    credit.textContent=rpgAtlas.credit; credit.title=rpgAtlas.contributors;
     viewportObserver.observe(root.querySelector('.rpg-scroll'));
     root.querySelector('.rpg-swatches').scrollTop=scrollTop;
     const blocks=root.querySelector('.rpg-blocks'); if(blocks) blocks.scrollTop=blockScroll;
@@ -217,7 +218,6 @@ export function createRpgEditor(store, ui) {
     }
     redraw();
   }
-  function atlasCredit() { return 'Kenney · CC0'; }
   function scheduleDraw() {
     if (host && !drawFrame) drawFrame = requestAnimationFrame(() => { drawFrame=0; redraw(); });
   }

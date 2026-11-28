@@ -33,6 +33,16 @@ Choose **Play** to try the map. Use the arrow keys or **WASD** to move and **Spa
 
 The bundled pixel art includes Kenney’s complete **Tiny Town** and **Tiny Dungeon** packs under CC0, plus water variants. [Tiny Town](https://kenney.nl/assets/tiny-town) · [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) · [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/)
 
+The local **Pixel 16 Woods v2 Free** palette by zedpxl replaces outdoor tiles in both the editor and player. Add **Super Retro World Character Pack** by Gif, Noiracide and Romi for 32 selectable characters and four-direction walking. Existing tile and actor IDs stay compatible. Buildings keep their Kenney sprites. [Woods pack and terms](https://zedpxl.itch.io/pixelart-forest-asset-pack) · [Character pack and terms](https://farm-animal.itch.io/character-pack)
+
+To use your own copies, run these PowerShell commands from the source directory with Python 3.10+ and Pillow, then restart the installed StoryForge. For `npm start`, use `.userdata\tilesets` as the output directory.
+
+```powershell
+$tiles = "$env:LOCALAPPDATA\StoryForge\User Data\tilesets"
+python tools/make-woods-pack.py "$env:USERPROFILE\Downloads\pixel_16_woods v2 free.zip" "$tiles\woods-v2.png"
+python tools/make-character-tiles.py "$env:USERPROFILE\Downloads\SuperRetroWorld_CharacterPack_Full.zip" "$tiles\woods-v2.png" "$tiles\woods-characters.png" "$tiles\retro-walk.png"
+```
+
 ![StoryForge map editor with a playable two-room example](docs/gallery/rpg-engine.png)
 
 ## Design in Gigma Studio

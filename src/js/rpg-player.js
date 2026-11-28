@@ -1,6 +1,6 @@
 import { t } from './i18n.js';
 import { advance, firstWalkableCell, getMapTile, interact, move, startGame } from './rpg-model.js';
-import { drawRpgTile, rpgAtlas, rpgDefaults } from './rpg-assets.js';
+import { drawRpgActor, drawRpgTile, rpgAtlas, rpgDefaults } from './rpg-assets.js';
 
 export function openRpgPlayer(game, {mapId} = {}) {
   function initialState() {
@@ -14,6 +14,11 @@ export function openRpgPlayer(game, {mapId} = {}) {
     return state;
   }
   let state = initialState();
+  let stepFrame = 1, nextStep = 0, idleTimer;
+  function stopStep() {
+    clearTimeout(idleTimer);
+    stepFrame = 1;
+  }
   const d = document.createElement('dialog');
   d.className = 'rpg-player';
   d.setAttribute('aria-labelledby', 'rpg-player-location');
@@ -31,7 +36,7 @@ export function openRpgPlayer(game, {mapId} = {}) {
   };
   const header = el('header',d);
   const title = el('h2',header); title.id = 'rpg-player-location';
-  button(header,t('Заново','Restart'),() => { state = initialState(); paint(); canvas.focus(); },'restart');
+  button(header,t('Заново','Restart'),() => { stopStep(); state = initialState(); paint(); canvas.focus(); },'restart');
   button(header,t('Закрыть','Close'),() => d.close(),'close');
   const area = el('div',d,'rpg-play-area');
   const canvas = el('canvas',area); canvas.tabIndex = 0;
@@ -49,8 +54,15 @@ export function openRpgPlayer(game, {mapId} = {}) {
   button(footer,t('Действие','Interact'),() => act('action'),'action');
 
   function act(key) {
+    const before = {x:state.x,y:state.y,mapId:state.mapId};
+    stopStep();
     if (key === 'action') state.dialogue !== null ? advance(game,state) : interact(game,state);
     else move(game,state,...arrows[key]);
+    if (key !== 'action' && before.mapId === state.mapId && (before.x !== state.x || before.y !== state.y)) {
+      stepFrame = nextStep;
+      nextStep = 2 - nextStep;
+      idleTimer = setTimeout(() => { stepFrame = 1; paint(); },125);
+    }
     paint();
   }
   const keys = {ArrowLeft:'left',KeyA:'left',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',ArrowRight:'right',KeyD:'right',Space:'action',Enter:'action',KeyE:'action'};
@@ -83,12 +95,12 @@ export function openRpgPlayer(game, {mapId} = {}) {
       draw(id,x,y);
     }
     for (const e of map.events) if (e.x>=ox && e.x<ox+w && e.y>=oy && e.y<oy+h) draw(e.sprite,e.x,e.y);
-    draw(state.sprite,state.x,state.y);
+    drawRpgActor(ctx,image,state.sprite,state.facing,stepFrame,(state.x-ox)*size,(state.y-oy)*size,size);
   }
   image.onload = paint;
   image.onerror = () => { line.textContent = t('Не удалось открыть атлас графики.','Could not open the tile atlas.'); message.hidden = false; };
   image.src = rpgAtlas.url;
-  d.addEventListener('close', () => { image.onload = image.onerror = null; d.remove(); },{once:true});
+  d.addEventListener('close', () => { stopStep(); image.onload = image.onerror = null; d.remove(); },{once:true});
   document.body.append(d); d.showModal(); canvas.focus(); paint();
   return d;
 }
