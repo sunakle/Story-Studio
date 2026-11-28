@@ -59,6 +59,9 @@ test('incomplete or invalid tool batches, silent completions and broken response
   const stop = {type:'message_stop'};
   const events = list => new Response(list.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''), {headers:{'content-type':'text/event-stream'}});
   for (const [body,code] of [
+    [events([{type:'content_block_start',index:0,content_block:{type:'text',text:'Partial reply'}},
+      {type:'message_delta',delta:{stop_reason:'max_tokens'}},stop]),'AI_OUTPUT_LIMIT'],
+    [Response.json({content:[{type:'text',text:'Partial reply'}],stop_reason:'max_tokens'}),'AI_OUTPUT_LIMIT'],
     [events([start,partial,{type:'message_delta',delta:{stop_reason:'tool_use'}},stop]),'INVALID_AI_TOOL_ARGUMENTS'],
     [events([start,partial,{type:'message_delta',delta:{stop_reason:'max_tokens'}},stop]),'AI_OUTPUT_LIMIT'],
     [events([stop]),'EMPTY_AI_RESPONSE'],

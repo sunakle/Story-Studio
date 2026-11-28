@@ -84,6 +84,8 @@ Enable image generation in the studio controls to allow it during autonomous wor
 <details>
 <summary>Model setup, image attachments and dictation</summary>
 
+**Max tokens** sets the output budget for each model reply. When a reply reaches this limit during a task, the chat keeps your draft. **Continue with limit …** retries the interrupted step with the displayed limit for this task. **Edit request** restores the text and attachments and discards the pending edits.
+
 Select DeepSeek, Anthropic (Claude) or another compatible provider in AI settings and enter its API URL, key and model ID. A single DeepSeek model is selected by default. In **Agent mode**, coauthors draft in parallel and the primary model combines their edits. You can paste, drop or attach photos when the selected model supports images. Three built-in writing skills cover dialogue, scene sequencing and revision. [Writing skill sources](https://github.com/jwynia/agent-skills)
 
 With a configured Yandex Station Lite 2 and the Windows command bridge, say **«Алиса, открой StoryForge»** to dictate into the screenplay. Stop with the speaker’s top button, the stop button in the editor or **«Стоп, диктовка»**. [Alice integration (Russian)](integrations/alice/README.md)

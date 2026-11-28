@@ -1439,6 +1439,11 @@ kbd {
 .chat-input:focus {
   border-color: var(--accent);
 }
+.chat-limit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .chat-status {
   font-size: 11px;
   color: var(--muted);

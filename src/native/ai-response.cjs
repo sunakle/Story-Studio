@@ -77,7 +77,7 @@ function toolInput(raw) {
 
 function completeToolCalls(calls, finishReason, content) {
   const hasText = typeof content === 'string' && content.trim().length > 0;
-  if ((calls.length || !hasText) && (finishReason === 'max_tokens' || finishReason === 'length')) {
+  if (finishReason === 'max_tokens' || finishReason === 'length') {
     throw protocolError('AI_OUTPUT_LIMIT');
   }
   if (!calls.length && !hasText) throw protocolError('EMPTY_AI_RESPONSE');

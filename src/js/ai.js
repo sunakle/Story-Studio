@@ -1329,13 +1329,55 @@ export function createAI({ root, store, ui, scope = 'project' }) {
         // Retry the failed model response from the same checkpoint. Earlier
         // tools already have results in the conversation and stay staged once.
         if (current() && !automatic && !retried && !res.ok &&
-            ['INCOMPLETE_AI_STREAM','INVALID_AI_TOOL_ARGUMENTS','AI_OUTPUT_LIMIT','EMPTY_AI_RESPONSE'].includes(res.code)) {
+            ['INCOMPLETE_AI_STREAM','INVALID_AI_TOOL_ARGUMENTS','EMPTY_AI_RESPONSE'].includes(res.code)) {
           retried = true;
           liveMsg.content = '';
           render();
           const [system, ...context] = apiMessages;
           const reminder = '\nThe previous response for this step was incomplete and was discarded. Continue from the tool results already in this conversation. Give a brief answer or one complete tool call with a small JSON object. Split large changes across calls.';
           res = await callModel([{...system,content:system.content + reminder}, ...context], {...options,stream:false});
+        }
+        if (current() && res.code === 'AI_OUTPUT_LIMIT') {
+          const limit = request.settings.maxTokens;
+          const nextLimit = Math.min(16384, Math.max(4096, limit * 2));
+          if (root && !automatic && !request.raisedLimit && nextLimit > limit) {
+            // Keep the transaction and its validated tool results until the author decides.
+            // The unfinished response and the paused transaction never enter saved history.
+            liveMsg.content = '';
+            if (fromComposer) {
+              state.inputDraft = text;
+              state.images = pictures;
+              saveDraft(true);
+            }
+            const message = uiText(
+              `Модель исчерпала лимит в ${limit} токенов на ответ. Можно увеличить его до ${nextLimit} для оставшихся шагов этой задачи.`,
+              `The model reached the ${limit}-token reply limit. You can raise it to ${nextLimit} for the remaining steps of this task.`);
+            const resume = await new Promise(resolve => {
+              request.outputOffer = {nextLimit, message, resolve};
+              render();
+            });
+            delete request.outputOffer;
+            if (!resume || !current()) return;
+            const connection = aiSettings();
+            if (providerKey(connection) !== providerKey(settings) || connection.apiKey !== settings.apiKey ||
+                connection.preset !== settings.preset || connection.extraHeaders !== settings.extraHeaders) {
+              throw new Error(uiText('Подключение изменилось. Отправьте черновик выбранной модели.', 'The connection changed. Send the draft to the selected model.'));
+            }
+            request.raisedLimit = true;
+            request.settings = {...settings, maxTokens:nextLimit};
+            if (fromComposer) {
+              state.inputDraft = '';
+              state.images = [];
+            }
+            render();
+            res = await callModel(apiMessages, {...options,stream:false});
+          }
+          if (res.code === 'AI_OUTPUT_LIMIT') {
+            const tokens = request.settings.maxTokens;
+            res.error = uiText(
+              `Ответ достиг лимита в ${tokens} токенов. Сократите задачу или измените лимит в настройках ИИ.`,
+              `The reply reached the ${tokens}-token limit. Shorten the task or change the limit in AI settings.`);
+          }
         }
         if (!current()) return;
         if (!res.ok) {
@@ -1508,7 +1550,10 @@ export function createAI({ root, store, ui, scope = 'project' }) {
   }
 
   function cancelRequest() {
-    if (active) active.cancelled = true;
+    if (active) {
+      active.cancelled = true;
+      active.outputOffer?.resolve(false);
+    }
     if (!isGame) ui.workbench?.clearAssistantPreview?.();
     for (const id of pendingCalls) window.sf.ai.abort(id);
   }
@@ -1530,7 +1575,7 @@ export function createAI({ root, store, ui, scope = 'project' }) {
   }
 
   function renderMessage(m, index) {
-    if (m.role === 'tool') return '';
+    if (m.role === 'tool' || (m.live && active?.outputOffer)) return '';
     if (m.role === 'user') {
       const origin = m.origin;
       const source = origin?.mode === 'autonomous' ? uiText('Самостоятельный режим', 'Autonomous mode')
@@ -1636,6 +1681,7 @@ export function createAI({ root, store, ui, scope = 'project' }) {
     const s = aiSettings();
     const configured = isConfigured();
     const showSetup = state.settingsOpen || !configured;
+    const offer = active?.outputOffer;
     const log = state.messages.map((m, i) => renderMessage(m, i)).join('');
     const hasDialog = state.messages.some((m) => m.role !== 'tool');
 
@@ -1649,7 +1695,7 @@ export function createAI({ root, store, ui, scope = 'project' }) {
         ${isGame ? `<div class="chat-game-heading"><strong>${chatTitle}</strong>${model}</div>` : model}
         <div class="grow"></div>
         ${isGame ? '' : `<button class="btn btn-sm btn-ghost chat-studio-command" type="button" data-ai-act="studio" title="${uiText('Открыть ИИ-мастерскую', 'Open AI studio')}" aria-label="${uiText('Открыть ИИ-мастерскую', 'Open AI studio')}">${icon('external', 14)}</button>`}
-        ${state.streaming ? uiText("<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Стоп</button>", "<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Stop</button>") : ''}
+        ${state.streaming && !offer ? uiText("<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Стоп</button>", "<button class=\"btn btn-sm btn-danger\" type=\"button\" data-ai-act=\"stop\">Stop</button>") : ''}
         <button class="btn btn-sm btn-ghost" type="button" data-ai-act="setup" title="${uiText("Настройки подключения", "Connection settings")}">${icon('settings', 14)}</button>
         <button class="btn btn-sm btn-ghost" type="button" data-ai-act="clear" title="${clearTitle}" aria-label="${clearTitle}">${uiText("Очистить", "Clear")}</button>
       </div>
@@ -1676,7 +1722,11 @@ export function createAI({ root, store, ui, scope = 'project' }) {
           <textarea class="chat-input" id="${idPrefix}Input" rows="1" placeholder="${configured ? placeholder : uiText("Сначала настройте подключение выше", "Configure the connection above first")}" ${locked ? 'disabled' : ''}>${esc(state.inputDraft)}</textarea>
           <button class="btn btn-primary" type="button" data-ai-act="send" ${locked || state.pendingImages ? 'disabled' : ''}>${uiText("Отправить", "Send")}</button>
         </div>
-        <div class="chat-status" role="status">${state.pendingImages ? uiText('Подготовка фото…', 'Preparing images…') : state.streaming ? `${uiText("Шаг", "Step")} ${state.lastStep || 1} ${uiText("из 25 · модель думает", "of 25 · model thinking")}…` : state.error ? esc(state.error) : uiText("Ctrl+Enter — отправить · Shift+Enter — новая строка", "Ctrl+Enter — send · Shift+Enter for a new line")}</div>
+        <div class="chat-status" role="status">${offer ? esc(offer.message) : state.pendingImages ? uiText('Подготовка фото…', 'Preparing images…') : state.streaming ? `${uiText("Шаг", "Step")} ${state.lastStep || 1} ${uiText("из 25 · модель думает", "of 25 · model thinking")}…` : state.error ? esc(state.error) : uiText("Ctrl+Enter — отправить · Shift+Enter — новая строка", "Ctrl+Enter — send · Shift+Enter for a new line")}</div>
+        ${offer ? `<div class="chat-limit-actions">
+          <button class="btn btn-sm btn-primary" type="button" data-ai-act="retry-output">${uiText('Продолжить с лимитом', 'Continue with limit')} ${offer.nextLimit}</button>
+          <button class="btn btn-sm" type="button" data-ai-act="edit-draft">${uiText('Изменить запрос', 'Edit request')}</button>
+        </div>` : ''}
       </div>
     </div>`;
 
@@ -1848,6 +1898,12 @@ export function createAI({ root, store, ui, scope = 'project' }) {
         const act = btn.dataset.aiAct;
         if (act === 'send') {
           submitDraft();
+        } else if (act === 'retry-output') {
+          active?.outputOffer?.resolve(true);
+        } else if (act === 'edit-draft') {
+          const finished = active?.finished;
+          cancelRequest();
+          finished?.then(() => root.querySelector('.chat-input')?.focus());
         } else if (act === 'studio') {
           ui.workbench?.openAssistant();
         } else if (act === 'autonomy') {

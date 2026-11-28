@@ -1193,7 +1193,7 @@ function registerAiIpc() {
         message = uiText("Модель вернула команду с неполными или неверными параметрами. Повторите запрос.", "The model returned a command with incomplete or invalid arguments. Try sending again.");
       }
       if (err?.code === 'AI_OUTPUT_LIMIT') {
-        message = uiText("Модель исчерпала лимит ответа при подготовке команды. Увеличьте лимит токенов в настройках ИИ или сократите задачу.", "The model reached its output limit while preparing a command. Raise the token limit in AI settings or shorten the task.");
+        message = uiText("Модель достигла лимита токенов до конца ответа.", "The model reached its token limit before completing the reply.");
       }
       if (err?.code === 'EMPTY_AI_RESPONSE') {
         message = uiText("Модель завершила ответ, но не прислала текст или команды. Повторите запрос.", "The model finished without returning text or commands. Try sending again.");

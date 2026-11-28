@@ -1,7 +1,7 @@
 {
   "name": "storyforge",
   "productName": "StoryForge",
-  "version": "1.8.3",
+  "version": "1.8.4",
   "description": "StoryForge — редактор сценария для игр: ветвящиеся диалоги, персонажи, локации, AI-ассистент, экспорт в Godot",
   "main": "main.js",
   "scripts": {
