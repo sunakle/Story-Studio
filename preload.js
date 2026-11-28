@@ -52,6 +52,7 @@ if (process.isMainFrame) contextBridge.exposeInMainWorld('sf', {
     exportIllustrator: job => invoke('sf:gigma:exportIllustrator', job),
   },
   rpg: {
+    source: request => invoke('sf:rpg:source', request),
     localTileset: () => invoke('sf:rpg:localTileset'),
   },
 

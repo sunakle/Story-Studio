@@ -1,0 +1,2434 @@
+{
+  "mode": "Локальный сценарный API, реальные инструменты, редактор, проигрыватель Electron и файлы .sfproj",
+  "version": "1.9.0",
+  "started": "2026-11-28T10:22:59.534Z",
+  "total": 25,
+  "results": [
+    {
+      "id": "orientation",
+      "prompt": "Где я нахожусь и откуда стартует игрок? Ничего не меняй.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "orientation_0",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "maps"
+          },
+          "result": {
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "sprite": 230
+            },
+            "items": [
+              {
+                "id": "hall",
+                "name": "Площадь",
+                "bounds": {
+                  "minX": 0,
+                  "minY": 0,
+                  "maxX": 12,
+                  "maxY": 7
+                },
+                "width": 13,
+                "height": 8,
+                "events": 0
+              }
+            ],
+            "total": 1,
+            "nextOffset": null
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 906
+    },
+    {
+      "id": "negative-path",
+      "prompt": "Продли дорожку влево за границу площади до x=-3 на строке y=3.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "negative-path_0",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "tiles",
+            "mapId": "hall",
+            "x": -3,
+            "y": 3,
+            "width": 6
+          },
+          "result": {
+            "x": -3,
+            "y": 3,
+            "width": 6,
+            "height": 1,
+            "rows": [
+              [
+                null,
+                null,
+                null,
+                0,
+                0,
+                0
+              ]
+            ],
+            "blocked": []
+          }
+        },
+        {
+          "id": "negative-path_1",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": -3,
+                "y": 3,
+                "width": 6,
+                "height": 1,
+                "tile": 25
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (1, 3)",
+        "Позиция hall (0, 3)",
+        "Позиция hall (-1, 3)",
+        "Позиция hall (-2, 3)",
+        "Позиция hall (-3, 3)",
+        "Позиция hall (-3, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 1781
+    },
+    {
+      "id": "collision",
+      "prompt": "Поставь стену сразу справа от старта, оставь обход снизу.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "collision_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": 3,
+                "y": 3,
+                "blocked": true
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "collision_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "tiles",
+            "mapId": "hall",
+            "x": 2,
+            "y": 3,
+            "width": 3,
+            "height": 2
+          },
+          "result": {
+            "x": 2,
+            "y": 3,
+            "width": 3,
+            "height": 2,
+            "rows": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                0,
+                0,
+                0
+              ]
+            ],
+            "blocked": [
+              [
+                3,
+                3
+              ]
+            ]
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Позиция hall (4, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 1513
+    },
+    {
+      "id": "erase",
+      "prompt": "Сотри одну клетку справа от героя, соседние не трогай.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "erase_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "erase",
+                "mapId": "hall",
+                "x": 3,
+                "y": 3
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 562
+    },
+    {
+      "id": "spawn",
+      "prompt": "Поставь игрока в точку 9,5 и назначь ему новый спрайт.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "spawn_0",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "palette"
+          },
+          "result": {
+            "count": 276,
+            "defaults": {
+              "ground": 0,
+              "path": 25,
+              "wall": 126,
+              "door": 85,
+              "hero": 230,
+              "npc": 216,
+              "water": 264
+            },
+            "groups": [
+              {
+                "name": "Grass and paths",
+                "tiles": [
+                  0,
+                  1,
+                  2,
+                  12,
+                  13,
+                  14,
+                  24,
+                  25,
+                  26,
+                  36,
+                  37,
+                  38,
+                  39,
+                  40,
+                  41,
+                  42,
+                  43
+                ]
+              },
+              {
+                "name": "Water and shores",
+                "tiles": [
+                  264,
+                  265,
+                  266,
+                  267,
+                  268,
+                  269,
+                  270,
+                  271,
+                  272,
+                  273,
+                  274,
+                  275
+                ]
+              },
+              {
+                "name": "Trees and shrubs",
+                "tiles": [
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32,
+                  33,
+                  34,
+                  35
+                ]
+              },
+              {
+                "name": "Fences and signs",
+                "tiles": [
+                  44,
+                  45,
+                  46,
+                  47,
+                  56,
+                  57,
+                  58,
+                  59,
+                  68,
+                  69,
+                  70,
+                  71,
+                  80,
+                  81,
+                  82,
+                  83,
+                  95
+                ]
+              },
+              {
+                "name": "Houses and roofs",
+                "tiles": [
+                  48,
+                  49,
+                  50,
+                  51,
+                  52,
+                  53,
+                  54,
+                  55,
+                  60,
+                  61,
+                  62,
+                  63,
+                  64,
+                  65,
+                  66,
+                  67,
+                  72,
+                  73,
+                  74,
+                  75,
+                  76,
+                  77,
+                  78,
+                  79,
+                  84,
+                  85,
+                  86,
+                  87,
+                  88,
+                  89,
+                  90,
+                  91,
+                  92,
+                  96,
+                  97,
+                  98,
+                  99,
+                  100,
+                  101,
+                  102,
+                  108,
+                  109,
+                  110,
+                  111,
+                  112,
+                  113,
+                  114,
+                  120,
+                  121,
+                  122,
+                  123,
+                  124,
+                  125,
+                  126
+                ]
+              },
+              {
+                "name": "Dungeons and floors",
+                "tiles": [
+                  132,
+                  133,
+                  134,
+                  135,
+                  136,
+                  137,
+                  138,
+                  139,
+                  140,
+                  141,
+                  142,
+                  143,
+                  144,
+                  145,
+                  146,
+                  147,
+                  148,
+                  149,
+                  150,
+                  151,
+                  152,
+                  153,
+                  154,
+                  155,
+                  156,
+                  157,
+                  158,
+                  159,
+                  160,
+                  161,
+                  162,
+                  163,
+                  164,
+                  165,
+                  166,
+                  167,
+                  168,
+                  169,
+                  170,
+                  171,
+                  172,
+                  173,
+                  174,
+                  175,
+                  176,
+                  177,
+                  178,
+                  179,
+                  180,
+                  181,
+                  182,
+                  183,
+                  184,
+                  185,
+                  186,
+                  187,
+                  188,
+                  189,
+                  190,
+                  191
+                ]
+              },
+              {
+                "name": "Furniture and props",
+                "tiles": [
+                  93,
+                  94,
+                  103,
+                  104,
+                  105,
+                  106,
+                  107,
+                  130,
+                  131,
+                  192,
+                  193,
+                  194,
+                  195,
+                  196,
+                  197,
+                  198,
+                  199,
+                  200,
+                  201,
+                  202,
+                  203,
+                  204,
+                  205,
+                  206,
+                  207,
+                  208,
+                  209,
+                  210,
+                  211,
+                  212,
+                  213,
+                  214,
+                  215,
+                  221,
+                  222,
+                  223,
+                  224,
+                  225,
+                  226,
+                  227
+                ]
+              },
+              {
+                "name": "Characters and creatures",
+                "tiles": [
+                  216,
+                  217,
+                  218,
+                  219,
+                  220,
+                  228,
+                  229,
+                  230,
+                  231,
+                  232,
+                  240,
+                  241,
+                  242,
+                  243,
+                  244,
+                  252,
+                  253,
+                  254,
+                  255,
+                  256
+                ]
+              },
+              {
+                "name": "Tools and gear",
+                "tiles": [
+                  115,
+                  116,
+                  117,
+                  118,
+                  119,
+                  127,
+                  128,
+                  129,
+                  233,
+                  234,
+                  235,
+                  236,
+                  237,
+                  238,
+                  239,
+                  245,
+                  246,
+                  247,
+                  248,
+                  249,
+                  250,
+                  251,
+                  257,
+                  258,
+                  259,
+                  260,
+                  261,
+                  262,
+                  263
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "spawn_1",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "start",
+                "mapId": "hall",
+                "x": 9,
+                "y": 5,
+                "sprite": 218
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (9, 5)",
+        "Позиция hall (9, 6)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 558
+    },
+    {
+      "id": "conversation",
+      "prompt": "Сверху от старта поставь архивариуса: две фразы «Добро пожаловать!» и «Архив открыт.»",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "conversation_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "archivist",
+                "name": "Архивариус",
+                "x": 2,
+                "y": 2,
+                "code": "say \"Добро пожаловать!\"\nsay \"Архив открыт.\"",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Реплика «Добро пожаловать!»",
+        "Позиция hall (2, 3)",
+        "Реплика «Архив открыт.»",
+        "Диалог закрыт",
+        "Позиция hall (3, 3)"
+      ],
+      "screenshots": [
+        "evidence/conversation.png"
+      ],
+      "status": "pass",
+      "durationMs": 1144
+    },
+    {
+      "id": "branch-revisit",
+      "prompt": "При первом разговоре продавец слева выдаёт билет, при повторном говорит, что билет уже получен.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "branch-revisit_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "seller",
+                "name": "Продавец",
+                "x": 1,
+                "y": 3,
+                "code": "if ticket == true\nsay \"Билет уже у тебя.\"\nelse\nsay \"Вот твой билет.\"\nset ticket = true\nend",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Реплика «Вот твой билет.»",
+        "Реплика «Билет уже у тебя.»",
+        "Перезапуск игры",
+        "Реплика «Вот твой билет.»"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 845
+    },
+    {
+      "id": "key-door",
+      "prompt": "Сделай комнату «Архив». Дверь справа пускает только с ключом от хранителя сверху. В архиве добавь выход обратно.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "key-door_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "addMap",
+                "mapId": "archive",
+                "name": "Архив",
+                "width": 5,
+                "height": 5
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "keeper",
+                "name": "Хранитель",
+                "x": 2,
+                "y": 2,
+                "code": "say \"Бери ключ.\"\nset key = true",
+                "trigger": "action",
+                "sprite": 216
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "gate",
+                "name": "Дверь",
+                "x": 3,
+                "y": 3,
+                "code": "if key == true\ngoto archive 1 1\nelse\nsay \"Заперто.\"\nend",
+                "trigger": "touch",
+                "sprite": 216
+              },
+              {
+                "action": "event",
+                "mapId": "archive",
+                "eventId": "exit",
+                "name": "Выход",
+                "x": 2,
+                "y": 1,
+                "code": "goto hall 2 3",
+                "trigger": "touch",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 4,
+            "maps": 2
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Реплика «Заперто.»",
+        "Реплика «Бери ключ.»",
+        "Позиция archive (1, 1)",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [
+        "evidence/archive.png"
+      ],
+      "status": "pass",
+      "durationMs": 1601
+    },
+    {
+      "id": "target-event",
+      "prompt": "У двух событий одинаковое имя. Поменяй реплику только у второго, справа, на «Восточный пост».",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "target-event_0",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "events",
+            "mapId": "hall"
+          },
+          "result": {
+            "items": [
+              {
+                "id": "west",
+                "name": "Страж",
+                "x": 1,
+                "y": 3,
+                "sprite": 218,
+                "trigger": "action"
+              },
+              {
+                "id": "east",
+                "name": "Страж",
+                "x": 3,
+                "y": 3,
+                "sprite": 218,
+                "trigger": "action"
+              }
+            ],
+            "total": 2,
+            "nextOffset": null
+          }
+        },
+        {
+          "id": "target-event_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "code",
+            "mapId": "hall",
+            "eventId": "east"
+          },
+          "result": {
+            "id": "east",
+            "name": "Страж",
+            "x": 3,
+            "y": 3,
+            "sprite": 218,
+            "trigger": "action",
+            "code": "say \"Караул.\"",
+            "length": 13,
+            "nextOffset": null
+          }
+        },
+        {
+          "id": "target-event_2",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "east",
+                "code": "say \"Восточный пост\""
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Выбрано событие на клетке 3, 3",
+        "Играть → открыт проигрыватель",
+        "Реплика «Караул.»",
+        "Реплика «Восточный пост»"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 910
+    },
+    {
+      "id": "source-walking",
+      "prompt": "Прочитай исходник проигрывателя и найди, какая переменная определяет момент следующего шага. Карту оставь как есть.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "source-walking_0",
+          "name": "get_engine_reference",
+          "args": {},
+          "result": {
+            "modules": [
+              {
+                "id": "model",
+                "file": "js/rpg-model.js",
+                "description": "Map cells, passability, event grammar, validation and state transitions"
+              },
+              {
+                "id": "player",
+                "file": "js/rpg-player.js",
+                "description": "Keyboard and pointer input, walking clock, animation, dialogue and HUD rendering"
+              },
+              {
+                "id": "editor",
+                "file": "js/rpg-editor.js",
+                "description": "World coordinates, selection, editing, map tools and viewport"
+              },
+              {
+                "id": "blocks",
+                "file": "js/rpg-editor-blocks.js",
+                "description": "Transform between event code and visual blocks"
+              },
+              {
+                "id": "settings",
+                "file": "js/rpg-game-settings.js",
+                "description": "Authoring controls for walking speed and HUD panels"
+              },
+              {
+                "id": "assets",
+                "file": "js/rpg-assets.js",
+                "description": "Tile atlas and character frames"
+              },
+              {
+                "id": "example",
+                "file": "js/rpg-example.js",
+                "description": "Example game with key, branching dialogue and two-way doors"
+              },
+              {
+                "id": "tools",
+                "file": "js/ai-rpg-tools.js",
+                "description": "Project read/write schemas, edits and validation"
+              },
+              {
+                "id": "inspection",
+                "file": "js/ai-rpg-inspection.js",
+                "description": "Read-only simulation, actions and trace"
+              },
+              {
+                "id": "guide",
+                "file": "js/rpg-assistant-guide.js",
+                "description": "Assistant operating instructions and context"
+              },
+              {
+                "id": "player-style",
+                "file": "rpg-player.css",
+                "description": "Play window, HUD, controls and dialogue appearance"
+              },
+              {
+                "id": "editor-style",
+                "file": "rpg-editor.css",
+                "description": "Map workspace, canvas and authoring controls"
+              }
+            ]
+          }
+        },
+        {
+          "id": "source-walking_1",
+          "name": "get_engine_reference",
+          "args": {
+            "module": "player",
+            "query": "step.start + stepMs"
+          },
+          "result": {
+            "module": "player",
+            "file": "js/rpg-player.js",
+            "totalLines": 222,
+            "lines": [
+              {
+                "line": 129,
+                "text": "    const end = step.start + stepMs;"
+              }
+            ],
+            "nextOffset": null
+          }
+        },
+        {
+          "id": "source-walking_2",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "settings"
+          },
+          "result": {
+            "stepMs": 180,
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "180 мс, regular → 1, 1, 2, 3, 4, 4",
+        "180 мс, autoRepeat → 1, 1, 2, 3, 4, 4",
+        "180 мс, lowRefresh → 1, 1, 2, 3, 4, 4",
+        "180 мс, stalled → 1, 2, 2, 3"
+      ],
+      "screenshots": [],
+      "cadence": {
+        "regular": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "autoRepeat": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "lowRefresh": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "stalled": [
+          1,
+          2,
+          2,
+          3
+        ]
+      },
+      "status": "pass",
+      "durationMs": 372
+    },
+    {
+      "id": "simulation-collision",
+      "prompt": "Поставь стену передо мной и проверь обход вокруг неё. Покажи на какой клетке я окажусь.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "simulation-collision_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": 3,
+                "y": 3,
+                "blocked": true
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "simulation-collision_1",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": [
+              {
+                "action": "right"
+              },
+              {
+                "action": "up"
+              },
+              {
+                "action": "right"
+              },
+              {
+                "action": "right"
+              },
+              {
+                "action": "down"
+              }
+            ]
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 4,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 2,
+                "y": 3,
+                "blockedBy": "wall"
+              },
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 2,
+                "y": 2
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 3,
+                "y": 2
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 4,
+                "y": 2
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 4,
+                "y": 3
+              }
+            ],
+            "variables": {},
+            "initialPanels": [],
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Позиция hall (2, 2)",
+        "Позиция hall (3, 2)",
+        "Позиция hall (4, 2)",
+        "Позиция hall (4, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 1507
+    },
+    {
+      "id": "simulation-variables",
+      "prompt": "Установи табло счёта. Диалог с торговцем должен выдать пять монет и показать их в игре. Проверь действия на черновике.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "simulation-variables_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "panel",
+                "panelId": "coins",
+                "title": "Кошелёк",
+                "text": "Монеты: {coins}",
+                "position": "bottom-left"
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "vendor",
+                "name": "Торговец",
+                "x": 3,
+                "y": 3,
+                "code": "say \"За работу!\"\nset coins = 5",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 2,
+            "maps": 1
+          }
+        },
+        {
+          "id": "simulation-variables_1",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": [
+              {
+                "action": "right"
+              },
+              {
+                "action": "interact"
+              },
+              {
+                "action": "advance"
+              }
+            ]
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "right",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 2,
+                "y": 3,
+                "blockedBy": "actor",
+                "eventId": "vendor"
+              },
+              {
+                "action": "interact",
+                "mapId": "hall",
+                "x": 2,
+                "y": 3,
+                "eventId": "vendor",
+                "dialogue": "За работу!"
+              },
+              {
+                "action": "advance",
+                "mapId": "hall",
+                "x": 2,
+                "y": 3,
+                "dialogue": null
+              }
+            ],
+            "variables": {
+              "coins": 5
+            },
+            "initialPanels": [
+              {
+                "id": "coins",
+                "title": "Кошелёк",
+                "position": "bottom-left",
+                "text": "Монеты: —"
+              }
+            ],
+            "panels": [
+              {
+                "id": "coins",
+                "title": "Кошелёк",
+                "position": "bottom-left",
+                "text": "Монеты: 5"
+              }
+            ]
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Реплика «За работу!»",
+        "Панель coins показывает «Монеты: 5»"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 575
+    },
+    {
+      "id": "routed-hud",
+      "prompt": "В дальнем углу площади поставь торговца, который даст пять монет. Покажи мне счёт до и после разговора. Проверь с места старта, обойдя стену.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "routed-hud_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": 3,
+                "y": 2,
+                "width": 1,
+                "height": 3,
+                "blocked": true
+              },
+              {
+                "action": "panel",
+                "panelId": "coins",
+                "title": "Кошелёк",
+                "text": "Монеты: {coins}",
+                "position": "top-right"
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "merchant",
+                "name": "Торговец",
+                "x": 5,
+                "y": 3,
+                "code": "say \"Держи пять монет!\"\nset coins = 5",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 3,
+            "maps": 1
+          }
+        },
+        {
+          "id": "routed-hud_1",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": [
+              {
+                "action": "reachEvent",
+                "eventId": "merchant"
+              },
+              {
+                "action": "interact"
+              },
+              {
+                "action": "advance"
+              }
+            ]
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 4,
+              "y": 3,
+              "facing": "right",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 2,
+                "y": 2
+              },
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 2,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 3,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 4,
+                "y": 1
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 4,
+                "y": 2
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 4,
+                "y": 3
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 4,
+                "y": 3,
+                "blockedBy": "actor",
+                "eventId": "merchant"
+              },
+              {
+                "action": "interact",
+                "mapId": "hall",
+                "x": 4,
+                "y": 3,
+                "eventId": "merchant",
+                "dialogue": "Держи пять монет!"
+              },
+              {
+                "action": "advance",
+                "mapId": "hall",
+                "x": 4,
+                "y": 3,
+                "dialogue": null
+              }
+            ],
+            "variables": {
+              "coins": 5
+            },
+            "initialPanels": [
+              {
+                "id": "coins",
+                "title": "Кошелёк",
+                "position": "top-right",
+                "text": "Монеты: —"
+              }
+            ],
+            "panels": [
+              {
+                "id": "coins",
+                "title": "Кошелёк",
+                "position": "top-right",
+                "text": "Монеты: 5"
+              }
+            ]
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Панель coins показывает «Монеты: —»",
+        "Позиция hall (2, 2)",
+        "Позиция hall (2, 1)",
+        "Позиция hall (3, 1)",
+        "Позиция hall (4, 1)",
+        "Позиция hall (4, 2)",
+        "Позиция hall (4, 3)",
+        "Позиция hall (4, 3)",
+        "Позиция hall (4, 3)",
+        "Реплика «Держи пять монет!»",
+        "Позиция hall (4, 3)",
+        "Диалог закрыт",
+        "Панель coins показывает «Монеты: 5»"
+      ],
+      "screenshots": [
+        "evidence/routed-hud.png"
+      ],
+      "status": "pass",
+      "durationMs": 2084
+    },
+    {
+      "id": "routed-key-return",
+      "prompt": "Пройди от старта до закрытой двери, найди ключ у смотрителя, войди в кладовую и вернись через выход. Проверь это одним прохождением.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "routed-key-return_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "addMap",
+                "mapId": "cellar",
+                "name": "Кладовая",
+                "width": 6,
+                "height": 5
+              },
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": 4,
+                "y": 2,
+                "width": 1,
+                "height": 3,
+                "blocked": true
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "keeper",
+                "name": "Смотритель",
+                "x": 2,
+                "y": 5,
+                "code": "say \"Вот ключ от кладовой.\"\nset has_key = true",
+                "trigger": "action",
+                "sprite": 216
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "gate",
+                "name": "Вход",
+                "x": 7,
+                "y": 3,
+                "code": "if has_key == true\ngoto cellar 1 1\nelse\nsay \"Нужен ключ.\"\nend",
+                "trigger": "touch",
+                "sprite": 216
+              },
+              {
+                "action": "event",
+                "mapId": "cellar",
+                "eventId": "exit",
+                "name": "Выход",
+                "x": 3,
+                "y": 1,
+                "code": "goto hall 2 3",
+                "trigger": "touch",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 5,
+            "maps": 2
+          }
+        },
+        {
+          "id": "routed-key-return_1",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": [
+              {
+                "action": "reachEvent",
+                "eventId": "gate"
+              },
+              {
+                "action": "advance"
+              },
+              {
+                "action": "reachEvent",
+                "eventId": "keeper"
+              },
+              {
+                "action": "interact"
+              },
+              {
+                "action": "advance"
+              },
+              {
+                "action": "reachEvent",
+                "eventId": "gate"
+              },
+              {
+                "action": "reachEvent",
+                "eventId": "exit"
+              }
+            ]
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "right",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 2,
+                "y": 2
+              },
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 2,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 3,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 4,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 5,
+                "y": 1
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 5,
+                "y": 2
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 5,
+                "y": 3
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 6,
+                "y": 3
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 7,
+                "y": 3,
+                "eventId": "gate",
+                "dialogue": "Нужен ключ."
+              },
+              {
+                "action": "advance",
+                "mapId": "hall",
+                "x": 7,
+                "y": 3,
+                "dialogue": null
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 7,
+                "y": 4
+              },
+              {
+                "action": "down",
+                "mapId": "hall",
+                "x": 7,
+                "y": 5
+              },
+              {
+                "action": "left",
+                "mapId": "hall",
+                "x": 6,
+                "y": 5
+              },
+              {
+                "action": "left",
+                "mapId": "hall",
+                "x": 5,
+                "y": 5
+              },
+              {
+                "action": "left",
+                "mapId": "hall",
+                "x": 4,
+                "y": 5
+              },
+              {
+                "action": "left",
+                "mapId": "hall",
+                "x": 3,
+                "y": 5
+              },
+              {
+                "action": "interact",
+                "mapId": "hall",
+                "x": 3,
+                "y": 5,
+                "eventId": "keeper",
+                "dialogue": "Вот ключ от кладовой."
+              },
+              {
+                "action": "advance",
+                "mapId": "hall",
+                "x": 3,
+                "y": 5,
+                "dialogue": null
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 4,
+                "y": 5
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 5,
+                "y": 5
+              },
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 5,
+                "y": 4
+              },
+              {
+                "action": "up",
+                "mapId": "hall",
+                "x": 5,
+                "y": 3
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 6,
+                "y": 3
+              },
+              {
+                "action": "right",
+                "mapId": "cellar",
+                "x": 1,
+                "y": 1,
+                "eventId": "gate"
+              },
+              {
+                "action": "right",
+                "mapId": "cellar",
+                "x": 2,
+                "y": 1
+              },
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 2,
+                "y": 3,
+                "eventId": "exit"
+              }
+            ],
+            "variables": {
+              "has_key": true
+            },
+            "initialPanels": [],
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Позиция hall (2, 2)",
+        "Позиция hall (2, 1)",
+        "Позиция hall (3, 1)",
+        "Позиция hall (4, 1)",
+        "Позиция hall (5, 1)",
+        "Позиция hall (5, 2)",
+        "Позиция hall (5, 3)",
+        "Позиция hall (6, 3)",
+        "Позиция hall (7, 3)",
+        "Реплика «Нужен ключ.»",
+        "Позиция hall (7, 3)",
+        "Диалог закрыт",
+        "Позиция hall (7, 4)",
+        "Позиция hall (7, 5)",
+        "Позиция hall (6, 5)",
+        "Позиция hall (5, 5)",
+        "Позиция hall (4, 5)",
+        "Позиция hall (3, 5)",
+        "Позиция hall (3, 5)",
+        "Реплика «Вот ключ от кладовой.»",
+        "Позиция hall (3, 5)",
+        "Диалог закрыт",
+        "Позиция hall (4, 5)",
+        "Позиция hall (5, 5)",
+        "Позиция hall (5, 4)",
+        "Позиция hall (5, 3)",
+        "Позиция hall (6, 3)",
+        "Позиция cellar (1, 1)",
+        "Позиция cellar (2, 1)",
+        "Позиция hall (2, 3)",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [
+        "evidence/routed-return.png"
+      ],
+      "status": "pass",
+      "durationMs": 5852
+    },
+    {
+      "id": "simulation-clean-run",
+      "prompt": "Покажи, что новая проверка прохождения начинается с чистого состояния. Не переноси монеты предыдущего прохождения.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "simulation-clean-run_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "token",
+                "name": "Монета",
+                "x": 3,
+                "y": 3,
+                "code": "set coins = 1",
+                "trigger": "touch",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "simulation-clean-run_1",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": [
+              {
+                "action": "right"
+              }
+            ]
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 3,
+              "y": 3,
+              "facing": "right",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [
+              {
+                "action": "right",
+                "mapId": "hall",
+                "x": 3,
+                "y": 3,
+                "eventId": "token"
+              }
+            ],
+            "variables": {
+              "coins": 1
+            },
+            "initialPanels": [],
+            "panels": []
+          }
+        },
+        {
+          "id": "simulation-clean-run_2",
+          "name": "playtest_rpg_game",
+          "args": {
+            "steps": []
+          },
+          "result": {
+            "mode": "isolated model simulation",
+            "start": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "end": {
+              "mapId": "hall",
+              "x": 2,
+              "y": 3,
+              "facing": "down",
+              "dialogue": null
+            },
+            "stepMs": 180,
+            "trace": [],
+            "variables": {},
+            "initialPanels": [],
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Позиция hall (3, 3)",
+        "Перезапуск игры",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 604
+    },
+    {
+      "id": "reopen",
+      "prompt": "Создай табличку справа от старта со словами «Старый маяк» и информационную панель. Сохрани игру для следующего запуска.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "reopen_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "sign",
+                "name": "Табличка",
+                "x": 3,
+                "y": 3,
+                "code": "say \"Старый маяк\"",
+                "trigger": "action",
+                "sprite": 216
+              },
+              {
+                "action": "setMovement",
+                "stepMs": 150
+              },
+              {
+                "action": "panel",
+                "panelId": "area",
+                "title": "Локация",
+                "text": "Берег",
+                "position": "bottom-left"
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 3,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Проект повторно открыт в новом процессе Electron",
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)",
+        "Панель area показывает «Берег»",
+        "Реплика «Старый маяк»"
+      ],
+      "screenshots": [
+        "evidence/reopened-sign.png"
+      ],
+      "status": "pass",
+      "durationMs": 1972
+    },
+    {
+      "id": "transaction-undo",
+      "prompt": "Одной правкой переименуй площадь в «Двор» и поставь стену.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "transaction-undo_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "renameMap",
+                "mapId": "hall",
+                "name": "Двор"
+              },
+              {
+                "action": "paint",
+                "mapId": "hall",
+                "x": 3,
+                "y": 3,
+                "blocked": true
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 2,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Один шаг отмены",
+        "Один шаг повтора",
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 961
+    },
+    {
+      "id": "reject-code",
+      "prompt": "Проверь откат всей пачки, если опечатка в коде события.",
+      "expectedRejection": true,
+      "calls": [
+        {
+          "id": "reject-code_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "renameMap",
+                "mapId": "hall",
+                "name": "Не должно сохраниться"
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "broken",
+                "name": "Ошибка",
+                "x": 1,
+                "y": 3,
+                "code": "if quest == true\nsay \"Ошибка\"",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "error": "edit_rpg_game: Не должно сохраниться / Ошибка · Строка 1 · Закройте условие командой end."
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 523
+    },
+    {
+      "id": "reject-destination",
+      "prompt": "Проверь откат всей пачки, если дверь ведёт на несуществующую карту.",
+      "expectedRejection": true,
+      "calls": [
+        {
+          "id": "reject-destination_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "renameMap",
+                "mapId": "hall",
+                "name": "Не должно сохраниться"
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "broken",
+                "name": "Ошибка",
+                "x": 1,
+                "y": 3,
+                "code": "goto unknown 2 3",
+                "trigger": "action",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "error": "edit_rpg_game: Ошибка · Точка назначения должна быть на свободной клетке существующей локации."
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 471
+    },
+    {
+      "id": "reject-range",
+      "prompt": "Проверь откат всей пачки, если просят отдать невозможный темп шага.",
+      "expectedRejection": true,
+      "calls": [
+        {
+          "id": "reject-range_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "renameMap",
+                "mapId": "hall",
+                "name": "Не должно сохраниться"
+              },
+              {
+                "action": "setMovement",
+                "stepMs": 0
+              }
+            ]
+          },
+          "result": {
+            "error": "edit_rpg_game: Длительность шага должна быть целым числом от 60 до 1000 мс."
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Позиция hall (2, 3)"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 464
+    },
+    {
+      "id": "speed-90",
+      "prompt": "Настрой ходьбу с постоянным шагом ровно 90 мс.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "speed-90_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "setMovement",
+                "stepMs": 90
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "speed-90_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "settings"
+          },
+          "result": {
+            "stepMs": 90,
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "90 мс, regular → 1, 1, 2, 3, 4, 4",
+        "90 мс, autoRepeat → 1, 1, 2, 3, 4, 4",
+        "90 мс, lowRefresh → 1, 1, 2, 3, 4, 4",
+        "90 мс, stalled → 1, 2, 2, 3"
+      ],
+      "screenshots": [],
+      "cadence": {
+        "regular": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "autoRepeat": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "lowRefresh": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "stalled": [
+          1,
+          2,
+          2,
+          3
+        ]
+      },
+      "status": "pass",
+      "durationMs": 405
+    },
+    {
+      "id": "speed-180",
+      "prompt": "Настрой ходьбу с постоянным шагом ровно 180 мс.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "speed-180_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "setMovement",
+                "stepMs": 180
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "speed-180_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "settings"
+          },
+          "result": {
+            "stepMs": 180,
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "180 мс, regular → 1, 1, 2, 3, 4, 4",
+        "180 мс, autoRepeat → 1, 1, 2, 3, 4, 4",
+        "180 мс, lowRefresh → 1, 1, 2, 3, 4, 4",
+        "180 мс, stalled → 1, 2, 2, 3"
+      ],
+      "screenshots": [],
+      "cadence": {
+        "regular": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "autoRepeat": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "lowRefresh": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "stalled": [
+          1,
+          2,
+          2,
+          3
+        ]
+      },
+      "status": "pass",
+      "durationMs": 455
+    },
+    {
+      "id": "speed-330",
+      "prompt": "Настрой ходьбу с постоянным шагом ровно 330 мс.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "speed-330_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "setMovement",
+                "stepMs": 330
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 1,
+            "maps": 1
+          }
+        },
+        {
+          "id": "speed-330_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "settings"
+          },
+          "result": {
+            "stepMs": 330,
+            "panels": []
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "330 мс, regular → 1, 1, 2, 3, 4, 4",
+        "330 мс, autoRepeat → 1, 1, 2, 3, 4, 4",
+        "330 мс, lowRefresh → 1, 1, 2, 3, 4, 4",
+        "330 мс, stalled → 1, 2, 2, 3"
+      ],
+      "screenshots": [],
+      "cadence": {
+        "regular": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "autoRepeat": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "lowRefresh": [
+          1,
+          1,
+          2,
+          3,
+          4,
+          4
+        ],
+        "stalled": [
+          1,
+          2,
+          2,
+          3
+        ]
+      },
+      "status": "pass",
+      "durationMs": 404
+    },
+    {
+      "id": "hud",
+      "prompt": "Добавь две отдельные панели: задание слева сверху и счёт справа сверху. При шаге вправо счёт становится 7.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "hud_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "panel",
+                "panelId": "quest",
+                "title": "Задание",
+                "text": "Отыщи архив",
+                "position": "top-left"
+              },
+              {
+                "action": "panel",
+                "panelId": "score",
+                "title": "Очки",
+                "text": "Счёт: {score}",
+                "position": "top-right"
+              },
+              {
+                "action": "event",
+                "mapId": "hall",
+                "eventId": "reward",
+                "name": "Награда",
+                "x": 3,
+                "y": 3,
+                "code": "set score = 7",
+                "trigger": "touch",
+                "sprite": 216
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 3,
+            "maps": 1
+          }
+        },
+        {
+          "id": "hud_1",
+          "name": "get_rpg_game",
+          "args": {
+            "view": "settings"
+          },
+          "result": {
+            "stepMs": 180,
+            "panels": [
+              {
+                "id": "quest",
+                "position": "top-left",
+                "title": "Задание",
+                "text": "Отыщи архив"
+              },
+              {
+                "id": "score",
+                "position": "top-right",
+                "title": "Очки",
+                "text": "Счёт: {score}"
+              }
+            ]
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Панель quest показывает «Отыщи архив»",
+        "Панель score показывает «Счёт: —»",
+        "Панель score показывает «Счёт: 7»",
+        "Перезапуск игры",
+        "Панель score показывает «Счёт: —»"
+      ],
+      "screenshots": [
+        "evidence/hud.png"
+      ],
+      "status": "pass",
+      "durationMs": 736
+    },
+    {
+      "id": "hud-edit",
+      "prompt": "Перенеси панель счёта вниз и удали подсказку, остальные данные сохрани.",
+      "expectedRejection": false,
+      "calls": [
+        {
+          "id": "hud-edit_0",
+          "name": "edit_rpg_game",
+          "args": {
+            "actions": [
+              {
+                "action": "panel",
+                "panelId": "score",
+                "position": "bottom-right"
+              },
+              {
+                "action": "deletePanel",
+                "panelId": "hint"
+              }
+            ]
+          },
+          "result": {
+            "ok": true,
+            "count": 2,
+            "maps": 1
+          }
+        }
+      ],
+      "observed": [
+        "Играть → открыт проигрыватель",
+        "Панель score показывает «Счёт: —»",
+        "Панель hint удалена"
+      ],
+      "screenshots": [],
+      "status": "pass",
+      "durationMs": 315
+    }
+  ],
+  "runtime": {
+    "version": "1.9.0",
+    "executable": "StoryForge.exe",
+    "packaged": true
+  },
+  "passed": 25,
+  "failed": 0,
+  "finished": "2026-11-28T10:23:27.796Z"
+}

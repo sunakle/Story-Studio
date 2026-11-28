@@ -31,7 +31,7 @@ The canvas fills the workspace. Hold **Space** and drag to pan in any direction,
 
 Choose **Play** to try the map. Tap an arrow key or **WASD** to move one tile. Hold the key to walk at a steady pace. Press **Space** to talk or advance dialogue. In a new game, try **Door example** to pick up a key from the garden caretaker and enter the workshop. Maps and events live in the same `.sfproj` as the screenplay and work offline.
 
-**Game assistant** opens a dedicated chat for maps and events. Select a door and ask “Make this door take the player to the workshop.” The assistant sees the current map and selected event. Its conversation and draft are saved locally for each project and restored when you reopen it. **Clear** in this chat clears only the current project's game conversation. The game assistant uses the model connection in AI settings.
+**Game assistant** opens a dedicated chat for maps and events. Select a door and ask “Make this door take the player to the workshop.” The assistant sees the current map and selected event. Its conversation and draft are saved locally for each project and restored when you reopen it. **Clear** in this chat clears only the current project's game conversation. The game assistant uses the model connection in AI settings. It can inspect this build's engine source, edit step duration and in-game HUD panels, and replay movement, conversations and transfers on an isolated copy of the game.
 
 The bundled pixel art includes Kenney’s complete **Tiny Town** and **Tiny Dungeon** packs under CC0, plus water variants. [Tiny Town](https://kenney.nl/assets/tiny-town) · [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) · [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/)
 

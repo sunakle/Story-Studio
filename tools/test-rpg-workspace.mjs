@@ -59,6 +59,39 @@ async function quit() {
 
 function command(name) { return editor.locator('[data-cmd="' + name + '"]').click(); }
 
+async function checkSettingsForm() {
+  await command('game-settings');
+  let dialog = page.locator('.rpg-game-settings');
+  assert.equal(await dialog.locator('[name="stepMs"]').inputValue(),'180');
+  await dialog.locator('[name="stepMs"]').fill('125');
+  await dialog.getByRole('button',{name:'Добавить панель'}).click();
+  await dialog.locator('[name="title"]').fill('Задание');
+  await dialog.locator('[name="text"]').fill('Ключ: {key}');
+  await dialog.locator('[name="position"]').selectOption('bottom-right');
+  await dialog.locator('button[type="submit"]').click();
+  const saved = await saveAndRead(p => p.rpgGame.walkStepMs === 125 && p.rpgGame.panels[0]?.text === 'Ключ: {key}');
+  assert.equal(saved.rpgGame.panels[0].position,'bottom-right');
+  await command('play');
+  const hud = page.locator('.rpg-hud.bottom-right .rpg-hud-panel');
+  assert.equal(await hud.locator('strong').textContent(),'Задание');
+  assert.equal(await hud.locator('span').textContent(),'Ключ: —');
+  await page.keyboard.press('Escape');
+  await quit();
+  await launch();
+  await command('game-settings');
+  dialog = page.locator('.rpg-game-settings');
+  assert.equal(await dialog.locator('[name="stepMs"]').inputValue(),'125');
+  assert.equal(await dialog.locator('[name="title"]').inputValue(),'Задание');
+  await dialog.getByRole('button',{name:'Удалить панель'}).click();
+  await dialog.getByRole('button',{name:'Отмена'}).click();
+  await command('game-settings');
+  assert.equal(await dialog.locator('[name="title"]').inputValue(),'Задание');
+  await dialog.getByRole('button',{name:'Удалить панель'}).click();
+  await dialog.locator('button[type="submit"]').click();
+  await saveAndRead(p => p.rpgGame.walkStepMs === 125 && !p.rpgGame.panels.length);
+  console.log('PASS: manual walk timing and HUD creation, runtime display, local reopen, cancel and removal');
+}
+
 async function viewport() {
   const canvas = editor.locator('[data-rpg-canvas][data-cell-size]');
   return canvas.evaluate(async el => {
@@ -300,6 +333,13 @@ async function checkWalkCadence() {
     try {
       const quiet = walk(8,false), repeats = walk(8,true), slowerFrames = walk(31,false);
       restart();
+      key('keydown','ArrowRight');
+      tick(320);
+      const resume = [x()];
+      tick(80);
+      resume.push(x());
+      key('keyup','ArrowRight');
+      restart();
       key('keydown','ArrowLeft'); key('keyup','ArrowLeft');
       for (let i=0;i<50;i++) tick(16);
       const tap = x();
@@ -322,7 +362,7 @@ async function checkWalkCadence() {
       for (let i=0;i<10;i++) tick(15);
       const end = scenery();
       const interpolates = halfway.some((v,i)=>v!==start[i]) && halfway.some((v,i)=>v!==end[i]);
-      return {quiet, repeats, slowerFrames, tap, wall, afterBlur, interpolates};
+      return {quiet, repeats, slowerFrames, resume, tap, wall, afterBlur, interpolates};
     } finally {
       restart();
       window.requestAnimationFrame = raf;
@@ -334,6 +374,7 @@ async function checkWalkCadence() {
   assert.deepEqual(result.quiet,[6,7,8,9,9],'Hold starts immediately, advances at a steady pace, then stops on release');
   assert.deepEqual(result.repeats,result.quiet,'OS typematic repeat does not change speed');
   assert.deepEqual(result.slowerFrames,result.quiet,'Walking speed is independent of frame rate');
+  assert.deepEqual(result.resume,[7,7],'After a stalled frame the next step takes its full duration');
   assert.deepEqual([result.tap,result.wall,result.afterBlur],[4,1,6],'A tap moves once, the fence blocks, and losing focus releases movement');
   assert.ok(result.interpolates,'The camera renders positions between two tiles during a step');
   await dialog.locator('[data-player="close"]').click();
@@ -544,6 +585,7 @@ try {
   await playerAt(x,y);
   await page.keyboard.press('Escape');
   assert.equal(JSON.parse(await fs.readFile(story, 'utf8')).screenplay, oldProject.screenplay);
+  await checkSettingsForm();
   assert.deepEqual(errors, []);
   console.log('PASS: free map viewport, anchored zoom, pan, distant negative tiles, sparse save/undo/reopen, wall, character, key and door');
 } finally {

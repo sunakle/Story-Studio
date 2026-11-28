@@ -496,7 +496,7 @@ export function createWorkbench(store, ui) {
     const gameView = active.kind === 'rpg' ? rpg.context() : null;
     const previous = active.kind === 'empty' || (studio && !gigma.references(assistantId).length);
     return {surface:studio ? 'workshop' : 'sidebar', view:active.kind, title:title(active),
-      ...(gameView && {rpgMapId:gameView.mapId, rpgEventId:gameView.eventId, rpgViewCenter:gameView.center}),
+      ...(gameView && {rpgMapId:gameView.mapId, rpgEventId:gameView.eventId, rpgViewCenter:gameView.center, rpgEditor:gameView.editor}),
       project:store.project.meta.title, ...(workspaceId && {workspaceId, pageId:gigma.pageId(workspaceId)}),
       ...(first?.kind === 'gigma' && first.workspaceId === workspaceId && {objectId:first.objectId}),
       reference:references[0] || '', referenceSource:references.length ? previous ? 'previous-view' : 'selection' : '', references};

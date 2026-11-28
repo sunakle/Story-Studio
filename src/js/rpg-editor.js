@@ -1,9 +1,10 @@
 import { getLanguage, t } from './i18n.js';
 import { icon } from './icons.js';
-import { createMap, createGame, parseEvent, formatEvent, getMapTile, isMapBlocked, setMapCell, validMapCoordinate, getMapBounds, firstWalkableCell, forEachMapCell } from './rpg-model.js';
+import { createMap, createGame, parseEvent, formatEvent, gameSettings, getMapTile, isMapBlocked, setMapCell, validMapCoordinate, getMapBounds, firstWalkableCell, forEachMapCell } from './rpg-model.js';
 import { drawRpgTile, rpgAtlas, rpgDefaults, rpgTileStyle, tileGroups } from './rpg-assets.js';
 import { createRpgExample } from './rpg-example.js';
 import { openRpgPlayer } from './rpg-player.js';
+import { openGameSettings } from './rpg-game-settings.js';
 import { changeBlock, eventBlocks, firstDestination } from './rpg-editor-blocks.js';
 
 const tools = [
@@ -189,6 +190,7 @@ export function createRpgEditor(store, ui) {
     root.innerHTML = '<header class="rpg-header"><div class="rpg-map-title">'+icon('layers',17)+'<strong>'+esc(m.name)+'</strong>'+
       '</div>'+button('map-settings',icon('settings',15),'','rpg-icon')+
       '<span class="rpg-spacer"></span>'+(!store.project.rpgGame ? button('example',t('Пример с дверью','Door example')):'')+
+      button('game-settings',t('Параметры игры','Game settings'))+
       button('ai',t('Игровой ассистент','Game assistant'),'wand')+
       button('play',t('Играть','Play'),'play','rpg-primary')+'</header>'+
       '<div class="rpg-workspace">'+mapsPanel(g,m)+'<main class="rpg-main"><div class="rpg-tools">'+
@@ -526,6 +528,22 @@ export function createRpgEditor(store, ui) {
         document.getElementById('rpgAiInput')?.focus({preventScroll:true});
         return;
       case 'play': openRpgPlayer(original,{mapId});return;
+      case 'game-settings': {
+        const openedIn = store.generation;
+        const before = structuredClone(gameSettings(original));
+        const dialog = openGameSettings(before,settings => {
+          if (openedIn !== store.generation || JSON.stringify(gameSettings(game())) !== JSON.stringify(before))
+            throw Error(t('Параметры изменились. Откройте их заново.', 'Settings changed. Reopen them to edit.'));
+          if (JSON.stringify(settings) === JSON.stringify(before)) return;
+          const next = structuredClone(game());
+          next.walkStepMs = settings.stepMs;
+          next.panels = settings.panels;
+          if (!commit(next,t('Параметры игры','Game settings'))) throw Error(status);
+        });
+        const unsubscribe = store.subscribe(() => { if (openedIn !== store.generation) dialog.close(); });
+        dialog.addEventListener('close',unsubscribe,{once:true});
+        return;
+      }
       case 'example': if(!store.project.rpgGame){const ex=createRpgExample();mapId=ex.start.mapId;eventId=null;mode='paint';commit(ex,t('Пример с дверью','Door example'));saveViewSoon();}return;
       case 'grid':grid=!grid;break;
       case 'home':{
@@ -608,8 +626,21 @@ export function createRpgEditor(store, ui) {
     },
     refresh,flush,persistView,
     context(){
-      const c=host ? camera() : null;
-      return {mapId:mapId || null,eventId:eventId || null,center:c ? {x:Math.floor(c.x),y:Math.floor(c.y)} : null};
+      const canvas = host && root.querySelector('[data-rpg-canvas]');
+      if (!canvas) return {mapId:null,eventId:null,center:null,editor:null};
+      const {c, rect, size, left, top} = view(canvas);
+      const viewport = rect.width && rect.height ? {
+        minX:Math.floor(left), minY:Math.floor(top),
+        maxX:Math.ceil(left + rect.width / size) - 1, maxY:Math.ceil(top + rect.height / size) - 1,
+      } : null;
+      return {
+        mapId:activeMap().id, eventId:activeEvent()?.id ?? null,
+        center:{x:Math.floor(c.x),y:Math.floor(c.y)},
+        editor:{mode,zoom:c.zoom,viewport,grid,
+          ...(mode === 'paint' && {tile}), ...(mode === 'event' && {sprite,template}),
+          ...(activeEvent() && {eventTab:codeTab ? 'code' : 'blocks'}),
+        },
+      };
     },
   };
 }

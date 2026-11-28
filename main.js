@@ -710,6 +710,7 @@ function registerSettingsIpc() {
     const woods = await readRpgPng('woods-v2.png',192,368);
     return woods && {atlas:woods,characters:false};
   });
+  ipcMain.handle('sf:rpg:source', (_e, request) => require('./src/native/rpg-source.cjs').readRpgSource(request));
   ipcMain.handle('sf:settings:get', () => getSettings());
   ipcMain.handle('sf:settings:set', async (_e, patch) => writeSettings(patch));
   ipcMain.handle('sf:app:setDirty', (_e, value) => {

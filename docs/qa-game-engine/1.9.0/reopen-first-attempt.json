@@ -1,0 +1,56 @@
+{
+  "id": "reopen",
+  "prompt": "Создай табличку справа от старта со словами «Старый маяк» и информационную панель. Сохрани игру для следующего запуска.",
+  "expectedRejection": false,
+  "calls": [
+    {
+      "id": "reopen_0",
+      "name": "edit_rpg_game",
+      "args": {
+        "actions": [
+          {
+            "action": "event",
+            "mapId": "hall",
+            "eventId": "sign",
+            "name": "Табличка",
+            "x": 3,
+            "y": 3,
+            "code": "say \"Старый маяк\"",
+            "trigger": "action",
+            "sprite": 216
+          },
+          {
+            "action": "setMovement",
+            "stepMs": 150
+          },
+          {
+            "action": "panel",
+            "panelId": "area",
+            "title": "Локация",
+            "text": "Берег",
+            "position": "bottom-left"
+          }
+        ]
+      },
+      "result": {
+        "ok": true,
+        "count": 3,
+        "maps": 1
+      }
+    }
+  ],
+  "observed": [
+    "Проект повторно открыт в новом процессе Electron",
+    "Играть → открыт проигрыватель"
+  ],
+  "screenshots": [
+    "evidence/fail-reopen.png"
+  ],
+  "status": "fail",
+  "error": "locator.waitFor: Target page, context or browser has been closed",
+  "rendererErrors": [],
+  "visibleStatus": [
+    "Ctrl+Enter — отправить · Shift+Enter — новая строка"
+  ],
+  "durationMs": 1819
+}

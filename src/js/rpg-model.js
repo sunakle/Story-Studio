@@ -14,6 +14,37 @@ const maxLines = 512;
 
 function fail(ru, en) { throw new Error(t(ru, en)); }
 
+export const walkTiming = Object.freeze({min:60, max:1000, default:180});
+export const hudPositions = Object.freeze(['top-left','top-right','bottom-left','bottom-right']);
+export const hudLimits = Object.freeze({count:16, title:80, text:600});
+
+export function gameSettings(game) {
+  const {walkStepMs = walkTiming.default, panels = []} = game ?? {};
+  return {stepMs:walkStepMs, panels};
+}
+
+export function hudText(text, variables) {
+  return text.replace(/\{([\p{L}_][\p{L}\p{N}_-]{0,63})\}/gu, (_, key) =>
+    validId(key) && Object.hasOwn(variables,key) ? String(variables[key]) : '—');
+}
+
+function validateSettings(game) {
+  const {stepMs,panels} = gameSettings(game);
+  if (!integer(stepMs,walkTiming.min,walkTiming.max))
+    fail('Длительность шага должна быть целым числом от 60 до 1000 мс.', 'Step duration must be an integer from 60 to 1000 ms.');
+  if (!Array.isArray(panels) || panels.length > hudLimits.count)
+    fail('В игре может быть до 16 панелей.', 'A game can have up to 16 panels.');
+  const ids = new Set();
+  for (const panel of panels) {
+    if (!validId(panel?.id) || ids.has(panel.id)) fail('Каждой панели нужен уникальный идентификатор.', 'Each panel needs a unique ID.');
+    if (typeof panel.title !== 'string' || !panel.title.trim() || panel.title.length > hudLimits.title)
+      fail('Введите заголовок панели длиной до 80 символов.', 'Enter a panel title up to 80 characters.');
+    if (typeof panel.text !== 'string' || panel.text.length > hudLimits.text || !hudPositions.includes(panel.position))
+      fail('Проверьте угол экрана и текст панели (до 600 символов).', 'Check the screen corner and panel text (up to 600 characters).');
+    ids.add(panel.id);
+  }
+}
+
 // Keep the original rectangle in place, including all its saved tile indices.
 // Cells drawn beyond it use absolute coordinates and allocate only painted space.
 export function getMapTile(map, x, y) {
@@ -201,6 +232,7 @@ function passable(map, x, y) {
 
 export function validateGame(game) {
   if (game?.version !== 1 || !Array.isArray(game.maps) || !integer(game.maps.length, 1, 128)) fail('Игра должна содержать от 1 до 128 локаций версии 1.', 'A version 1 game must contain 1–128 maps.');
+  validateSettings(game);
   const maps = new Map(), destinations = [];
   let cellCount = 0, eventCount = 0, codeSize = 0;
   const named = name => typeof name === 'string' && name.trim().length > 0 && name.length <= 160;

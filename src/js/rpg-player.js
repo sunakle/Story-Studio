@@ -1,10 +1,9 @@
 import { t } from './i18n.js';
-import { advance, firstWalkableCell, getMapTile, interact, move, startGame } from './rpg-model.js';
+import { advance, firstWalkableCell, gameSettings, getMapTile, hudText, interact, move, startGame } from './rpg-model.js';
 import { drawRpgActor, drawRpgTile, rpgAtlas, rpgDefaults } from './rpg-assets.js';
 
-const STEP_MS = 180;
-
 export function openRpgPlayer(game, {mapId} = {}) {
+  const {stepMs,panels} = gameSettings(game);
   function initialState() {
     const state = startGame(game);
     const selected = game.maps.find(m => m.id === mapId && m.id !== state.mapId);
@@ -52,6 +51,14 @@ export function openRpgPlayer(game, {mapId} = {}) {
   button(header,t('Закрыть','Close'),() => d.close(),'close');
   const area = el('div',d,'rpg-play-area');
   const canvas = el('canvas',area); canvas.tabIndex = 0;
+  const corners = new Map();
+  const hud = panels.map(panel => {
+    if (!corners.has(panel.position)) corners.set(panel.position,el('div',area,'rpg-hud ' + panel.position));
+    const block = el('section',corners.get(panel.position),'rpg-hud-panel');
+    block.dataset.panelId = panel.id;
+    el('strong',block,'',panel.title);
+    return {body:el('span',block),template:panel.text};
+  });
   const message = el('div',area,'rpg-play-dialogue');
   const line = el('p',message); line.setAttribute('aria-live','polite');
   button(message,t('Дальше','Continue'),action,'continue');
@@ -105,7 +112,7 @@ export function openRpgPlayer(game, {mapId} = {}) {
     const arrived = state.mapId === mapId && state.x === x + dx && state.y === y + dy;
     const transferred = !arrived && (state.mapId !== mapId || state.x !== x || state.y !== y);
     if (arrived) {
-      step = {dx,dy,start,foot:nextFoot};
+      step = {dx,dy,start,lastFrame:performance.now(),foot:nextFoot};
       nextFoot = 2 - nextFoot;
       if (state.dialogue !== null) clearInput();
       animation = requestAnimationFrame(tick);
@@ -117,7 +124,9 @@ export function openRpgPlayer(game, {mapId} = {}) {
   }
   function tick(now) {
     animation = 0;
-    const end = step.start + STEP_MS;
+    const stalled = now - step.lastFrame > Math.max(50, Math.min(100,stepMs / 2));
+    step.lastFrame = now;
+    const end = step.start + stepMs;
     if (now < end) {
       draw(now);
       animation = requestAnimationFrame(tick);
@@ -130,7 +139,7 @@ export function openRpgPlayer(game, {mapId} = {}) {
     interactAfterTurn = false;
     if (direction && state.dialogue === null) {
       // Keep cadence across normal frames, but never race to catch up after a stall.
-      const canInteract = startStep(direction, now - end >= STEP_MS ? now : end);
+      const canInteract = startStep(direction, stalled ? now : end);
       if (shouldInteract && canInteract) action();
     } else draw(now);
   }
@@ -164,6 +173,10 @@ export function openRpgPlayer(game, {mapId} = {}) {
     canvas.setAttribute('aria-label',map.name + ' · ' + state.x + ', ' + state.y);
     canvas.dataset.map = map.id; canvas.dataset.x = state.x; canvas.dataset.y = state.y;
     message.hidden = state.dialogue === null; line.textContent = state.dialogue || '';
+    for (const {body,template} of hud) {
+      const value = hudText(template,state.vars);
+      if (body.textContent !== value) body.textContent = value;
+    }
     draw(performance.now());
   }
   function draw(now) {
@@ -172,7 +185,7 @@ export function openRpgPlayer(game, {mapId} = {}) {
     const w = 20, h = 14;
     if (canvas.width !== w*size || canvas.height !== h*size) { canvas.width = w*size; canvas.height = h*size; }
     const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.imageSmoothingEnabled = false;
-    const progress = step ? Math.max(0,Math.min(1,(now-step.start)/STEP_MS)) : 1;
+    const progress = step ? Math.max(0,Math.min(1,(now-step.start)/stepMs)) : 1;
     const remaining = Math.round((1-progress)*size);
     const cx = Math.floor(w/2)*size, cy = Math.floor(h/2)*size;
     const left = state.x*size - cx - (step?.dx ?? 0)*remaining;

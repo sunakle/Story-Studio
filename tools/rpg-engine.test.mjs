@@ -3,6 +3,31 @@ import assert from 'node:assert/strict';
 import { Store, createEmptyProject, migrateProject } from '../src/js/model.js';
 import { advance, createGame, createMap, firstWalkableCell, forEachMapCell, formatEvent, getMapBounds, getMapTile, interact, isMapBlocked, move, parseEvent, setMapCell, startGame, validateGame } from '../src/js/rpg-model.js';
 import { rpgAtlas, rpgDefaults } from '../src/js/rpg-assets.js';
+import { gameSettings, hudText } from '../src/js/rpg-model.js';
+
+test('Existing projects keep their cadence, and HUD substitutions are plain scalar text', () => {
+  const game = createGame();
+  assert.deepEqual(gameSettings(game),{stepMs:180,panels:[]});
+  assert.equal(Object.hasOwn(validateGame(game),'panels'),false);
+  const vars = Object.assign(Object.create({absent:77}),{score:0,'идёт':false,key:'<img>'});
+  assert.equal(hudText('{score} {идёт} {key} {absent} {constructor}',vars),'0 false <img> — —');
+  assert.equal(hudText('{score + 1}',vars),'{score + 1}');
+});
+
+test('Game settings validate speed, HUD positions, IDs, sizes and older project saves', () => {
+  const game = createGame();
+  const hud = {id:'quest',title:'Ключ',position:'top-right',text:'{ключ}'};
+  for (const ms of [60,180,1000]) assert.equal(validateGame({...game,walkStepMs:ms}).walkStepMs,ms);
+  for (const ms of [null,'180',59,1001,120.5]) assert.throws(() => validateGame({...game,walkStepMs:ms}));
+  for (const panels of [null,{},[hud,hud],[{...hud,title:' '}],[{...hud,text:'x'.repeat(601)}],[{...hud,position:'center'}],
+    [{...hud,id:'constructor'}],Array.from({length:17},(_,i)=>({...hud,id:'hud_'+i}))]) {
+    assert.throws(() => validateGame({...game,panels}));
+  }
+  const store = new Store();
+  assert.ok(store.apply({op:'setRpgGame',game:{...game,panels:[hud],walkStepMs:80}}).ok);
+  const reopened = migrateProject(JSON.parse(JSON.stringify(store.project))).project;
+  assert.deepEqual(gameSettings(reopened.rpgGame),{stepMs:80,panels:[hud]});
+});
 
 function courtyard() {
   const yard = createMap('yard', 'Двор', 5, 3);

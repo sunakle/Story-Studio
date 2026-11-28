@@ -21,6 +21,51 @@ function fixture(respond) {
 }
 const call = (name,args) => ({ok:true,toolCalls:[{id:crypto.randomUUID(),name,arguments:JSON.stringify(args)}]});
 const end = {ok:true,content:'Updated'};
+
+test('game chat can set walk cadence and create, patch, inspect and undo project HUD panels', async () => {
+  const panel = {id:'score',title:'Очки',text:'{очки}',position:'bottom-right'};
+  const {store,app,game} = fixture((n,last) => {
+    if (n===0) return call('get_rpg_game',{view:'settings'});
+    if (n===1) {
+      assert.deepEqual(last,{stepMs:180,panels:[]});
+      return call('edit_rpg_game',{actions:[
+        {action:'setMovement',stepMs:120},
+        {action:'panel',panelId:'score',title:'Очки',text:'{очки}'},
+        {action:'panel',panelId:'score',position:'bottom-right'}
+      ]});
+    }
+    if (n===2) { assert.ok(last.ok); return call('get_rpg_game',{view:'settings'}); }
+    assert.deepEqual(last,{stepMs:120,panels:[panel]});
+    return end;
+  });
+  assert.equal((await app.send('Ускорь героя и выведи счёт в углу.')).error,null);
+  assert.deepEqual(store.project.rpgGame.panels,[panel]);
+  assert.equal(store.project.rpgGame.walkStepMs,120);
+  store.undo();
+  assert.deepEqual(store.project.rpgGame,game);
+});
+
+test('a malformed HUD in a mixed chat edit rolls back the walk change as well', async () => {
+  const {store,app,game} = fixture(n => n===0 ? call('edit_rpg_game',{actions:[
+    {action:'setMovement',stepMs:300},{action:'panel',panelId:'quest',title:'Quest',text:'Progress',position:'center'}
+  ]}) : end);
+  assert.ok((await app.send('Change speed and HUD')).error);
+  assert.deepEqual(store.project.rpgGame,game);
+});
+
+test('large HUD settings page through complete panel texts in the game chat', async () => {
+  const panels = Array.from({length:16},(_,i) => ({id:'panel_'+i,title:'Panel',text:'x'.repeat(600),position:'top-left'}));
+  const seen = [];
+  const {store,app,game} = fixture((n,last) => {
+    if (!n) return call('get_rpg_game',{view:'settings'});
+    assert.equal(last.total,panels.length);
+    seen.push(...last.panels);
+    return last.nextOffset === null ? end : call('get_rpg_game',{view:'settings',offset:last.nextOffset});
+  });
+  assert.ok(store.apply({op:'setRpgGame',game:{...game,panels}}).ok);
+  assert.equal((await app.send('Прочитай все игровые панели.')).error,null);
+  assert.deepEqual(seen,panels);
+});
 const edits = [
   {action:'paint',mapId:'garden',x:3,y:6,tile:25,blocked:true},
   {action:'event',mapId:'garden',eventId:'keeper',code:'say "Edited from chat"'}
@@ -46,7 +91,7 @@ test('game coauthors and the lead receive game memory, selection, and only game 
     for (const token of ['Remember the old bridge','keeper','garden']) assert.ok(prompt.includes(token));
     assert.doesNotMatch(prompt,/PRIVATE_/);
   }
-  assert.deepEqual(bodies[1].tools.map(tool => tool.function.name),['get_rpg_game','edit_rpg_game']);
+  assert.deepEqual(bodies[1].tools.map(tool => tool.function.name),['get_rpg_game','edit_rpg_game','get_engine_reference','playtest_rpg_game']);
 });
 
 test('Save As copies completed game turns and a late provider reply stays out of the next project', async () => {
