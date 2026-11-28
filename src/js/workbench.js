@@ -151,6 +151,7 @@ export function createWorkbench(store, ui) {
     );
   }
   function persist() {
+    rpg.persistView();
     key = storageKey();
     try {
       localStorage.setItem(key, JSON.stringify(settings));
@@ -491,9 +492,10 @@ export function createWorkbench(store, ui) {
     const workspaceId = studio ? assistantId : active.kind === 'gigma' ? active.id : null;
     const references = currentReferences();
     const first = parseProjectReference(references[0], store.project);
+    const gameView = active.kind === 'rpg' ? rpg.context() : null;
     const previous = active.kind === 'empty' || (studio && !gigma.references(assistantId).length);
     return {surface:studio ? 'workshop' : 'sidebar', view:active.kind, title:title(active),
-      ...(active.kind === 'rpg' ? {rpgMapId:rpg.context().mapId, rpgEventId:rpg.context().eventId} : {}),
+      ...(gameView && {rpgMapId:gameView.mapId, rpgEventId:gameView.eventId, rpgViewCenter:gameView.center}),
       project:store.project.meta.title, ...(workspaceId && {workspaceId, pageId:gigma.pageId(workspaceId)}),
       ...(first?.kind === 'gigma' && first.workspaceId === workspaceId && {objectId:first.objectId}),
       reference:references[0] || '', referenceSource:references.length ? previous ? 'previous-view' : 'selection' : '', references};

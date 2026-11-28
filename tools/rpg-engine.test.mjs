@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store, createEmptyProject, migrateProject } from '../src/js/model.js';
-import { advance, createGame, createMap, formatEvent, interact, move, parseEvent, startGame, validateGame } from '../src/js/rpg-model.js';
+import { advance, createGame, createMap, firstWalkableCell, forEachMapCell, formatEvent, getMapBounds, getMapTile, interact, isMapBlocked, move, parseEvent, setMapCell, startGame, validateGame } from '../src/js/rpg-model.js';
 import { rpgAtlas, rpgDefaults } from '../src/js/rpg-assets.js';
 
 function courtyard() {
@@ -31,7 +31,7 @@ test('Event source and nested blocks describe the same typed values', () => {
   assert.deepEqual(parseEvent(code.replaceAll('\n', '\r\n')), ast);
   assert.equal(formatEvent(parseEvent(code)), code);
   assert.deepEqual(parseEvent('  \n'), []);
-  for (const invalid of ['say 12', 'end', 'else', 'set __proto__ = true', 'set x = {}', 'if ok = true', 'say "текст" + 1', 'goto map_1 -1 2', 'if ok == false\nelse\nelse\nend']) {
+  for (const invalid of ['say 12', 'end', 'else', 'set __proto__ = true', 'set x = {}', 'if ok = true', 'say "текст" + 1', 'goto map_1 -1.5 2', 'if ok == false\nelse\nelse\nend']) {
     assert.throws(() => parseEvent(invalid));
   }
   assert.throws(() => parseEvent('say "Начало"\nif x == 3'), /2/);
@@ -86,6 +86,80 @@ test('World validation catches unreachable starts, bad tiles, broken transfers a
     breakGame(game);
     assert.throws(() => validateGame(game));
   }
+});
+
+test('Legacy courtyard expands in every direction while preserving old indices and door scripts', () => {
+  const game = courtyard();
+  const yard = game.maps[0];
+  const oldTiles = [...yard.tiles], oldWalls = [...yard.blocked], oldEvents = structuredClone(yard.events);
+  const dist = 2_000_000;
+  for (const [x,y] of [[-1,0],[0,-1],[5,0],[0,3],[dist,-dist],[dist+1,-dist]]) {
+    assert.equal(setMapCell(yard,x,y,{tile:rpgDefaults.path}),true);
+    assert.equal(getMapTile(yard,x,y),rpgDefaults.path);
+    assert.equal(setMapCell(yard,x,y,{tile:rpgDefaults.path}),false);
+  }
+  assert.equal(getMapTile(yard,-1,1),null);
+  assert.deepEqual(yard.tiles,oldTiles);
+  assert.deepEqual(yard.blocked,oldWalls);
+  assert.deepEqual(yard.events,oldEvents);
+  assert.deepEqual(getMapBounds(yard),{minX:-1,minY:-dist,maxX:dist+1,maxY:3});
+  assert.equal(Object.keys(yard.cells).length,6);
+  const read=[];
+  forEachMapCell(yard,(x,y,tile,blocked)=>read.push([x,y,tile,blocked]));
+  assert.equal(read.length,21);
+  assert.ok(JSON.stringify(game).length < 2000);
+  const store = new Store();
+  assert.ok(store.apply({op:'setRpgGame',game}).ok);
+  const extra = structuredClone(game);
+  setMapCell(extra.maps[0],-5,-6,{tile:rpgDefaults.path,blocked:true});
+  assert.ok(store.apply({op:'setRpgGame',game:extra}).ok);
+  store.undo();
+  assert.deepEqual(store.project.rpgGame,game);
+  store.redo();
+  assert.deepEqual(migrateProject(JSON.parse(JSON.stringify(store.project))).project.rpgGame,extra);
+});
+
+test('Signed transfers, collisions and events share the same sparse coordinates as the editor', () => {
+  const game = createGame(), map = game.maps[0];
+  assert.equal(map.tiles.length,1);
+  setMapCell(map,-1,0,{tile:rpgDefaults.path});
+  setMapCell(map,-3000,27000,{tile:rpgDefaults.ground});
+  setMapCell(map,-3000,26999,{tile:rpgDefaults.wall,blocked:true});
+  const back = formatEvent([{op:'goto',mapId:map.id,x:-3000,y:27000}]);
+  assert.deepEqual(parseEvent(back),[{op:'goto',mapId:map.id,x:-3000,y:27000}]);
+  map.events.push({id:'bridge',name:'Bridge',x:-1,y:0,sprite:rpgDefaults.door,trigger:'touch',code:back});
+  const state=startGame(game);
+  move(game,state,0,1);
+  assert.deepEqual([state.x,state.y],[0,0]);
+  move(game,state,-1,0);
+  assert.deepEqual([state.x,state.y],[-3000,27000]);
+  move(game,state,0,-1);
+  assert.deepEqual([state.x,state.y],[-3000,27000]);
+  assert.ok(isMapBlocked(map,-3000,26999));
+  assert.ok(!isMapBlocked(map,-1,26999));
+
+  setMapCell(map,0,0,{tile:null});
+  assert.deepEqual(getMapBounds(map),{minX:-3000,minY:0,maxX:-1,maxY:27000});
+  assert.deepEqual(firstWalkableCell(map,true),{x:-3000,y:27000});
+  assert.throws(()=>validateGame(game));
+  Object.assign(game.start,{x:-3000,y:27000});
+  validateGame(game);
+  setMapCell(map,-3000,26999,{tile:null});
+  assert.equal(map.cells['-3000,26999'],undefined);
+  assert.equal(getMapTile(map,-3000,26999),null);
+});
+
+test('Sparse cells reject malformed coordinates and preserve distinct event positions', () => {
+  for (const [key,cell] of [['0,0',{tile:0}],['-0,1',{tile:0}],['1,2,3',{tile:0}],['99999999999,0',{tile:0}],['3,5',{}],['7,5',{tile:-1}],['0,-1',{blocked:1}]]) {
+    const game = createGame();
+    game.maps[0].cells = {[key]:cell};
+    assert.throws(() => validateGame(game));
+  }
+  const game = courtyard(), yard = game.maps[0];
+  setMapCell(yard,-4,1,{tile:rpgDefaults.ground});
+  // A row-major index would alias (-4,1) and the original actor at (1,0).
+  yard.events.push({...yard.events[0],id:'second_actor',x:-4,y:1});
+  validateGame(game);
 });
 
 test('Project edits detach externally supplied games, survive reopening, and undo as a single change', () => {

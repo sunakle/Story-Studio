@@ -27,6 +27,8 @@ The installer includes the runtime. If the editor opens in Russian, go to **На
 
 Open **+ → Game engine**. Paint the map with tiles, mark walls, set the player spawn, then add characters or doors under **Events**. Use **+** in the map list for another room. Each event has visual blocks and editable source for the same dialogue, variables, branches and transfers.
 
+The canvas fills the workspace. Hold **Space** and drag to pan in any direction, including left and above the origin. The mouse wheel zooms around the pointer. Paint past the edge of an existing location and lay a continuous path between areas for the player to walk on. When you reopen the editor on this computer, it remembers the map, view position and zoom.
+
 Choose **Play** to try the map. Use the arrow keys or **WASD** to move and **Space** to talk or advance dialogue. In a new game, try **Door example** to pick up a key from the garden caretaker and enter the workshop. Maps and events live in the same `.sfproj` as the screenplay and work offline. **Assistant** lets your connected model read and edit the selected map and event.
 
 The bundled pixel art includes Kenney’s complete **Tiny Town** and **Tiny Dungeon** packs under CC0, plus water variants. [Tiny Town](https://kenney.nl/assets/tiny-town) · [Tiny Dungeon](https://kenney.nl/assets/tiny-dungeon) · [CC0 license](https://creativecommons.org/publicdomain/zero/1.0/)

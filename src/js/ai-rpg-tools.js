@@ -1,4 +1,4 @@
-import { createGame, createMap, validateGame } from './rpg-model.js';
+import { createGame, createMap, getMapBounds, getMapTile, isMapBlocked, setMapCell, validateGame, validMapCoordinate } from './rpg-model.js';
 import { rpgAtlas, rpgDefaults, tileGroups } from './rpg-assets.js';
 import { t } from './i18n.js';
 
@@ -6,11 +6,11 @@ const str = description => ({type:'string',description});
 const int = description => ({type:'integer',description});
 const object = (properties, required = []) => ({type:'object',properties,required,additionalProperties:false});
 const id = str('Stable identifier. Use a short letter-led name with underscores.');
-const coord = int('Zero-based tile coordinate.');
+const coord = int('Signed world tile coordinate on the open canvas.');
 const tile = int('Tile ID from the included atlas.');
 const action = object({
-  action:{type:'string',enum:['addMap','renameMap','deleteMap','paint','start','event','deleteEvent']},
-  mapId:id,eventId:id,name:str('Display name'),width:int('Map or rectangle width in tiles'),height:int('Map or rectangle height in tiles'),
+  action:{type:'string',enum:['addMap','renameMap','deleteMap','paint','erase','start','event','deleteEvent']},
+  mapId:id,eventId:id,name:str('Display name'),width:int('Paint rectangle or initial filled patch width'),height:int('Paint rectangle or initial filled patch height'),
   x:coord,y:coord,tile,blocked:{type:'boolean'},sprite:tile,trigger:{enum:['action','touch'],type:'string'},
   code:str('Complete event source. One command per line: say "Hi"; set key = true; if key == true / else / end; goto map_id 1 2.')
 },['action','mapId']);
@@ -20,11 +20,15 @@ function findMap(game, mapId) {
   if (!map) throw Error('Unknown map: ' + mapId);
   return map;
 }
-function rectangle(map, a, maxSide = 128) {
+function placeFloor(map, point) {
+  if (validMapCoordinate(point.x) && validMapCoordinate(point.y) && getMapTile(map,point.x,point.y) === null)
+    setMapCell(map,point.x,point.y,{tile:rpgDefaults.ground});
+}
+function rectangle(a, maxSide = 128) {
   const {x=0,y=0,width=1,height=1} = a;
-  if (!inRange(x,map.width) || !inRange(y,map.height) ||
+  if (!validMapCoordinate(x) || !validMapCoordinate(y) ||
       !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
-      width > maxSide || height > maxSide || x + width > map.width || y + height > map.height) throw Error('Rectangle outside the map or too large.');
+      width > maxSide || height > maxSide || !validMapCoordinate(x+width-1) || !validMapCoordinate(y+height-1)) throw Error('Invalid world coordinates or rectangle size.');
   return {x,y,width,height};
 }
 function paged(list, offset, limit) {
@@ -32,14 +36,21 @@ function paged(list, offset, limit) {
   return {items:list.slice(offset,offset+limit),total:list.length,nextOffset:offset+limit<list.length?offset+limit:null};
 }
 export function registerRpgTools({tool,project,active,stage,ui}) {
-  tool('get_rpg_game', () => 'Read top-down game maps/start, events, event source, tile rectangles or tile palette. Read before editing. Event source offsets are characters.',
+  tool('get_rpg_game', () => 'Read top-down map content bounds, start, events, event source, tile rectangles or palette. Tile coordinates can be negative. Null tiles are empty space. Content bounds are not drawing limits. Event source offsets are characters.',
     () => object({view:{type:'string',enum:['maps','events','code','tiles','palette']},mapId:id,eventId:id,offset:int('Pagination offset'),x:coord,y:coord,width:int('Up to 16'),height:int('Up to 16')}), a => {
       active().plan.observe('rpgGame');
       if (a.view === 'palette') return {count:rpgAtlas.count,defaults:rpgDefaults,groups:tileGroups.map(g => ({name:g.en,tiles:g.tiles}))};
       const game = project().rpgGame;
       if (!game) return {initialized:false,initialMapId:'map_1',defaults:rpgDefaults};
       const offset = a.offset ?? 0;
-      if (!a.view || a.view === 'maps') return {start:game.start, ...paged(game.maps.map(m => ({id:m.id,name:m.name,width:m.width,height:m.height,events:m.events.length})),offset,15)};
+      if (!a.view || a.view === 'maps') {
+        const page = paged(game.maps,offset,15);
+        const items = page.items.map(m => {
+          const bounds = getMapBounds(m);
+          return {id:m.id,name:m.name,bounds,width:bounds.maxX-bounds.minX+1,height:bounds.maxY-bounds.minY+1,events:m.events.length};
+        });
+        return {start:game.start,...page,items};
+      }
       const map = findMap(game,a.mapId);
       if (a.view === 'events') return paged(map.events.map(({code,...e})=>e),offset,15);
       if (a.view === 'code') {
@@ -50,16 +61,18 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
         return {...fields,code:code.slice(offset,offset+2000),length:code.length,nextOffset:offset+2000<code.length?offset+2000:null};
       }
       if (a.view !== 'tiles') throw Error('Unknown read mode');
-      const rect = rectangle(map,a,16), rows = [], blocked = [];
-      const walls = new Set(map.blocked);
+      const rect = rectangle(a,16), rows = [], blocked = [];
       for (let y=rect.y; y<rect.y+rect.height; y++) {
-        const i=y*map.width+rect.x;
-        rows.push(map.tiles.slice(i,i+rect.width));
-        for (let x=rect.x; x<rect.x+rect.width; x++) if (walls.has(y*map.width+x)) blocked.push([x,y]);
+        const row = [];
+        for (let x=rect.x; x<rect.x+rect.width; x++) {
+          row.push(getMapTile(map,x,y));
+          if (isMapBlocked(map,x,y)) blocked.push([x,y]);
+        }
+        rows.push(row);
       }
       return {...rect,rows,blocked};
     });
-  tool('edit_rpg_game', () => 'Edit the game engine in one transaction. Uninitialized project starts with map_1. addMap needs a new mapId and name. paint needs x/y and tile and/or blocked; width/height default 1. event creates or patches by eventId, accepts event code in the shared block language. start sets the player. All goto positions and the player start must be walkable after the batch.',
+  tool('edit_rpg_game', () => 'Edit the free game canvas in one transaction. Uninitialized project starts with map_1. addMap needs a new mapId and name. Paint or erase at signed x/y anywhere, including beyond existing content. Rectangles default to one tile. Paint a continuous floor for paths; blank tiles are not walkable. event creates or patches an eventId with shared block code. start sets the player. Draw walkable ground under all event and transfer destinations.',
     () => object({actions:{type:'array',minItems:1,maxItems:128,items:action}},['actions']), async ({actions}) => {
       if (!Array.isArray(actions) || !actions.length || actions.length > 128) throw Error('Provide 1–128 game edits.');
       const turn = active();
@@ -79,26 +92,26 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
           case 'deleteMap': game.maps.splice(game.maps.indexOf(map),1); destroys = true; break;
           case 'start':
             game.start = {mapId:map.id,x:a.x,y:a.y,sprite:a.sprite ?? game.start.sprite};
+            placeFloor(map,game.start);
             break;
-          case 'paint': {
+          case 'paint':
+          case 'erase': {
+            const erase = a.action === 'erase';
             if (!Number.isInteger(a.x) || !Number.isInteger(a.y) ||
-                (a.tile === undefined && a.blocked === undefined) ||
+                (!erase && a.tile === undefined && a.blocked === undefined) ||
                 (a.tile !== undefined && !inRange(a.tile,rpgAtlas.count)) ||
                 (a.blocked !== undefined && typeof a.blocked !== 'boolean')) throw Error('Specify a valid tile or blocked flag and cell.');
-            const r = rectangle(map,a), walls = new Set(map.blocked);
+            const r = rectangle(a);
             for (let y=r.y; y<r.y+r.height; y++) for (let x=r.x; x<r.x+r.width; x++) {
-              const i = y*map.width+x;
-              if (a.tile !== undefined) map.tiles[i] = a.tile;
-              if (a.blocked === true) walls.add(i);
-              if (a.blocked === false) walls.delete(i);
+              setMapCell(map,x,y,erase ? {tile:null,blocked:false} : {tile:a.tile,blocked:a.blocked});
             }
-            if (a.blocked !== undefined) map.blocked = [...walls];
             break;
           }
           case 'event': {
             let event = map.events.find(e => e.id === a.eventId);
             if (!event) { event = {id:a.eventId,trigger:'action',sprite:rpgDefaults.npc,code:''}; map.events.push(event); }
             for (const key of ['name','x','y','trigger','sprite','code']) if (a[key] !== undefined) event[key] = a[key];
+            placeFloor(map,event);
             break;
           }
           case 'deleteEvent': {

@@ -1,5 +1,6 @@
 import { t } from './i18n.js';
 import { icon } from './icons.js';
+import { firstWalkableCell } from './rpg-model.js';
 
 const names = {
   say: ['Реплика', 'Dialogue'], set: ['Задать значение', 'Set variable'],
@@ -45,11 +46,9 @@ function atPath(root, path) {
 }
 
 export function firstDestination(map) {
-  const solid = new Set(map.blocked);
-  for (const e of map.events) if (e.trigger === 'action') solid.add(e.x + e.y * map.width);
-  const i = map.tiles.findIndex((_, i) => !solid.has(i));
-  if (i < 0) throw Error(t('В локации нет свободной клетки.', 'This map has no free cell.'));
-  return {mapId:map.id, x:i % map.width, y:Math.floor(i / map.width)};
+  const floor = firstWalkableCell(map);
+  if (!floor) throw Error(t('В локации нет свободной клетки.', 'This map has no free cell.'));
+  return {mapId:map.id, ...floor};
 }
 
 export function changeBlock(blocks, control, map, maps) {

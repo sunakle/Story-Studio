@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createAI } from '../src/js/ai.js';
 import { Store } from '../src/js/model.js';
 import { createRpgExample } from '../src/js/rpg-example.js';
-import { interact, move, startGame } from '../src/js/rpg-model.js';
+import { getMapTile, interact, isMapBlocked, move, startGame } from '../src/js/rpg-model.js';
 
 function fixture(respond) {
   const store = new Store();
@@ -43,6 +43,41 @@ test('game chat gets its selection, edits a map and canonical event code, can pl
   const updated = store.project.rpgGame, player = startGame(updated);
   move(updated,player,0,-1); interact(updated,player);
   assert.equal(player.dialogue,'Edited from chat');
+  store.undo();
+  assert.deepEqual(store.project.rpgGame,game);
+});
+
+test('game chat reads and paints outside the seed, moves the spawn there and erases a tile without changing the original room', async () => {
+  const x=-2075, y=4100, mapId='garden';
+  const {store,app,game} = fixture((n,last) => {
+    switch (n) {
+      case 0: return call('get_rpg_game',{view:'tiles',mapId,x,y,width:4});
+      case 1:
+        assert.deepEqual(last.rows,[[null,null,null,null]]);
+        return call('edit_rpg_game',{actions:[
+          {action:'paint',mapId,x,y,width:4,tile:25},
+          {action:'paint',mapId,x:x+2,y,blocked:true},
+          {action:'start',mapId,x,y},
+          {action:'erase',mapId,x:x+3,y},
+        ]});
+      case 2:
+        assert.equal(last.ok,true);
+        return call('get_rpg_game',{view:'tiles',mapId,x,y,width:4});
+      case 3:
+        assert.deepEqual(last.rows,[[25,25,25,null]]);
+        assert.deepEqual(last.blocked,[[x+2,y]]);
+        return call('get_rpg_game',{view:'maps'});
+      default:
+        assert.deepEqual(last.items[0].bounds,{minX:x,maxX:15,minY:0,maxY:y});
+        return end;
+    }
+  });
+  assert.equal((await app.send('Extend the current map to a distant tile')).error,null);
+  const world=store.project.rpgGame, state=startGame(world);
+  assert.equal(getMapTile(world.maps[0],x,y),25);
+  assert.equal(isMapBlocked(world.maps[0],x+2,y),true);
+  move(world,state,1,0); move(world,state,1,0);
+  assert.deepEqual([state.x,state.y],[x+1,y]);
   store.undo();
   assert.deepEqual(store.project.rpgGame,game);
 });

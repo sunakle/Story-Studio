@@ -1,5 +1,5 @@
 import { t } from './i18n.js';
-import { advance, interact, move, startGame } from './rpg-model.js';
+import { advance, firstWalkableCell, getMapTile, interact, move, startGame } from './rpg-model.js';
 import { drawRpgTile, rpgAtlas, rpgDefaults } from './rpg-assets.js';
 
 export function openRpgPlayer(game, {mapId} = {}) {
@@ -7,9 +7,9 @@ export function openRpgPlayer(game, {mapId} = {}) {
     const state = startGame(game);
     const selected = game.maps.find(m => m.id === mapId && m.id !== state.mapId);
     if (selected) {
-      const occupied = new Set([...selected.blocked, ...selected.events.map(e => e.y * selected.width + e.x)]);
-      const i = selected.tiles.findIndex((_, index) => !occupied.has(index));
-      if (i >= 0) Object.assign(state, {mapId:selected.id,x:i % selected.width,y:Math.floor(i / selected.width)});
+      const spawn = firstWalkableCell(selected, true) ?? firstWalkableCell(selected);
+      if (!spawn) throw Error(t('Чтобы запустить эту локацию, нарисуйте хотя бы одну проходимую клетку.', 'Paint at least one walkable tile to play this map.'));
+      Object.assign(state, {mapId:selected.id,...spawn});
     }
     return state;
   }
@@ -71,14 +71,14 @@ export function openRpgPlayer(game, {mapId} = {}) {
     canvas.dataset.map = map.id; canvas.dataset.x = state.x; canvas.dataset.y = state.y;
     message.hidden = state.dialogue === null; line.textContent = state.dialogue || '';
     if (!image.complete || !image.naturalWidth) return;
-    const w = Math.min(24,map.width), h = Math.min(16,map.height);
-    const ox = Math.max(0,Math.min(map.width-w,state.x-Math.floor(w/2)));
-    const oy = Math.max(0,Math.min(map.height-h,state.y-Math.floor(h/2)));
+    const w = 20, h = 14;
+    const ox = state.x - Math.floor(w / 2), oy = state.y - Math.floor(h / 2);
     if (canvas.width !== w*size || canvas.height !== h*size) { canvas.width = w*size; canvas.height = h*size; }
     const ctx = canvas.getContext('2d'); ctx.clearRect(0,0,canvas.width,canvas.height); ctx.imageSmoothingEnabled = false;
     const draw = (id,x,y) => drawRpgTile(ctx,image,id,(x-ox)*size,(y-oy)*size,size);
     for (let y=oy; y<oy+h; y++) for (let x=ox; x<ox+w; x++) {
-      const id = map.tiles[y*map.width+x];
+      const id = getMapTile(map,x,y);
+      if (id === null) continue;
       if (id !== rpgDefaults.ground) draw(rpgDefaults.ground,x,y);
       draw(id,x,y);
     }
