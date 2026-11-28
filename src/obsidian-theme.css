@@ -56,6 +56,11 @@ input, textarea { caret-color: var(--fg); }
 .toast { border: 1px solid var(--obs-border); border-radius: 7px; background: var(--obs-raised); box-shadow: var(--obs-shadow); }
 .kbd-list kbd, .dd-key { color: var(--obs-muted); font: 11px var(--font-ui); }
 ::selection, textarea::selection, input::selection { background: color-mix(in srgb, var(--obs-accent) 38%, transparent); }
+.msg-user .msg-bubble::selection,
+.msg-user .msg-bubble *::selection {
+  background-color: var(--obs-bg);
+  color: var(--obs-text);
+}
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { border-radius: 5px; background-color: color-mix(in srgb, var(--obs-muted) 35%, transparent); }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--obs-faint); }

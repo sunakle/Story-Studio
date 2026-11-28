@@ -155,12 +155,25 @@ async function checkWalking(dialog, atlas) {
       return expected(ground,dir,frame).every((value,i)=>value===pixels[i]);
     }
     const front=matches(input.start,0,1);
-    canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',code:'ArrowRight',bubbles:true,cancelable:true}));
+    const arrow = {key:'ArrowRight',code:'ArrowRight',bubbles:true,cancelable:true};
+    canvas.dispatchEvent(new KeyboardEvent('keydown',arrow));
+    canvas.dispatchEvent(new KeyboardEvent('keyup',arrow));
     const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
-    await nextFrame();
-    const walking=[0,2].some(frame=>matches(input.next,2,frame));
+    // The ground moves under the hero while the camera follows the step.
+    // Compare just the opaque sprite pixels while moving, then the full tile at rest.
+    function hasFootFrame(frame) {
+      ctx.clearRect(0,0,16,16);
+      ctx.drawImage(walk,frame*16,(input.actor*4+2)*16,16,16,0,0,16,16);
+      const sprite=ctx.getImageData(0,0,16,16).data;
+      const pixels=playerCtx.getImageData(Math.floor(canvas.width/32)*16,Math.floor(canvas.height/32)*16,16,16).data;
+      return sprite.every((v,i)=>sprite[(i & ~3)+3]!==255 || pixels[i]===v);
+    }
+    let walking=false;
     const deadline=performance.now()+1500;
-    while(!matches(input.next,2,1) && performance.now()<deadline)await nextFrame();
+    do {
+      walking ||= [0,2].some(hasFootFrame);
+      await nextFrame();
+    } while(!matches(input.next,2,1) && performance.now()<deadline);
     return {front,walking,standing:matches(input.next,2,1),x:Number(canvas.dataset.x)};
   },{atlas:atlas.toString('base64'),walk:(await fs.readFile(localWalk)).toString('base64'),actor,
     base:rpgDefaults.ground,start:getMapTile(map,x,y),next:getMapTile(map,x+1,y)});
@@ -239,12 +252,102 @@ async function saveAndRead(check) {
   throw new Error('Local project does not contain the expected edit.');
 }
 
+async function checkWalkCadence() {
+  await command('play');
+  const dialog = page.locator('dialog.rpg-player');
+  await page.waitForFunction(() => document.querySelector('dialog.rpg-player canvas')?.width === 320);
+  const result = await dialog.evaluate(d => {
+    const canvas = d.querySelector('canvas');
+    const restart = () => d.querySelector('[data-player="restart"]').click();
+    const x = () => Number(canvas.dataset.x);
+    const key = (type, code, repeat = false) => canvas.dispatchEvent(new KeyboardEvent(type, {
+      code, key:code, repeat, bubbles:true, cancelable:true,
+    }));
+    // Drive the player at repeatable frame times in this one synchronous renderer task.
+    // The rest of the editor keeps its native clock between Playwright calls.
+    const raf = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+    const nowDescriptor = Object.getOwnPropertyDescriptor(performance, 'now');
+    let now = performance.now(), id = 0;
+    const frames = new Map();
+    window.requestAnimationFrame = fn => { frames.set(++id,fn); return id; };
+    window.cancelAnimationFrame = token => frames.delete(token);
+    Object.defineProperty(performance, 'now', {configurable:true, value:() => now});
+    const tick = duration => {
+      now += duration;
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const fn of pending) fn(now);
+    };
+    function walk(frameMs, noisy) {
+      restart();
+      key('keydown','KeyD');
+      const positions = [x()];
+      let elapsed = 0;
+      for (const target of [260,460,680]) {
+        while (elapsed < target) {
+          if (noisy) key('keydown','KeyD',true);
+          const dt = Math.min(frameMs, target-elapsed);
+          tick(dt);
+          elapsed += dt;
+        }
+        positions.push(x());
+      }
+      key('keyup','KeyD');
+      for (let i=0;i<50;i++) tick(16);
+      positions.push(x());
+      return positions;
+    }
+    try {
+      const quiet = walk(8,false), repeats = walk(8,true), slowerFrames = walk(31,false);
+      restart();
+      key('keydown','ArrowLeft'); key('keyup','ArrowLeft');
+      for (let i=0;i<50;i++) tick(16);
+      const tap = x();
+      key('keydown','ArrowLeft');
+      for (let i=0;i<130;i++) tick(16);
+      key('keyup','ArrowLeft');
+      const wall = x();
+      restart();
+      key('keydown','ArrowRight');
+      window.dispatchEvent(new Event('blur'));
+      for (let i=0;i<60;i++) tick(16);
+      const afterBlur = x();
+      restart();
+      // Sample the scenery above the hero so turning the sprite alone cannot pass.
+      const scenery = () => canvas.getContext('2d').getImageData(0,32,canvas.width,32).data;
+      const start = scenery();
+      key('keydown','ArrowRight'); key('keyup','ArrowRight');
+      for (let i=0;i<6;i++) tick(15);
+      const halfway = scenery();
+      for (let i=0;i<10;i++) tick(15);
+      const end = scenery();
+      const interpolates = halfway.some((v,i)=>v!==start[i]) && halfway.some((v,i)=>v!==end[i]);
+      return {quiet, repeats, slowerFrames, tap, wall, afterBlur, interpolates};
+    } finally {
+      restart();
+      window.requestAnimationFrame = raf;
+      window.cancelAnimationFrame = cancel;
+      if (nowDescriptor) Object.defineProperty(performance, 'now', nowDescriptor);
+      else delete performance.now;
+    }
+  });
+  assert.deepEqual(result.quiet,[6,7,8,9,9],'Hold starts immediately, advances at a steady pace, then stops on release');
+  assert.deepEqual(result.repeats,result.quiet,'OS typematic repeat does not change speed');
+  assert.deepEqual(result.slowerFrames,result.quiet,'Walking speed is independent of frame rate');
+  assert.deepEqual([result.tap,result.wall,result.afterBlur],[4,1,6],'A tap moves once, the fence blocks, and losing focus releases movement');
+  assert.ok(result.interpolates,'The camera renders positions between two tiles during a step');
+  await dialog.locator('[data-player="close"]').click();
+}
+
 async function play() {
   await command('play');
   const dialog = page.locator('dialog.rpg-player');
   const at = (map, x, y) => dialog.locator('canvas[data-map="' + map + '"][data-x="' + x + '"][data-y="' + y + '"]').waitFor();
   async function steps(key, n = 1) {
-    for (let i = 0; i < n; i++) await page.keyboard.press(key);
+    for (let i = 0; i < n; i++) {
+      await page.keyboard.press(key);
+      if (key.startsWith('Arrow')) await page.waitForTimeout(200);
+    }
   }
   await at('garden', 5, 6);
   await steps('ArrowRight', 5);
@@ -298,6 +401,7 @@ try {
   await page.keyboard.press('Control+y');
   await saveAndRead(matches(tile));
   if (localTileset) await checkLocalArtwork(tile);
+  await checkWalkCadence();
 
   await editor.locator('[data-mode="event"]').click();
   await cell(10, 5);

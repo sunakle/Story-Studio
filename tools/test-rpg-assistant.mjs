@@ -136,6 +136,50 @@ async function send(pane, marker) {
 async function expectDraft(pane, expected) {
   await page.waitForFunction(({pane, expected}) => document.querySelector(pane + ' .chat-input')?.value === expected, {pane, expected});
 }
+async function checkMessageSelection(pane, marker) {
+  const host = page.locator(pane);
+  await host.locator('.chat-input:enabled').waitFor();
+  const message = host.locator('.msg-user .msg-bubble').filter({hasText:marker});
+  await message.scrollIntoViewIfNeeded();
+  const fragment = marker.split('-')[1];
+  const {left, right, y, luminances} = await message.evaluate((el, fragment) => {
+    const range = document.createRange();
+    const textNode = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode();
+    const offset = textNode.data.indexOf(fragment);
+    range.setStart(textNode, offset);
+    range.setEnd(textNode, offset + fragment.length);
+    const rect = range.getBoundingClientRect();
+    // Let Chromium resolve CSS colors and alpha-composite the highlight over the bubble.
+    const context = document.createElement('canvas').getContext('2d');
+    const highlight = getComputedStyle(textNode.parentElement, '::selection');
+    const luminances = [getComputedStyle(el).backgroundColor, highlight.backgroundColor, highlight.color].map(color => {
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      const [r,g,b] = Array.from(context.getImageData(0, 0, 1, 1).data, v => {
+        const c = v / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126*r + 0.7152*g + 0.0722*b;
+    });
+    return {left:rect.left + 1, right:rect.right - 1, y:rect.top + rect.height / 2, luminances};
+  }, fragment);
+  const [bubble, highlight, ink] = luminances;
+  const contrast = (a,b) => (Math.max(a,b)+0.05) / (Math.min(a,b)+0.05);
+  assert.ok(contrast(bubble,highlight) >= 3, 'Selection must be visible against the outgoing bubble in ' + pane);
+  assert.ok(contrast(ink,highlight) >= 4.5, 'Selected text must be legible in ' + pane);
+  await page.mouse.move(left,y);
+  await page.mouse.down();
+  await page.mouse.move(right,y,{steps:8});
+  await page.mouse.up();
+  assert.equal(await page.evaluate(() => window.getSelection().toString()), fragment, 'Mouse selection in ' + pane);
+  // Check the native keyboard action without replacing the desktop clipboard.
+  await message.evaluate(el => document.addEventListener('copy', event => {
+    if (!event.defaultPrevented) el.dataset.copiedText = window.getSelection().toString();
+    event.preventDefault();
+  }, {once:true}));
+  await page.keyboard.press('Control+c');
+  assert.equal(await message.getAttribute('data-copied-text'), fragment, 'Ctrl+C copies the selection in ' + pane);
+}
 function userHistory(request) {
   return request.messages.filter(item => item.role === 'user').map(item => JSON.stringify(item.content)).join('\n');
 }
@@ -168,6 +212,7 @@ try {
   await expectDraft(gamePane,gameEdit);
   await retryLimit.click();
   await gamePanel.getByText('Reply to ' + gameEdit,{exact:true}).waitFor();
+  await checkMessageSelection(gamePane, gameEdit);
   const game = requests.at(-1);
   assert.ok(game.max_tokens>512,'Only the explicit retry has a larger response budget');
   assert.equal(requests.length-gameTurnStart,3,'Retry resumes after the previously completed tool');
@@ -189,6 +234,10 @@ try {
   await tab('assistant');
   await expectDraft(workshopPane, generalDraft);
   const workshop = await send(workshopPane, workshopNote);
+  await page.locator('#btnTheme').click();
+  assert.equal(await page.locator('html').getAttribute('data-theme'), 'light');
+  await checkMessageSelection(workshopPane, workshopNote);
+  await page.locator('#btnTheme').click();
   assert.ok(userHistory(workshop).includes(generalNote), 'Sidebar and workshop still share general memory');
   assert.ok(!JSON.stringify(workshop.messages).includes(gameEdit), 'Game memory absent from workshop API request');
   await gameChat();

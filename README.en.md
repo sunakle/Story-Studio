@@ -29,7 +29,7 @@ Open **+ → Game engine**. Paint the map with tiles, mark walls, set the player
 
 The canvas fills the workspace. Hold **Space** and drag to pan in any direction, including left and above the origin. The mouse wheel zooms around the pointer. Paint past the edge of an existing location and lay a continuous path between areas for the player to walk on. When you reopen the editor on this computer, it remembers the map, view position and zoom.
 
-Choose **Play** to try the map. Use the arrow keys or **WASD** to move and **Space** to talk or advance dialogue. In a new game, try **Door example** to pick up a key from the garden caretaker and enter the workshop. Maps and events live in the same `.sfproj` as the screenplay and work offline.
+Choose **Play** to try the map. Tap an arrow key or **WASD** to move one tile. Hold the key to walk at a steady pace. Press **Space** to talk or advance dialogue. In a new game, try **Door example** to pick up a key from the garden caretaker and enter the workshop. Maps and events live in the same `.sfproj` as the screenplay and work offline.
 
 **Game assistant** opens a dedicated chat for maps and events. Select a door and ask “Make this door take the player to the workshop.” The assistant sees the current map and selected event. Its conversation and draft are saved locally for each project and restored when you reopen it. **Clear** in this chat clears only the current project's game conversation. The game assistant uses the model connection in AI settings.
 
