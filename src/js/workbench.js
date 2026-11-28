@@ -269,6 +269,7 @@ export function createWorkbench(store, ui) {
     page.classList.toggle('hidden', canvas || design || studio);
     page.onclick = null;
     mountStudio(studio, design);
+    ui.syncChatPane(active.kind);
     gigma.show(studio ? assistantId : design ? active.id : null);
     if (canvas || design || studio) {
       page.replaceChildren();
@@ -943,6 +944,7 @@ export function createWorkbench(store, ui) {
     forward: () => navigate(1),
     currentLocation,
     refreshLanguage() { issues = null; gigma.appearance(); render(); },
+    flushGame: () => rpg.flush(),
     flushDesigns: async () => rpg.flush() !== false && await gigma.flushAll(),
     assistantWorkspaceId: () => assistantId,
     navigationRevision: () => navigationRevision,

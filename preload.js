@@ -80,8 +80,8 @@ if (process.isMainFrame) contextBridge.exposeInMainWorld('sf', {
   },
 
   history: {
-    read: (key) => invoke('sf:history:read', key),
-    write: (messages, key) => invoke('sf:history:write', { messages, key }),
+    read: (key, scope) => invoke('sf:history:read', { key, scope }),
+    write: (messages, key, scope) => invoke('sf:history:write', { messages, key, scope }),
   },
 
   exportFiles: {

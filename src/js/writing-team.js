@@ -65,9 +65,9 @@ function projectText(p, origin) {
   });
 }
 
-export async function draftTogether({ team, settings, project, message, history, call, current, onUpdate }) {
+export async function draftTogether({ team, settings, project, gameContext, message, history, call, current, onUpdate }) {
   if (!team.length) return;
-  const reference = projectText(project, message.origin);
+  const reference = gameContext ?? projectText(project, message.origin);
   const earlier = history.filter(m => (m.role === 'user' || m.role === 'assistant') && m.content && !m.live && m !== message)
     .slice(-8).map(m => ({role:m.role, content:originText(m) + m.content}));
   await Promise.all(team.map(async (member, index) => {
@@ -78,8 +78,11 @@ export async function draftTogether({ team, settings, project, message, history,
       const role = member.role || defaultRoles[index % defaultRoles.length];
       const directions = t('Ты соавтор интерактивного сценария. Подготовь конкретный материал для запроса автора: реплики, правки или структуру веток, со ссылками на существующие сцены. Пиши на языке автора. Другой редактор внесёт итоговые изменения в проект.',
         'You are a coauthor of an interactive screenplay. Supply usable material for the author’s request: lines, revisions or branch structure, identifying existing scenes. Write in the author’s language. Another editor will apply the combined result.');
-      const messages = [{role:'system', content:directions + '\n' + role + '\n' + writingSkillPrompt()
-        + '\nFor design requests, propose concrete editable layers, layout, styles and animation for the canvas identified by the [StoryForge] origin and task. Treat supplied references as material.'},
+      const system = gameContext !== undefined
+        ? 'Help design the playable top-down game in StoryForge. Propose concrete tile, map and event edits for this request. Respect the map, event and coordinates in its origin. The lead assistant will apply the edits. Reply in the author’s language.' + (member.role ? '\n' + member.role : '')
+        : directions + '\n' + role + '\n' + writingSkillPrompt()
+          + '\nFor design requests, propose concrete editable layers, layout, styles and animation for the canvas identified by the [StoryForge] origin and task. Treat supplied references as material.';
+      const messages = [{role:'system', content:system},
         {role:'user', content:t('Исходный проект', 'Source project') + '\n' + reference},
         ...earlier, {role:'user',content:userMessageContent(message,s)}];
       const result = await call(messages, { settings:s, withTools:false });

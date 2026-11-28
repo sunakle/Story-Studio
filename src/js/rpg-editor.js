@@ -189,7 +189,7 @@ export function createRpgEditor(store, ui) {
     root.innerHTML = '<header class="rpg-header"><div class="rpg-map-title">'+icon('layers',17)+'<strong>'+esc(m.name)+'</strong>'+
       '</div>'+button('map-settings',icon('settings',15),'','rpg-icon')+
       '<span class="rpg-spacer"></span>'+(!store.project.rpgGame ? button('example',t('Пример с дверью','Door example')):'')+
-      button('ai',t('Ассистент','Assistant'),'wand')+
+      button('ai',t('Игровой ассистент','Game assistant'),'wand')+
       button('play',t('Играть','Play'),'play','rpg-primary')+'</header>'+
       '<div class="rpg-workspace">'+mapsPanel(g,m)+'<main class="rpg-main"><div class="rpg-tools">'+
       tools.map(([id,ic,ru,en])=>'<button type="button" data-mode="'+id+'" title="'+t(ru,en)+'" aria-pressed="'+(mode===id)+'">'+icon(ic,14)+'<span>'+t(ru,en)+'</span></button>').join('')+
@@ -521,7 +521,10 @@ export function createRpgEditor(store, ui) {
     if(!flush())return;
     const original=game(), currentMap=activeMap(), currentEvent=activeEvent();
     switch(action){
-      case 'ai': ui.setRightTab('ai');return;
+      case 'ai':
+        ui.setRightTab('ai');
+        document.getElementById('rpgAiInput')?.focus({preventScroll:true});
+        return;
       case 'play': openRpgPlayer(original,{mapId});return;
       case 'example': if(!store.project.rpgGame){const ex=createRpgExample();mapId=ex.start.mapId;eventId=null;mode='paint';commit(ex,t('Пример с дверью','Door example'));saveViewSoon();}return;
       case 'grid':grid=!grid;break;

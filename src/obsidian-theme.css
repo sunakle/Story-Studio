@@ -78,12 +78,12 @@ input, textarea { caret-color: var(--fg); }
 .sf-preferences-main .sf-recovery-setting { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); }
 .sf-preferences-main .kbd-list { max-height:min(44vh, 322px); overflow:auto; align-items:baseline; }
 .sf-preferences-main .kbd-list > span { min-width:0; }
-#aiBody .chat, #aiBody .chat-log { background:var(--obs-panel); }
-#aiBody .chat-model { color:var(--fg2); }
-#aiBody .chat-msg { border:0; border-radius:6px; background:var(--obs-bg); }
-#aiBody .chat-suggests .chip { color:var(--fg2); border-color:var(--line); background:transparent; }
-#aiBody .chat-input-wrap { background:var(--obs-panel); border-color:var(--line); }
-#aiBody .chat-input { background:var(--obs-bg); border:1px solid var(--line); border-radius:7px; }
+:is(#aiBody, #rpgAiBody) .chat, :is(#aiBody, #rpgAiBody) .chat-log { background:var(--obs-panel); }
+:is(#aiBody, #rpgAiBody) .chat-model { color:var(--fg2); }
+:is(#aiBody, #rpgAiBody) .chat-msg { border:0; border-radius:6px; background:var(--obs-bg); }
+:is(#aiBody, #rpgAiBody) .chat-suggests .chip { color:var(--fg2); border-color:var(--line); background:transparent; }
+:is(#aiBody, #rpgAiBody) .chat-input-wrap { background:var(--obs-panel); border-color:var(--line); }
+:is(#aiBody, #rpgAiBody) .chat-input { background:var(--obs-bg); border:1px solid var(--line); border-radius:7px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.001ms !important; transition-duration:.001ms !important; }
 }

@@ -416,8 +416,12 @@ try {
   await cell(x+2,y);
   await editor.locator('[data-event-name]').fill('Архив');
   await command('code');
-  await editor.locator('[data-event-code]').fill('say "Здесь архив."\ngoto '+mapId+' '+x+' '+y);
+  const archiveSource = 'say "Здесь архив."\ngoto '+mapId+' '+x+' '+y;
+  const archiveCode = editor.locator('[data-event-code]');
+  await archiveCode.fill(archiveSource);
   await command('apply-code');
+  assert.equal(await editor.locator('.rpg-status').textContent(), 'Код применён', 'Signed-coordinate transfer source must be accepted');
+  assert.equal(await archiveCode.inputValue(), archiveSource, 'Applied transfer code must survive the editor refresh');
   await command('blocks');
   assert.equal(await editor.locator('[data-field="x"]').inputValue(), String(x));
   assert.equal(await editor.locator('[data-field="y"]').inputValue(), String(y));

@@ -1,6 +1,6 @@
-#aiBody .chat-input-row { gap: 5px; }
-#aiBody .chat-input { min-width: 0; }
-#aiBody .chat-attach {
+:is(#aiBody, #rpgAiBody) .chat-input-row { gap: 5px; }
+:is(#aiBody, #rpgAiBody) .chat-input { min-width: 0; }
+:is(#aiBody, #rpgAiBody) .chat-attach {
   flex: 0 0 29px;
   width: 29px;
   height: 34px;
@@ -9,14 +9,14 @@
   display: inline-grid;
   place-items: center;
 }
-#aiBody .chat-images {
+:is(#aiBody, #rpgAiBody) .chat-images {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 7px;
 }
-#aiBody .msg-user .chat-images:last-child { margin-bottom: 0; }
-#aiBody .chat-image {
+:is(#aiBody, #rpgAiBody) .msg-user .chat-images:last-child { margin-bottom: 0; }
+:is(#aiBody, #rpgAiBody) .chat-image {
   position: relative;
   display: block;
   width: 64px;
@@ -26,8 +26,8 @@
   border-radius: 5px;
   background: var(--obs-bg);
 }
-#aiBody .chat-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
-#aiBody .chat-image-remove {
+:is(#aiBody, #rpgAiBody) .chat-image img { display: block; width: 100%; height: 100%; object-fit: contain; }
+:is(#aiBody, #rpgAiBody) .chat-image-remove {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -42,10 +42,10 @@
   border-radius: 50%;
   cursor: pointer;
 }
-#aiBody .chat-image-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-#aiBody .composer-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px,100%), 1fr)); }
+:is(#aiBody, #rpgAiBody) .chat-image-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+:is(#aiBody, #rpgAiBody) .composer-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px,100%), 1fr)); }
 .composer-photo { display:flex; align-items:center; min-width:0; gap:7px; padding:4px; border:1px solid var(--line); border-radius:6px; }
-#aiBody .composer-photo .chat-image { width:38px; height:38px; flex:none; border:0; }
+:is(#aiBody, #rpgAiBody) .composer-photo .chat-image { width:38px; height:38px; flex:none; border:0; }
 .composer-photo-info { flex:1; display:grid; min-width:0; gap:3px; font-size:11px; }
 .composer-photo-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg2); }
 .photo-canvas-action, .composer-photo-remove { display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:transparent; color:var(--obs-accent); cursor:pointer; }
@@ -59,7 +59,7 @@
 .photo-placement-file img { width:42px; height:42px; object-fit:contain; background:var(--obs-bg); border-radius:4px; }
 .photo-placement button { display:flex; align-items:center; gap:8px; padding:8px; color:var(--fg); background:transparent; border:1px solid transparent; border-radius:4px; cursor:pointer; }
 .photo-placement button:hover, .photo-placement button:focus-visible { background:var(--obs-raised); border-color:var(--line); }
-#aiBody .chat.is-image-drop .chat-input-wrap { box-shadow: inset 0 0 0 2px var(--accent); }
+:is(#aiBody, #rpgAiBody) .chat.is-image-drop .chat-input-wrap { box-shadow: inset 0 0 0 2px var(--accent); }
 .ai-writing-skills { color: var(--fg); font-size: 12px; line-height: 1.5; margin: 8px 0; }
 .ai-writing-skills summary { cursor: pointer; }
 .ai-writing-skills ul { margin: 8px 0; padding-left: 20px; }

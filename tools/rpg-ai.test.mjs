@@ -14,7 +14,7 @@ function fixture(respond) {
     const last = body.messages.filter(m => m.role==='tool').at(-1);
     return respond(turns++,last ? JSON.parse(last.content) : null, body, store);
   }},history:{read:() => [],write:() => {}}}};
-  const app = createAI({root:null,store,ui:{escapeHTML:String,settings:{ai:{baseUrl:'http://localhost/v1',model:'fixture'}},
+  const app = createAI({root:null,store,scope:'rpg',ui:{escapeHTML:String,settings:{ai:{baseUrl:'http://localhost/v1',model:'fixture'}},
     workbench:{current:()=>'rpg',navigationRevision:()=>0,flushDesigns:()=>true,
       assistantContext:()=>({surface:'sidebar',view:'rpg',rpgMapId:'garden',rpgEventId:'keeper'})}}});
   return {store,app,game};
@@ -25,6 +25,64 @@ const edits = [
   {action:'paint',mapId:'garden',x:3,y:6,tile:25,blocked:true},
   {action:'event',mapId:'garden',eventId:'keeper',code:'say "Edited from chat"'}
 ];
+
+test('game coauthors and the lead receive game memory, selection, and only game tools', async () => {
+  const store = new Store();
+  store.apply({op:'setScreenplay',text:'PRIVATE_SCREENPLAY'});
+  store.apply({op:'setRpgGame',game:createRpgExample()});
+  const bodies = [];
+  globalThis.window = {sf:{
+    ai:{chat:async ({body}) => { bodies.push(body); return end; }},
+    history:{read:(_key,scope) => [{role:'user',content:scope === 'rpg' ? 'Remember the old bridge' : 'PRIVATE_CHAT'}],write(){}},
+  }};
+  const app = createAI({root:null,scope:'rpg',store,ui:{escapeHTML:String,
+    settings:{ai:{model:'lead',teamMode:true,teamModels:'coauthor',baseUrl:'http://localhost/v1'}},
+    workbench:{assistantContext:() => ({view:'rpg',rpgEventId:'keeper',workspaceId:'PRIVATE_CANVAS'})},
+  }});
+  assert.equal((await app.send('Plan the crossing')).error,null);
+  assert.deepEqual(bodies.map(b => b.model),['coauthor','lead']);
+  for (const body of bodies) {
+    const prompt = JSON.stringify(body.messages);
+    for (const token of ['Remember the old bridge','keeper','garden']) assert.ok(prompt.includes(token));
+    assert.doesNotMatch(prompt,/PRIVATE_/);
+  }
+  assert.deepEqual(bodies[1].tools.map(tool => tool.function.name),['get_rpg_game','edit_rpg_game']);
+});
+
+test('Save As copies completed game turns and a late provider reply stays out of the next project', async () => {
+  const store = new Store();
+  const saved = new Map();
+  let release, notifyStarted;
+  const started = new Promise(resolve => { notifyStarted = resolve; });
+  const blocked = new Promise(resolve => { release = resolve; });
+  const calls = [];
+  globalThis.window = {sf:{
+    ai:{abort(){},async chat({body}) {
+      calls.push(body);
+      if (body.messages.at(-1).content.endsWith('pending turn')) {
+        notifyStarted(); await blocked;
+        return call('edit_rpg_game',{actions:edits});
+      }
+      return end;
+    }},
+    history:{read:(key,scope) => saved.get(scope + '/' + key) || [], write:(rows,key,scope) => saved.set(scope + '/' + key,rows)},
+  }};
+  const app = createAI({root:null,scope:'rpg',store,ui:{escapeHTML:String,settings:{ai:{model:'lead',baseUrl:'http://localhost/v1'}}}});
+  assert.equal((await app.send('first project')).error,null);
+  const pending = app.send('pending turn');
+  await started;
+  store.markSaved('first.sfproj');
+  await app.projectPathChanged();
+  assert.deepEqual(saved.get('rpg/first.sfproj').map(m=>m.content),['first project','Updated']);
+  const original = store.snapshot();
+  store.setProject(original,{filePath:'second.sfproj'});
+  try {
+    assert.equal((await app.send('second project')).error,null);
+    assert.doesNotMatch(JSON.stringify(calls.at(-1).messages),/first project|pending turn/);
+  } finally { release(); await pending; }
+  assert.deepEqual(store.project,original);
+  assert.deepEqual(saved.get('rpg/second.sfproj').map(m=>m.content),['second project','Updated']);
+});
 
 test('game chat gets its selection, edits a map and canonical event code, can play and undo the complete turn',async () => {
   const {store,app,game} = fixture((n,last,body) => {

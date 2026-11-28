@@ -540,9 +540,16 @@ const ui = {
     });
     $('inspectorBody').classList.toggle('hidden', name !== 'inspector');
     $('voiceBody').classList.toggle('hidden', name !== 'voice');
-    if ($('aiBody').parentElement === $('rightPanel')) $('aiBody').classList.toggle('hidden', name !== 'ai');
-    if (name === 'ai' && !$('aiBody').firstElementChild) ui.ai?.render();
+    ui.syncChatPane(ui.workbench?.current());
     if (name === 'voice') ui.voice?.render();
+  },
+  syncChatPane(view) {
+    const showAI = $('rightTabs').querySelector('.active')?.dataset.tab === 'ai';
+    const game = view === 'rpg';
+    const storyChat = $('aiBody'), gameChat = $('rpgAiBody');
+    if (storyChat.parentElement === $('rightPanel')) storyChat.classList.toggle('hidden', !showAI || game);
+    gameChat.classList.toggle('hidden', !showAI || !game);
+    if (showAI && !(game ? gameChat : storyChat).firstElementChild) (game ? ui.rpgAi : ui.ai)?.render();
   },
   attachImages(nodeId, files) {
     return attachImagesToNode(nodeId, files);
@@ -575,6 +582,10 @@ const ui = {
       return write;
     }
     state.settings = { ...state.settings, ...patch };
+    if (patch.ai) {
+      ui.ai?.render();
+      ui.rpgAi?.render();
+    }
     return window.sf.settings.set(patch);
   },
   saveProject,
@@ -703,7 +714,11 @@ async function writeCurrentProject(saveAs, mode) {
   if (generation !== store.generation) return false;
   store.markSaved(res.path, revision);
   store.documentKey = res.path;
-  if (recoveryKey !== res.path) ui.workbench?.persist();
+  if (recoveryKey !== res.path) {
+    ui.workbench?.persist();
+    await Promise.all([ui.ai?.projectPathChanged(), ui.rpgAi?.projectPathChanged()]);
+    if (generation !== store.generation) return false;
+  }
   window.sf.app.setDirty(store.dirty);
   if (store.dirty) {
     scheduleAutosave();
@@ -831,6 +846,7 @@ function changeInterfaceLanguage(language) {
   ui.inspector?.render();
   ui.voice?.render();
   ui.ai?.render();
+  ui.rpgAi?.render();
   ui.studio?.render();
   ui.visualizer?.render();
   ui.updateShellLanguage?.();
@@ -964,7 +980,7 @@ function openSettings(initialSection = 'appearance') {
   });
   body.querySelector('#setAiBtn').addEventListener('click', () => {
     dialog.close();
-    ui.ai?.openSettings();
+    (ui.workbench?.current() === 'rpg' ? ui.rpgAi : ui.ai)?.openSettings();
   });
 
   const dialog = modal({
@@ -1038,7 +1054,7 @@ async function requestWindowClose() {
       flushEdits();
       if (generation !== store.generation || revision !== store.revision) return;
     }
-    await ui.ai?.flushDraft?.();
+    await Promise.all([ui.ai?.flushDraft?.(), ui.rpgAi?.flushDraft?.()]);
     await window.sf.app.quit();
   } catch (error) {
     toast(String(error.message || error), 'bad', 6000);
@@ -1426,6 +1442,7 @@ async function boot() {
   }
   try {
     ui.ai = createAI({ root: $('aiBody'), store, ui });
+    ui.rpgAi = createAI({ root: $('rpgAiBody'), store, ui, scope: 'rpg' });
   } catch (err) {
     console.error('ai init failed', err);
     toast(`AI-${uiText("ассистент не инициализирован", "assistant is not ready")}: ${err.message}`, 'bad', 8000);

@@ -123,7 +123,13 @@ const userDir = () => app.getPath('userData');
 const projectsDir = () => path.resolve(process.env.SF_USERDATA || cliProfile || persistentProfile, 'Projects');
 const settingsPath = () => path.join(userDir(), 'settings.json');
 
-const historyPath = key => key ? scopedFile(userDir(), 'history', key) : path.join(userDir(), 'ai-history.json');
+function historyPath(key, scope) {
+  if (scope === 'rpg') {
+    if (!key) throw new Error('Missing game project key');
+    return scopedFile(userDir(), 'rpg-history', key);
+  }
+  return key ? scopedFile(userDir(), 'history', key) : path.join(userDir(), 'ai-history.json');
+}
 
 const DEFAULT_SETTINGS = {
   theme: 'dark',
@@ -755,11 +761,15 @@ function registerAutosaveIpc() {
     await recovery.clear(key);
     return {ok:true};
   });
-  ipcMain.handle('sf:history:read', (_e,key) => readJsonSync(historyPath(key), []));
+  ipcMain.handle('sf:history:read', (_e, payload) => {
+    const {key, scope} = payload && typeof payload === 'object' ? payload : {key:payload};
+    return readJsonSync(historyPath(key, scope), []);
+  });
   ipcMain.handle('sf:history:write', async (_e, payload) => {
     const old = Array.isArray(payload);
     try {
-      await atomicWrite(historyPath(old ? null : payload.key), JSON.stringify((old ? payload : payload.messages) || [], null, 2));
+      const file = historyPath(old ? null : payload.key, payload.scope);
+      await atomicWrite(file, JSON.stringify((old ? payload : payload.messages) || [], null, 2));
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
