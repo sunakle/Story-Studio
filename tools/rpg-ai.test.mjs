@@ -5,7 +5,7 @@ import { Store } from '../src/js/model.js';
 import { createRpgExample } from '../src/js/rpg-example.js';
 import { getMapTile, interact, isMapBlocked, move, startGame } from '../src/js/rpg-model.js';
 
-function fixture(respond) {
+function fixture(respond,confirm) {
   const store = new Store();
   const game = createRpgExample();
   assert.equal(store.apply({op:'setRpgGame',game}).ok,true);
@@ -14,13 +14,38 @@ function fixture(respond) {
     const last = body.messages.filter(m => m.role==='tool').at(-1);
     return respond(turns++,last ? JSON.parse(last.content) : null, body, store);
   }},history:{read:() => [],write:() => {}}}};
-  const app = createAI({root:null,store,scope:'rpg',ui:{escapeHTML:String,settings:{ai:{baseUrl:'http://localhost/v1',model:'fixture'}},
+  const app = createAI({root:null,store,scope:'rpg',ui:{escapeHTML:String,confirm,settings:{ai:{baseUrl:'http://localhost/v1',model:'fixture'}},
     workbench:{current:()=>'rpg',navigationRevision:()=>0,flushDesigns:()=>true,
       assistantContext:()=>({surface:'sidebar',view:'rpg',rpgMapId:'garden',rpgEventId:'keeper'})}}});
   return {store,app,game};
 }
 const call = (name,args) => ({ok:true,toolCalls:[{id:crypto.randomUUID(),name,arguments:JSON.stringify(args)}]});
 const end = {ok:true,content:'Updated'};
+
+test('game chat can delete a linked start map, its last room, and create a playable replacement in one undo step', async () => {
+  const confirmations = [];
+  const {store,app,game} = fixture((n,last) => {
+    if (n===0) return call('edit_rpg_game',{actions:[{action:'deleteMap',mapId:'garden'}]});
+    if (n===1) {
+      assert.deepEqual(last.deletedMaps,[{mapId:'garden',removedTransfers:1,newStartMapId:'workshop',addedStartFloor:false}]);
+      return call('edit_rpg_game',{actions:[{action:'deleteMap',mapId:'workshop'}]});
+    }
+    if (n===2) { assert.equal(last.maps,0); return call('get_rpg_game',{view:'maps'}); }
+    if (n===3) {
+      assert.deepEqual(last,{start:null,items:[],total:0,nextOffset:null});
+      return call('edit_rpg_game',{actions:[{action:'addMap',mapId:'fresh',name:'Fresh'}]});
+    }
+    assert.equal(last.ok,true);
+    return end;
+  }, async (_title,options)=>{confirmations.push(options);return true;});
+  assert.equal((await app.send('Замени комнаты новой локацией.')).error,null);
+  assert.equal(confirmations.length,2);
+  assert.match(confirmations[0].detail,/garden/);
+  assert.deepEqual(store.project.rpgGame.maps.map(m=>m.id),['fresh']);
+  assert.equal(startGame(store.project.rpgGame).mapId,'fresh');
+  store.undo();
+  assert.deepEqual(store.project.rpgGame,game);
+});
 
 test('game chat can set walk cadence and create, patch, inspect and undo project HUD panels', async () => {
   const panel = {id:'score',title:'Очки',text:'{очки}',position:'bottom-right'};

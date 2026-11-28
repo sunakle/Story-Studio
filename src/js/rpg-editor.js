@@ -1,6 +1,6 @@
 import { getLanguage, t } from './i18n.js';
 import { icon } from './icons.js';
-import { createMap, createGame, parseEvent, formatEvent, gameSettings, getMapTile, isMapBlocked, setMapCell, validMapCoordinate, getMapBounds, firstWalkableCell, forEachMapCell } from './rpg-model.js';
+import { createMap, createGame, addRpgMap, deleteRpgMap, parseEvent, formatEvent, gameSettings, getMapTile, isMapBlocked, setMapCell, validMapCoordinate, getMapBounds, firstWalkableCell, forEachMapCell } from './rpg-model.js';
 import { drawRpgTile, rpgAtlas, rpgDefaults, rpgTileStyle, tileGroups } from './rpg-assets.js';
 import { createRpgExample } from './rpg-example.js';
 import { openRpgPlayer } from './rpg-player.js';
@@ -30,7 +30,7 @@ export function createRpgEditor(store, ui) {
   let stroke, draft, fieldDraft, template = 'npc';
   const game = () => store.project.rpgGame || empty;
   const activeMap = (g = game()) => g.maps.find(m=>m.id === mapId) || g.maps[0];
-  const activeEvent = (m = activeMap()) => m.events.find(e=>e.id === eventId);
+  const activeEvent = (m = activeMap()) => m?.events.find(e=>e.id === eventId);
 
   function storageKey() {
     const location = store.filePath?.replaceAll('\\','/').toLowerCase() || store.documentKey;
@@ -38,7 +38,7 @@ export function createRpgEditor(store, ui) {
   }
   function persistView() {
     clearTimeout(viewSaveTimer);
-    if (!viewStorageKey || !mapId) return;
+    if (!viewStorageKey) return;
     // Save As keeps the same generation. A project switch must finish writing
     // the old view under its own key before the next project's view is read.
     const key = generation === store.generation ? storageKey() : viewStorageKey;
@@ -136,7 +136,9 @@ export function createRpgEditor(store, ui) {
       '</div></section>';
   }
   function mapsPanel(g,m) {
+    const deleteLabel = esc(t('Удалить локацию «'+m.name+'»','Delete map “'+m.name+'”'));
     return '<aside class="rpg-side"><div class="rpg-side-head"><strong>'+t('Локации','Maps')+'</strong>'+
+      (!mapForm ? '<button type="button" data-cmd="delete-map" aria-label="'+deleteLabel+'" title="'+deleteLabel+'">'+icon('trash',14)+'</button>':'')+
       '<button type="button" data-cmd="add-map" title="'+t('Новая локация','New map')+'" aria-label="'+t('Новая локация','New map')+'">+</button></div>'+
       '<div class="rpg-maps">'+g.maps.map(a=>'<button type="button" data-map-id="'+esc(a.id)+'" aria-current="'+(a.id===m.id)+'">'+
         icon('layers',14)+'<span>'+esc(a.name)+'</span></button>').join('')+'</div>'+palette()+
@@ -149,7 +151,7 @@ export function createRpgEditor(store, ui) {
     return '<form class="rpg-map-form" data-map-form><strong>'+title+'</strong>'+
       '<label>'+t('Название','Name')+'<input data-map-name maxlength="100" required value="'+esc(creating?t('Локация ','Map ')+(game().maps.length+1):m.name)+'"></label>'+
       '<div class="rpg-form-actions"><button type="submit" class="rpg-primary">'+(creating?t('Создать','Create'):t('Сохранить','Save'))+'</button>'+
-      button('cancel-map',t('Отмена','Cancel'))+(!creating && game().maps.length>1 ? button('delete-map',t('Удалить','Delete'),'','rpg-danger'):'')+'</div></form>';
+      button('cancel-map',t('Отмена','Cancel'))+(!creating ? button('delete-map',t('Удалить','Delete'),'','rpg-danger'):'')+'</div></form>';
   }
   function eventPanel(m,e) {
     if((draft || fieldDraft) && !e) return '<section class="rpg-event"><div class="rpg-event-head">'+
@@ -176,9 +178,27 @@ export function createRpgEditor(store, ui) {
     const scrollTop = root.querySelector('.rpg-swatches')?.scrollTop || 0;
     const blockScroll = root.querySelector('.rpg-blocks')?.scrollTop || 0;
     const g = game(), m = activeMap(g);
-    mapId = m.id;
+    const displayedId = m?.id ?? null;
+    if (mapId !== displayedId) {
+      mapId=displayedId;eventId=null;mapForm='';
+      saveViewSoon();
+    }
     const e = activeEvent(m);
     if (!e) eventId=null;
+    const header = '<header class="rpg-header"><div class="rpg-map-title">'+icon('layers',17)+'<strong>'+esc(m ? m.name : t('Игровой движок','Game engine'))+'</strong>'+
+      '</div>'+(m ? button('map-settings',icon('settings',15),'','rpg-icon'):'')+
+      '<span class="rpg-spacer"></span>'+(!store.project.rpgGame ? button('example',t('Пример с дверью','Door example')):'')+
+      button('game-settings',t('Параметры игры','Game settings'))+
+      button('ai',t('Игровой ассистент','Game assistant'),'wand')+
+      (m ? button('play',t('Играть','Play'),'play','rpg-primary'):'')+'</header>';
+    const statusBar = '<div role="status" class="rpg-status" '+(!status?'hidden':'')+'>'+esc(status)+'</div>';
+    if (!m) {
+      if (mapForm==='edit') mapForm='';
+      root.innerHTML = header+'<main class="rpg-empty">'+
+        button('add-map',t('Создать локацию','Create map'),'plus','rpg-primary')+
+        '</main>'+eventPanel(null,null)+mapDialog(null)+statusBar;
+      return;
+    }
     const modeLabels = {
       pan:t('Потяните холст','Drag the canvas'),
       erase:t('Стирайте тайлы кистью','Brush to erase terrain'),
@@ -187,13 +207,7 @@ export function createRpgEditor(store, ui) {
       event:t('Нажмите на клетку, чтобы открыть или создать событие','Click a cell to open or create an event'),
       start:t('Выберите стартовую клетку игрока','Choose the player’s starting cell'),
     };
-    root.innerHTML = '<header class="rpg-header"><div class="rpg-map-title">'+icon('layers',17)+'<strong>'+esc(m.name)+'</strong>'+
-      '</div>'+button('map-settings',icon('settings',15),'','rpg-icon')+
-      '<span class="rpg-spacer"></span>'+(!store.project.rpgGame ? button('example',t('Пример с дверью','Door example')):'')+
-      button('game-settings',t('Параметры игры','Game settings'))+
-      button('ai',t('Игровой ассистент','Game assistant'),'wand')+
-      button('play',t('Играть','Play'),'play','rpg-primary')+'</header>'+
-      '<div class="rpg-workspace">'+mapsPanel(g,m)+'<main class="rpg-main"><div class="rpg-tools">'+
+    root.innerHTML = header+'<div class="rpg-workspace">'+mapsPanel(g,m)+'<main class="rpg-main"><div class="rpg-tools">'+
       tools.map(([id,ic,ru,en])=>'<button type="button" data-mode="'+id+'" title="'+t(ru,en)+'" aria-pressed="'+(mode===id)+'">'+icon(ic,14)+'<span>'+t(ru,en)+'</span></button>').join('')+
       (mode==='event' ? '<select data-template title="'+t('Новое событие','New event')+'" aria-label="'+t('Тип нового события','New event type')+'">'+
         '<option value="npc" '+(template==='npc'?'selected':'')+'>'+t('Персонаж','Character')+'</option>'+
@@ -204,7 +218,7 @@ export function createRpgEditor(store, ui) {
       '<select data-zoom aria-label="'+t('Масштаб','Zoom')+'">'+zoomSteps.map(z=>'<option value="'+z+'">'+Math.round(100*z)+'%</option>').join('')+'</select></div>'+
       '<div class="rpg-scroll" data-map="'+esc(m.id)+'"><canvas tabindex="0" data-rpg-canvas aria-label="'+t('Карта локации','Map canvas')+'"></canvas><i class="rpg-brush" aria-hidden="true" hidden></i></div>'+
       eventPanel(m,e)+'<footer><span>'+modeLabels[mode]+'</span><span class="rpg-navigation-hint">'+t('Пробел + перетаскивание · Колесо — масштаб','Space + drag to pan · Wheel to zoom')+'</span><output data-cursor>—</output></footer></main></div>'+mapDialog(m)+
-      '<div role="status" class="rpg-status" '+(!status?'hidden':'')+'>'+esc(status)+'</div>';
+      statusBar;
     const gear=root.querySelector('[data-cmd="map-settings"]');gear.title=gear.ariaLabel=t('Настройки локации','Map settings');
     const del=root.querySelector('[data-cmd="delete-event"]'),close=root.querySelector('[data-cmd="close-event"]');
     if(del)del.title=del.ariaLabel=t('Удалить событие','Delete event');
@@ -513,14 +527,15 @@ export function createRpgEditor(store, ui) {
     const creating=mapForm==='create';
     const id=creating?newId('map'):mapId;
     if(update(t('Настроить локацию','Edit map'),(g,m)=>{
-      if(creating)g.maps.push(createMap(id,name));
+      if(creating)addRpgMap(g,createMap(id,name));
       else m.name=name;
     },false)){mapId=id;eventId=null;mapForm='';render();saveViewSoon();}
   });
   async function act(action) {
     if(action==='discard-code'){ draft=null;fieldDraft=null;message(''); render();return; }
     if(action==='apply-code'){if(flush()){message(t('Код применён','Code applied'));render();}return;}
-    if(!flush())return;
+    const flushed=flush();
+    if(!flushed && action!=='delete-map')return;
     const original=game(), currentMap=activeMap(), currentEvent=activeEvent();
     switch(action){
       case 'ai':
@@ -564,17 +579,43 @@ export function createRpgEditor(store, ui) {
       case 'add-map':mapForm='create';break;
       case 'map-settings':mapForm='edit';break;
       case 'cancel-map':mapForm='';break;
-      case 'delete-map':
+      case 'delete-map': {
+        if (!currentMap) return;
+        const beforeGeneration=store.generation;
+        const next=structuredClone(original);
+        const {removedTransfers,newStartMapId,addedStartFloor}=deleteRpgMap(next,currentMap.id);
+        const details=[];
+        if (!next.maps.length) details.push(t('В проекте не останется локаций.','The project will have no maps.'));
+        else if (original.start.mapId===currentMap.id) {
+          const name=next.maps.find(room=>room.id===newStartMapId).name;
+          details.push(t('Старт игрока перейдёт в «'+name+'».','The player will start in “'+name+'”.'));
+        }
+        if (addedStartFloor) details.push(t('Для старта будет добавлена одна клетка пола.','One floor tile will be added for the spawn.'));
+        if (removedTransfers) details.push(t('Входящих переходов будет удалено: ','Incoming transfers to remove: ')+removedTransfers+'.');
+        if (!flushed) details.push(t('Неприменённый черновик события будет сброшен.','The unapplied event draft will be discarded.'));
+        const label=t('Удалить локацию «'+currentMap.name+'»?','Delete map “'+currentMap.name+'”?');
+        if (!await ui.confirm(label,{detail:details.join(' '),danger:true})) return;
+        if (beforeGeneration!==store.generation || !host) return;
+        if (game()!==original || mapId!==currentMap.id) {
+          message(t('Игра изменилась. Выберите локацию и повторите удаление.','The game changed. Select the map and try deleting it again.'));
+          return;
+        }
+        const index=original.maps.indexOf(currentMap);
+        if (commit(next,t('Удалить локацию','Delete map'),false)) {
+          mapId=next.maps[Math.min(index,next.maps.length-1)]?.id ?? null;
+          mapForm='';eventId=null;draft=null;fieldDraft=null;stroke=null;
+          cameras.delete(currentMap.id);
+          render();saveViewSoon();
+          root.querySelector('.rpg-maps [aria-current="true"], .rpg-empty [data-cmd="add-map"]')?.focus({preventScroll:true});
+        }
+        return;
+      }
       case 'delete-event':{
-        const removeMap=action==='delete-map';
-        const label=removeMap?t('Удалить локацию?','Delete map?'):t('Удалить событие?','Delete event?');
-        if(!await ui.confirm(label,{detail:removeMap?currentMap.name:currentEvent.name,danger:true}) || game()!==original)return;
-        if(update(label,(g,m)=>{
-          if(removeMap){
-            if(g.start.mapId===m.id)throw Error(t('Сначала перенесите старт в другую локацию.','Move the player spawn to another map first.'));
-            g.maps=g.maps.filter(n=>n.id!==m.id);
-          } else m.events=m.events.filter(n=>n.id!==currentEvent.id);
-        },false)){mapForm='';eventId=null;render();saveViewSoon();}
+        const label=t('Удалить событие?','Delete event?');
+        if(!await ui.confirm(label,{detail:currentEvent.name,danger:true}) || game()!==original)return;
+        if(update(label,(_,m)=>{m.events=m.events.filter(n=>n.id!==currentEvent.id);},false)){
+          mapForm='';eventId=null;render();saveViewSoon();
+        }
         return;
       }
       default:return;
@@ -608,7 +649,7 @@ export function createRpgEditor(store, ui) {
     if(writing || !host)return;
     if(generation!==store.generation || !empty){
       persistView();
-      empty=createGame();generation=store.generation;mapId=game().start.mapId;eventId=null;
+      empty=createGame();generation=store.generation;mapId=game().start?.mapId ?? null;eventId=null;
       restoreView();
       stroke=null;draft=null;fieldDraft=null;mapForm='';mode='paint';codeTab=false;status='';
     } else if(knownGame===store.project.rpgGame && language===getLanguage()) return;

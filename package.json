@@ -1,7 +1,7 @@
 {
   "name": "storyforge",
   "productName": "StoryForge",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "StoryForge — редактор сценария для игр: ветвящиеся диалоги, персонажи, локации, AI-ассистент, экспорт в Godot",
   "main": "main.js",
   "scripts": {
@@ -17,6 +17,7 @@
     "acceptance": "node tools/acceptance.mjs",
     "mock": "node tools/mock-ai-server.mjs --port=8799",
     "test:rpg": "node tools/test-rpg-workspace.mjs",
+    "test:rpg-delete": "node tools/test-rpg-delete-map.mjs",
     "test:rpg-trials": "node tools/test-rpg-gameplay-trials.mjs",
     "test:rpg-chat": "node tools/test-rpg-assistant.mjs",
     "test:gigma": "node tools/test-gigma-workspace.mjs",

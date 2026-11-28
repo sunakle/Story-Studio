@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Store, createEmptyProject, migrateProject } from '../src/js/model.js';
 import { advance, createGame, createMap, firstWalkableCell, forEachMapCell, formatEvent, getMapBounds, getMapTile, interact, isMapBlocked, move, parseEvent, setMapCell, startGame, validateGame } from '../src/js/rpg-model.js';
 import { rpgAtlas, rpgDefaults } from '../src/js/rpg-assets.js';
-import { gameSettings, hudText } from '../src/js/rpg-model.js';
+import { addRpgMap, deleteRpgMap, gameSettings, hudText } from '../src/js/rpg-model.js';
 
 test('Existing projects keep their cadence, and HUD substitutions are plain scalar text', () => {
   const game = createGame();
@@ -44,6 +44,74 @@ function courtyard() {
   yard.events = [npc, door];
   return {version: 1, maps: [yard, attic], start: {mapId: yard.id, x: 1, y: 1, sprite: rpgDefaults.hero}};
 }
+
+test('deleting a linked map removes only its actual DSL transfers, retaining actors, other targets and source formatting', () => {
+  const game = courtyard();
+  const door = game.maps[0].events[1];
+  const lines = ['if Ключ == true','\t goto attic 0 0','else','  say "goto attic 0 0"','  goto yard 2 2','end'];
+  door.code = lines.join('\r\n');
+  const {removedTransfers,newStartMapId} = deleteRpgMap(game,'attic');
+  assert.equal(removedTransfers,1);
+  assert.equal(newStartMapId,null);
+  assert.deepEqual(game.maps[0].events.map(e=>e.id),['keeper','stairs']);
+  assert.equal(door.code,lines.filter((_,i)=>i!==1).join('\r\n'));
+  assert.equal(startGame(game).mapId,'yard');
+  assert.throws(()=>deleteRpgMap(game,'attic'));
+});
+
+test('deleting the start chooses an existing free cell across maps before considering touch events', () => {
+  const game = courtyard();
+  const attic = game.maps[1];
+  attic.blocked = [0,1,2];
+  attic.events = [{id:'plate',name:'Плита',x:1,y:1,sprite:0,trigger:'touch',code:'goto yard 2 2'}];
+  const island = createMap('island','Остров');
+  setMapCell(island,0,0,{tile:null});
+  setMapCell(island,-7,-3,{tile:2});
+  game.maps.push(island);
+  const changes = deleteRpgMap(game,'yard');
+  assert.equal(changes.addedStartFloor,false);
+  assert.equal(changes.newStartMapId,'island');
+  assert.equal(attic.events[0].code,'');
+  assert.deepEqual(game.start,{mapId:'island',x:-7,y:-3,sprite:rpgDefaults.hero});
+  validateGame(game);
+});
+
+test('if every remaining tile is blocked, deletion creates just one floor and preserves terrain and actors', () => {
+  const game = courtyard();
+  const attic = game.maps[1];
+  attic.blocked = [0,1,2,3];
+  setMapCell(attic,2,0,{blocked:true});
+  const before = structuredClone(attic);
+  assert.equal(deleteRpgMap(game,'yard').addedStartFloor,true);
+  assert.deepEqual(game.start,{mapId:'attic',x:3,y:0,sprite:rpgDefaults.hero});
+  assert.deepEqual(attic,{...before,cells:{...before.cells,'3,0':{tile:rpgDefaults.ground}}});
+  validateGame(game);
+});
+
+test('empty game round-trips, remains undoable, preserves game settings and reuses hero on first new map', () => {
+  const game = createGame();
+  game.walkStepMs = 345;
+  game.start.sprite = 12;
+  game.panels = [{id:'title',title:'Quest',text:'{value}',position:'top-right'}];
+  const store = new Store();
+  assert.equal(store.apply({op:'setRpgGame',game}).ok,true);
+  const empty = structuredClone(game);
+  deleteRpgMap(empty,game.start.mapId);
+  assert.deepEqual([empty.start,empty.maps],[null,[]]);
+  assert.equal(store.apply({op:'setRpgGame',game:empty}).ok,true);
+  const saved = migrateProject(JSON.parse(JSON.stringify(store.project))).project.rpgGame;
+  assert.deepEqual(saved,empty);
+  assert.throws(()=>startGame(saved),/локацию|map/i);
+  assert.throws(()=>validateGame({...saved,start:game.start}));
+  assert.throws(()=>validateGame({...saved,unplacedHeroSprite:-1}));
+  addRpgMap(saved,createMap('replacement','Replacement'));
+  assert.deepEqual(saved.start,{mapId:'replacement',x:0,y:0,sprite:12});
+  assert.deepEqual(gameSettings(saved),gameSettings(game));
+  assert.equal(startGame(saved).mapId,'replacement');
+  assert.equal(Object.hasOwn(saved,'unplacedHeroSprite'),false);
+  store.undo();
+  assert.deepEqual(store.project.rpgGame,game);
+});
 
 test('Event source and nested blocks describe the same typed values', () => {
   const ast = [

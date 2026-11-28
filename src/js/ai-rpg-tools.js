@@ -1,4 +1,4 @@
-import { createGame, createMap, gameSettings, getMapBounds, getMapTile, hudPositions, isMapBlocked, setMapCell, validateGame, validMapCoordinate, walkTiming } from './rpg-model.js';
+import { addRpgMap, createGame, createMap, deleteRpgMap, gameSettings, getMapBounds, getMapTile, hudPositions, isMapBlocked, setMapCell, validateGame, validMapCoordinate, walkTiming } from './rpg-model.js';
 import { rpgAtlas, rpgDefaults, tileGroups } from './rpg-assets.js';
 import { t } from './i18n.js';
 
@@ -92,13 +92,14 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
       }
       return {...rect,rows,blocked};
     });
-  tool('edit_rpg_game', () => 'Edit the prototype in one transaction. Global actions omit mapId: setMovement sets stepMs, panel creates or patches a panelId (new: title and text, position defaults top-left), deletePanel removes it. All other actions require mapId. Uninitialized project starts with map_1. addMap needs a new mapId and name. Paint or erase signed x/y. Rectangles default to one tile. Paint a continuous floor; blank tiles are not walkable. event creates or patches an eventId with block code. start sets the player. Paint walkable ground under all events and transfers.',
+  tool('edit_rpg_game', () => 'Edit the prototype in one transaction. Global actions omit mapId: setMovement sets stepMs, panel creates or patches a panelId (new: title and text, position defaults top-left), deletePanel removes it. All other actions require mapId. Uninitialized project starts with map_1. addMap needs a new mapId and name and sets the spawn when it is the first map. deleteMap cleans incoming goto commands, moves the spawn if necessary and may leave zero maps. Paint or erase signed x/y. Rectangles default to one tile. Paint a continuous floor; blank tiles are not walkable. event creates or patches an eventId with block code. start sets the player. Paint walkable ground under all events and transfers.',
     () => object({actions:{type:'array',minItems:1,maxItems:128,items:action}},['actions']), async ({actions}) => {
       if (!Array.isArray(actions) || !actions.length || actions.length > 128) throw Error('Provide 1–128 game edits.');
       const turn = active();
       turn.plan.observe('rpgGame');
       const game = structuredClone(project().rpgGame ?? createGame());
       let destroys = false;
+      const deletedMaps = [];
       for (const a of actions) {
         if (a?.action === 'setMovement') {
           if (!Number.isInteger(a.stepMs)) throw Error('Provide integer stepMs (60–1000).');
@@ -124,12 +125,17 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
         if (a.action === 'addMap') {
           if (game.maps.some(m => m.id === a.mapId)) throw Error('Map ID already exists.');
           if (game.maps.length >= 128) throw Error('Map limit reached');
-          game.maps.push(createMap(a.mapId,a.name,a.width,a.height,a.tile)); continue;
+          addRpgMap(game,createMap(a.mapId,a.name,a.width,a.height,a.tile)); continue;
         }
         const map = findMap(game,a.mapId);
         switch (a.action) {
           case 'renameMap': map.name = a.name; break;
-          case 'deleteMap': game.maps.splice(game.maps.indexOf(map),1); destroys = true; break;
+          case 'deleteMap': {
+            const changes = deleteRpgMap(game,map.id);
+            deletedMaps.push({mapId:map.id,...changes});
+            destroys = true;
+            break;
+          }
           case 'start':
             game.start = {mapId:map.id,x:a.x,y:a.y,sprite:a.sprite ?? game.start.sprite};
             placeFloor(map,game.start);
@@ -163,10 +169,18 @@ export function registerRpgTools({tool,project,active,stage,ui}) {
         }
       }
       validateGame(game);
-      if (destroys && !turn.settings.allowDelete && !await ui.confirm(t('Удалить выбранные элементы игры?', 'Delete the selected game items?'),{danger:true})) throw Error(t('Удаление отменено.','Deletion cancelled.'));
+      if (destroys && !turn.settings.allowDelete) {
+        const detail = deletedMaps.length ? [
+          t('Локации','Maps')+' · '+deletedMaps.map(item=>item.mapId).join(', '),
+          t('Удаляемые команды перехода','Removed transfer commands')+' · '+deletedMaps.reduce((n,item)=>n+item.removedTransfers,0),
+          t('Старт героя','Player spawn')+' · '+(game.start?.mapId ?? '—'),
+        ].join('\n') : '';
+        if (!await ui.confirm(t('Удалить выбранные элементы игры?', 'Delete the selected game items?'),{danger:true,detail}))
+          throw Error(t('Удаление отменено.','Deletion cancelled.'));
+      }
       if (turn !== active()) throw Error('Game edit interrupted.');
       const result = stage([{op:'setRpgGame',game}]);
       if (!result.ok) throw Error(result.error);
-      return {ok:true,count:actions.length,maps:game.maps.length};
+      return {ok:true,count:actions.length,maps:game.maps.length,...(deletedMaps.length && {deletedMaps})};
     });
 }

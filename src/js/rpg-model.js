@@ -11,6 +11,7 @@ const cellKey = (x, y) => x + ',' + y;
 export const validMapCoordinate = n => integer(n, -1_000_000_000, 1_000_000_000);
 const maxDepth = 24;
 const maxLines = 512;
+const gotoInstruction = /^goto\s+(\S+)\s+(-?\d+)\s+(-?\d+)$/u;
 
 function fail(ru, en) { throw new Error(t(ru, en)); }
 
@@ -178,7 +179,7 @@ export function parseEvent(source) {
     } else if (text === 'end') {
       if (!stack.length) scriptError(line, 'Лишний end.', 'Unexpected end.');
       body = stack.pop().parent;
-    } else if ((match = /^goto\s+(\S+)\s+(-?\d+)\s+(-?\d+)$/u.exec(text))) {
+    } else if ((match = gotoInstruction.exec(text))) {
       const [, mapId, rawX, rawY] = match;
       const x = Number(rawX), y = Number(rawY);
       if (!validId(mapId) || !validMapCoordinate(x) || !validMapCoordinate(y)) scriptError(line, 'Проверьте идентификатор локации и координаты перехода.', 'Invalid destination map or coordinates.');
@@ -225,14 +226,76 @@ export function createGame() {
   return {version:1, maps:[map], start:{mapId:map.id, x:Math.floor(map.width / 2), y:Math.floor(map.height / 2), sprite:rpgDefaults.hero}};
 }
 
+export function addRpgMap(game, map) {
+  game.maps.push(map);
+  if (game.maps.length === 1) {
+    game.start = {mapId:map.id, x:0, y:0, sprite:game.unplacedHeroSprite ?? rpgDefaults.hero};
+    delete game.unplacedHeroSprite;
+  }
+}
+
+// Mutate the editor/AI transaction's working copy. Preserve the other events,
+// including doors with dialogue, as well as the formatting of their scripts.
+export function deleteRpgMap(game, mapId) {
+  const index = game.maps.findIndex(map => map.id === mapId);
+  if (index < 0) fail('Локация уже удалена.', 'The map no longer exists.');
+  game.maps.splice(index,1);
+  const changes = {removedTransfers:0, newStartMapId:null, addedStartFloor:false};
+  for (const map of game.maps) {
+    for (const event of map.events) {
+      if (!event.code.includes(mapId)) continue;
+      const lines = event.code.split(/(\r\n|\r|\n)/);
+      for (let i=0; i<lines.length; i+=2) {
+        if (gotoInstruction.exec(lines[i].trim())?.[1] === mapId) {
+          lines[i] = '';
+          if (i+1 < lines.length) lines[i+1] = '';
+          changes.removedTransfers++;
+        }
+      }
+      event.code = lines.join('');
+    }
+  }
+  if (game.start?.mapId !== mapId) return changes;
+  if (!game.maps.length) {
+    game.unplacedHeroSprite = game.start.sprite;
+    game.start = null;
+    return changes;
+  }
+  for (const avoidTouch of [true,false]) {
+    for (const map of game.maps) {
+      const cell = firstWalkableCell(map,avoidTouch);
+      if (cell) {
+        Object.assign(game.start,{mapId:map.id,...cell});
+        changes.newStartMapId = map.id;
+        return changes;
+      }
+    }
+  }
+  // All painted cells in every room are occupied or blocked. Use a blank
+  // cell without moving actors, clearing a wall, or replacing terrain.
+  const map = game.maps[0];
+  let x = 0;
+  while (getMapTile(map,x,0) !== null || isMapBlocked(map,x,0)) x++;
+  setMapCell(map,x,0,{tile:rpgDefaults.ground});
+  Object.assign(game.start,{mapId:map.id,x,y:0});
+  changes.newStartMapId = map.id;
+  changes.addedStartFloor = true;
+  return changes;
+}
+
 function passable(map, x, y) {
   return getMapTile(map, x, y) !== null && !isMapBlocked(map, x, y)
     && !map.events.some(e => e.x === x && e.y === y && e.trigger === 'action');
 }
 
 export function validateGame(game) {
-  if (game?.version !== 1 || !Array.isArray(game.maps) || !integer(game.maps.length, 1, 128)) fail('Игра должна содержать от 1 до 128 локаций версии 1.', 'A version 1 game must contain 1–128 maps.');
+  if (game?.version !== 1 || !Array.isArray(game.maps) || game.maps.length > 128) fail('В игре версии 1 может быть до 128 локаций.', 'A version 1 game supports up to 128 maps.');
   validateSettings(game);
+  if (!game.maps.length) {
+    if (game.start !== null || (game.unplacedHeroSprite !== undefined && !tileId(game.unplacedHeroSprite)))
+      fail('Проверьте старт героя в игре без локаций.', 'Invalid player spawn in an empty game.');
+    return game;
+  }
   const maps = new Map(), destinations = [];
   let cellCount = 0, eventCount = 0, codeSize = 0;
   const named = name => typeof name === 'string' && name.trim().length > 0 && name.length <= 160;
@@ -300,6 +363,7 @@ export function validateGame(game) {
 
 export function startGame(game) {
   validateGame(game);
+  if (!game.maps.length) fail('Создайте локацию перед запуском игры.', 'Create a map before playing.');
   return {...game.start, facing:{dx:0,dy:1}, vars:Object.create(null), dialogue:null, pending:[]};
 }
 
